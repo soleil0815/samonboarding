@@ -1,0 +1,12 @@
+{
+  "name": "samonboarding-assets",
+  "private": true,
+  "description": "Only for the Docker build: Tailwind CSS, fonts and icons (packed into the image, nothing is loaded at runtime)",
+  "license": "AGPL-3.0-or-later",
+  "dependencies": {
+    "@fontsource/jetbrains-mono": "5.3.0",
+    "@fontsource/manrope": "5.3.0",
+    "@fortawesome/fontawesome-free": "6.4.0",
+    "tailwindcss": "3.4.17"
+  }
+}

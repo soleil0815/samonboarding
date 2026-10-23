@@ -1,0 +1,22 @@
+[project]
+name = "samonboarding"
+description = "AD onboarding, offboarding and account management (FastAPI + ldap3)"
+requires-python = ">=3.10"
+license = {text = "AGPL-3.0-or-later"}
+
+[tool.ruff]
+line-length = 120
+target-version = "py310"
+extend-exclude = ["tests/scenarios", "static"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "W"]
+
+[tool.ruff.lint.per-file-ignores]
+# HTML templates in strings have long lines
+"samonboarding/mailer.py" = ["E501"]
+"samonboarding/routers/ui.py" = ["E501"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["tests"]

@@ -1,0 +1,4 @@
+# Base images for the build. Fixed patch versions; "sh update.sh --lock" adds the exact digest (sha256),
+# so that a newly published image with the same tag changes nothing.
+PYTHON_IMAGE=python:3.11.13-slim-bookworm
+NODE_IMAGE=node:22.17.0-bookworm-slim

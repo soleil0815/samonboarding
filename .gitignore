@@ -1,0 +1,14 @@
+data/
+__pycache__/
+*.pyc
+.ruff_cache/
+.pytest_cache/
+static/
+.env
+docker-compose.override.yml
+backups/
+.paketpruefung-abgelehnt
+requirements.txt.vorher
+*.zip
+.dateiliste
+.update-*/

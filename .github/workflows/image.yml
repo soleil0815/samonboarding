@@ -1,0 +1,85 @@
+# The only workflow: checks the code (ruff, tests) and builds the ready-made Docker image on every push to main and publishes it as
+# ghcr.io/<owner>/samonboarding:latest and :<version> (version from samonboarding/config.py).
+# Used by docker-compose.image.yml (e.g. in Dockhand). The image is only published if the tests pass
+# with exactly the Python packages that go into the image.
+name: Image
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+
+concurrency:
+  group: image
+  cancel-in-progress: false
+
+jobs:
+  image:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11.13"  # same version as in the Docker image
+
+      # requirements.txt in the repository is not maintained by hand - pin the newest versions allowed by
+      # requirements.in (like "update.sh --lock" does on a server) and check them with the test suite
+      - name: Pin Python packages and test them
+        run: |
+          python -m venv /tmp/neu
+          /tmp/neu/bin/pip install --quiet --disable-pip-version-check -r requirements.in
+          /tmp/neu/bin/pip check
+          {
+            echo "# Exact lock list of all Python packages (including dependencies) for reproducible builds."
+            echo "# Generated from requirements.in by GitHub Actions for the published image, checked with the test suite."
+            echo "# requirements.in: $(sha256sum requirements.in | cut -c1-16)"
+            /tmp/neu/bin/pip freeze | LC_ALL=C sort -f
+          } > requirements.txt
+          cat requirements.txt
+          /tmp/neu/bin/pip install --quiet --disable-pip-version-check pytest "ruff==$(sed -n 's/^ruff==//p' requirements-dev.txt)"
+          /tmp/neu/bin/ruff check .
+          /tmp/neu/bin/ruff format --check .
+          /tmp/neu/bin/python -m pytest -q
+          /tmp/neu/bin/python tests/smoke_app.py
+
+      - name: Version and base images
+        id: meta
+        run: |
+          echo "version=$(sed -n 's/^VERSION = "\(.*\)"/\1/p' samonboarding/config.py)" >> "$GITHUB_OUTPUT"
+          echo "python=$(sed -n 's/^PYTHON_IMAGE=//p' images.lock | tail -n1)" >> "$GITHUB_OUTPUT"
+          echo "node=$(sed -n 's/^NODE_IMAGE=//p' images.lock | tail -n1)" >> "$GITHUB_OUTPUT"
+          echo "image=ghcr.io/$(echo '${{ github.repository }}' | tr '[:upper:]' '[:lower:]')" >> "$GITHUB_OUTPUT"
+
+      - uses: docker/setup-qemu-action@v3   # also for ARM devices (e.g. some Synology models)
+      - uses: docker/setup-buildx-action@v3
+
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          platforms: linux/amd64,linux/arm64
+          push: true
+          build-args: |
+            PYTHON_IMAGE=${{ steps.meta.outputs.python }}
+            NODE_IMAGE=${{ steps.meta.outputs.node }}
+          tags: |
+            ${{ steps.meta.outputs.image }}:latest
+            ${{ steps.meta.outputs.image }}:${{ steps.meta.outputs.version }}
+          labels: |
+            org.opencontainers.image.title=SAMONBOARDING
+            org.opencontainers.image.source=https://github.com/${{ github.repository }}
+            org.opencontainers.image.version=${{ steps.meta.outputs.version }}
+            org.opencontainers.image.revision=${{ github.sha }}
+            org.opencontainers.image.licenses=AGPL-3.0-or-later
+          cache-from: type=gha
+          cache-to: type=gha,mode=max

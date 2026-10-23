@@ -1,0 +1,1635 @@
+{
+ "exact": {
+  "(PEM oder DER) und der private Schlüssel. Zwischenzertifikate optional in einer eigenen Datei oder in der Zertifikatsdatei.": "(PEM or DER) and the private key. Intermediate certificates optionally in a separate file or in the certificate file.",
+  "(der PFX-Datei bzw. des Schlüssels, falls vorhanden)": "(of the PFX file or the key, if any)",
+  "(vorher)": "(previous)",
+  ") – würde gelöscht": ") – would be deleted",
+  "). Der Löschauftrag läuft auf dem Server weiter – Ergebnis unter „Berichte“ prüfen.": "). The deletion job continues on the server – check the result under “Reports”.",
+  "+ Neues Template": "+ New template",
+  "-- Keine Ziel-OUs vom Administrator freigegeben --": "-- No target OUs permitted by the administrator --",
+  "-- Land aus AD / Liste wählen --": "-- Choose country from AD / list --",
+  "-- OU der deaktivierten Konten wählen --": "-- Choose the OU of the disabled accounts --",
+  "-- Oder Manager aus AD-Benutzern wählen --": "-- Or choose manager from AD users --",
+  "-- Oder OU aus AD-Liste wählen --": "-- Or choose an OU from the AD list --",
+  "-- Ziel-OU für Deaktivierte wählen --": "-- Choose the target OU for disabled accounts --",
+  ". Blockierte Konten bleiben unberührt. Jedes Konto wird vor dem Löschen erneut geprüft und einzeln abgearbeitet; bei einem Fehler bleibt dieses Konto bestehen, die übrigen laufen weiter.": ". Blocked accounts are not touched. Each account is checked again before deletion and processed individually; if one fails, that account remains and the others continue.",
+  ". Ist keiner aktiviert (z. B. weil in deiner Domäne keine Profile, Basisordner oder Ordnerumleitungen auf Servern liegen), wird nur das AD-Konto gelöscht und es findet kein Dateizugriff statt. Die Simulation und die Passwortbestätigung gelten weiterhin.": ". If none is enabled (e.g. because your domain has no profiles, home folders or folder redirection on servers), only the AD account is deleted and no files are accessed. Simulation and password confirmation still apply.",
+  ". Roamingprofil: nur Ordner mit einer der genannten Endungen, z. B.": ". Roaming profile: only folders with one of the listed suffixes, e.g.",
+  "0 Konten": "0 accounts",
+  "0 ausgewählt": "0 selected",
+  "1 Eintrag gefunden.": "1 entry found.",
+  "1 Eintrag gelöscht.": "1 entry deleted.",
+  "1 Gruppe": "1 group",
+  "1 Konto": "1 account",
+  "1. Rollenkonzept & Berechtigungen": "1. Roles & permissions",
+  "2. Mitarbeiter Onboarding & Templates": "2. Employee onboarding & templates",
+  "3. Offboarding": "3. Offboarding",
+  "4. Passwort zurücksetzen": "4. Reset password",
+  "5. Benutzerverwaltung": "5. User management",
+  "6. SMTP Benachrichtigung": "6. SMTP notification",
+  "7. Konten löschen (Nur Administratoren)": "7. Delete accounts (administrators only)",
+  "<Basispfad>\\<Benutzername>": "<base path>\\<user name>",
+  "<Basispfad>\\<Benutzername>.V2": "<base path>\\<user name>.V2",
+  "AD Gruppen zuweisen (Haken setzen)": "Assign AD groups (tick)",
+  "AD Infrastruktur (Live Sync)": "AD infrastructure (live sync)",
+  "AD-Attribut": "AD attribute",
+  "AD-Fehler:": "AD error:",
+  "AD-Konto löschen": "Delete AD account",
+  "AD-Konto:": "AD account:",
+  "AD-Struktur": "AD structure",
+  "Abbrechen": "Cancel",
+  "Abgelaufen": "Expired",
+  "Abmelden": "Sign out",
+  "Abmeldung": "Sign-out",
+  "Absender-Adresse *": "Sender address *",
+  "Abteilung": "Department",
+  "Account Operator": "Account Operator",
+  "Account Operators:": "Account Operators:",
+  "Achtung: Die Zertifikatsprüfung ist ausgeschaltet.": "Caution: certificate verification is turned off.",
+  "Administrator": "Administrator",
+  "Administratoren": "Administrators",
+  "Administratoren können hier einen SMTP-Server hinterlegen (inkl. TLS-Modus Auto/STARTTLS/SSL). Bei jedem erfolgreichen Onboarding wird automatisch eine Benachrichtigungs-E-Mail mit den generierten Zugangsdaten an die E-Mail-Adresse des Account-Erstellers gesendet. Über den Test-Button lässt sich die Konfiguration jederzeit prüfen.": "Administrators can configure an SMTP server here (incl. TLS mode Auto/STARTTLS/SSL). After every successful onboarding a notification e-mail with the generated credentials is sent to the e-mail address of the account creator. The test button checks the configuration at any time.",
+  "Administrators (Domain Admins):": "Administrators (Domain Admins):",
+  "Aktion": "Action",
+  "Aktion erfolgreich durchgeführt!": "Action completed successfully!",
+  "Aktionen": "Actions",
+  "Aktiv": "Active",
+  "Aktualisieren": "Refresh",
+  "Aktuelle OU": "Current OU",
+  "Aktuelle Passwort-Reset Quell-OUs:": "Current password reset source OUs:",
+  "Aktuelle Quell-OUs (Scan-Bereich):": "Current source OUs (scan area):",
+  "Aktuelle Ziel-OU (Deaktivierte Konten):": "Current target OU (disabled accounts):",
+  "Aktuelles Zertifikat": "Current certificate",
+  "Alle Ergebnisse": "All results",
+  "Alle Meldungen": "All messages",
+  "Alle aufklappen": "Expand all",
+  "Alle sichtbaren auswählen (max. 25)": "Select all visible (max. 25)",
+  "Alle zuklappen": "Collapse all",
+  "Alles, was SAMONBOARDING selbst über ein Konto gespeichert hat, als JSON-Datei. Vor der Herausgabe prüfen.": "Everything SAMONBOARDING itself has stored about an account, as a JSON file. Review it before handing it out.",
+  "Anfrage von einer fremden Seite abgewiesen.": "Request from a foreign site rejected.",
+  "Anmeldeart": "Authentication",
+  "Anmelden": "Sign in",
+  "Anmeldeskript": "Logon script",
+  "Anmeldung": "Sign-in",
+  "Anmeldung abgelehnt. Anmeldeart prüfen (z. B. 'ntlm') und ob das Konto Zugriff auf die Exchange-Verwaltungsshell hat.": "Authentication rejected. Check the authentication method (e.g. 'ntlm') and whether the account has access to the Exchange Management Shell.",
+  "Anmeldung am Dateiserver fehlgeschlagen (Benutzername/Passwort oder Berechtigung).": "Sign-in to the file server failed (user name/password or permission).",
+  "Anmeldung von diesem Rechner nicht erlaubt.": "Sign-in from this computer is not allowed.",
+  "Anmeldung zu dieser Uhrzeit nicht erlaubt.": "Sign-in is not allowed at this time.",
+  "Anmerkungen / Info": "Notes / info",
+  "Anzeigename": "Display name",
+  "Anzeigename *": "Display name *",
+  "Art des Berichts": "Kind of report",
+  "Audit-Log und Wiederherstellungs-Einträge werden nach festen Fristen gelöscht.": "The audit log and restore entries are deleted after fixed periods.",
+  "Auftrag nicht gefunden.": "Job not found.",
+  "Aus dem Namensschema ergibt sich kein gültiger Benutzername.": "The naming scheme does not produce a valid user name.",
+  "Ausführlich, mit Vorlage für das Verzeichnis von Verarbeitungstätigkeiten:": "In detail, with a template for the record of processing activities:",
+  "Ausgestellt für": "Issued to",
+  "Auskunft fehlgeschlagen.": "Subject access report failed.",
+  "Auskunft nach Art. 15 DSGVO": "Subject access (Art. 15 GDPR)",
+  "Aussteller": "Issuer",
+  "Austritt": "Leaving",
+  "Auswahl offboarden (": "Offboard selection (",
+  "Auswahl simulieren (": "Simulate selection (",
+  "Automatisch (negotiate)": "Automatic (negotiate)",
+  "Automatische Erkennung nicht möglich (fehlende Rechte). Bitte selbst entscheiden.": "Automatic detection not possible (missing permissions). Please decide yourself.",
+  "Automatische Löschung": "Automatic deletion",
+  "Automatisches Zufallspasswort": "Automatic random password",
+  "Automatisches starkes Zufallspasswort": "Automatic strong random password",
+  "Azure/Entra-Synchronisation (MSOL_-Konto)": "Azure/Entra synchronisation (MSOL_ account)",
+  "Basisordner": "Home folder",
+  "Basisordner nicht angelegt: Die SID des neuen Kontos konnte nicht gelesen werden.": "Home folder not created: the SID of the new account could not be read.",
+  "Basisordner: Für ein Laufwerk muss der Pfad ein Netzwerkpfad sein (\\\\server\\freigabe\\%username%).": "Home folder: for a drive letter the path must be a network path (\\\\server\\share\\%username%).",
+  "Basisordner: Zum automatischen Anlegen muss der Pfad ein Netzwerkpfad sein (\\\\server\\freigabe\\%username%).": "Home folder: to create it automatically the path must be a network path (\\\\server\\share\\%username%).",
+  "Basispfad": "Base path",
+  "Basispfade (UNC, einer pro Zeile) – nur darunter wird etwas gefunden": "Base paths (UNC, one per line) – only things below them are found",
+  "Bearbeiten": "Edit",
+  "Bei Templates mit der Einstellung „Exchange im eigenen Haus“ wird nach dem Anlegen des Kontos in der Exchange-Verwaltungsshell": "For templates set to “On-premises Exchange”, after the account is created the Exchange Management Shell runs",
+  "Bei den übrigen bleibt das AD-Konto bestehen – Ursachen beheben und neu simulieren.": "For the others the AD account remains – fix the causes and simulate again.",
+  "Benachrichtigung aktiv": "Notification active",
+  "Benachrichtigungen für Ausführende / Administratoren": "Notifications for operators / administrators",
+  "Benutzer": "User",
+  "Benutzer anlegen": "Create user",
+  "Benutzer erfolgreich deaktiviert, aus Gruppen entfernt und in Ziel-OU verschoben!": "User disabled, removed from groups and moved to the target OU!",
+  "Benutzer erfolgreich in die neue OU verschoben!": "User moved to the new OU!",
+  "Benutzer erfolgreich verschoben!": "User moved successfully!",
+  "Benutzer im AD nicht gefunden.": "User not found in AD.",
+  "Benutzer in Passwort-Reset OUs": "Users in password reset OUs",
+  "Benutzer in Quell-OUs": "Users in source OUs",
+  "Benutzer in andere OU verschieben": "Move user to another OU",
+  "Benutzer muss Kennwort bei der nächsten Anmeldung ändern": "User must change password at next logon",
+  "Benutzer muss Passwort beim nächsten Login ändern": "User must change password at next logon",
+  "Benutzer wurde im Active Directory nicht gefunden.": "User not found in Active Directory.",
+  "Benutzer-DN:": "User DN:",
+  "Benutzerkonten aufräumen, in andere OUs verschieben und Gruppenmitgliedschaften anpassen": "Tidy up user accounts, move them to other OUs and adjust group memberships",
+  "Benutzername": "User name",
+  "Benutzername und Passwort sind erforderlich.": "User name and password are required.",
+  "Benutzername {0} in {1}": "User name {0} in {1}",
+  "Benutzername:": "User name:",
+  "Benutzerprinzipal (UPN):": "User principal name (UPN):",
+  "Benutzerverwaltung": "User management",
+  "Benutzerverwaltung: Gruppen-OU": "User management: group OU",
+  "Benutzerverwaltung: Quell-OU": "User management: source OU",
+  "Benutzerverwaltung: Ziel-OU": "User management: target OU",
+  "Benutzerverwaltungs-Konfiguration (Nur Admin)": "User management configuration (admin only)",
+  "Benutzerverwaltungs-Konfiguration erfolgreich gespeichert!": "User management configuration saved!",
+  "Bereit": "Ready",
+  "Bereits deaktiviert": "Already disabled",
+  "Berichte": "Reports",
+  "Berichte gelöscht": "Reports deleted",
+  "Berichte konnten nicht geladen werden.": "Reports could not be loaded.",
+  "Berichte, Protokoll und Wiederherstellungs-Einträge werden nach festen Fristen gelöscht.": "Reports, log and restore entries are deleted after fixed periods.",
+  "Besitz nötig": "Ownership required",
+  "Besitz übernehmen, wenn der Zugriff fehlt (Ordner ohne Administratorzugriff): Der Besitzer wird auf": "Take ownership if access is denied (folders without administrator access): the owner is set to",
+  "Besitzübernahmen:": "Ownership takeovers:",
+  "Bitte Vorname und Nachname ausfüllen.": "Please enter first and last name.",
+  "Bitte das Passwort zur Bestätigung eingeben.": "Please enter your password to confirm.",
+  "Bitte das Zertifikat auswählen.": "Please choose the certificate.",
+  "Bitte den Exchange-Server eintragen.": "Please enter the Exchange server.",
+  "Bitte die OU der deaktivierten Konten angeben.": "Please specify the OU of the disabled accounts.",
+  "Bitte eine PFX/P12-Datei auswählen.": "Please choose a PFX/P12 file.",
+  "Bitte eine PFX/P12-Datei oder ein Zertifikat mit Schlüssel auswählen.": "Please choose a PFX/P12 file or a certificate with key.",
+  "Bitte einen Benutzernamen (sAMAccountName) angeben.": "Please enter a user name (sAMAccountName).",
+  "Bitte einen Benutzernamen angeben.": "Please enter a user name.",
+  "Bitte füllen Sie alle Pflichtfelder (Vorname, Nachname, E-Mail) aus.": "Please fill in all required fields (first name, last name, e-mail).",
+  "Bitte geben Sie ein neues Passwort ein.": "Please enter a new password.",
+  "Bitte mindestens ein Konto auswählen.": "Please select at least one account.",
+  "Bitte mindestens einen Namen für das Template angeben.": "Please enter at least a name for the template.",
+  "Bitte wählen Sie eine gültige Ziel-OU aus.": "Please choose a valid target OU.",
+  "Bitte ändern Sie Ihr Passwort bei der nächsten Anmeldung an einem Unternehmenscomputer oder Dienst.": "Please change your password the next time you sign in to a company computer or service.",
+  "Blockiert": "Blocked",
+  "Bundesland": "State/province",
+  "Büro": "Office",
+  "Das AD-Konto": "The AD account",
+  "Das AD-Konto wurde gelöscht (keine Ordner).": "The AD account was deleted (no folders).",
+  "Das Konto hat sich seit der Simulation geändert.": "The account has changed since the simulation.",
+  "Das Konto ist abgelaufen.": "The account has expired.",
+  "Das Konto ist bereits wieder aktiv.": "The account is already enabled again.",
+  "Das Konto ist deaktiviert.": "The account is disabled.",
+  "Das Konto ist gesperrt.": "The account is locked.",
+  "Das Konto ist nicht deaktiviert - bitte zuerst das Offboarding durchführen.": "The account is not disabled - please offboard it first.",
+  "Das Konto liegt nicht in einer für diese Funktion freigegebenen Quell-OU.": "The account is not in a source OU permitted for this function.",
+  "Das Konto liegt nicht mehr in der OU der offgeboardeten Konten. Nur Administratoren können es von dort wiederherstellen.": "The account is no longer in the OU of offboarded accounts. Only administrators can restore it from there.",
+  "Das Konto war schon vor dem Offboarding deaktiviert und bleibt deaktiviert.": "The account was already disabled before offboarding and stays disabled.",
+  "Das Konto wird nicht aktiviert.": "The account will not be enabled.",
+  "Das Konto wird wieder aktiviert. Das bisherige Passwort gilt weiter.": "The account will be enabled again. The previous password remains valid.",
+  "Das Konto wurde im AD nicht gefunden (gelöscht?). Es kann nicht wiederhergestellt werden.": "The account was not found in AD (deleted?). It cannot be restored.",
+  "Das Laufwerk des Basisordners im Template ist ungültig und wurde nicht gesetzt.": "The home folder drive in the template is invalid and was not set.",
+  "Das Offboarding ermöglicht die geordnete Deaktivierung von Mitarbeitern. Konten aus den definierten Quell-OUs werden mit einem Klick deaktiviert (`userAccountControl` Flag), aus allen Sicherheitsgruppen entfernt und in eine konfigurierte Ziel-OU für inaktive Konten verschoben. Ein versehentliches Offboarding des eigenen Administratorenkontos wird softwareseitig blockiert. Vor jedem Offboarding merkt sich das Programm OU, Gruppen und Kontostatus. Unter „Offgeboardete Konten wiederherstellen“ lässt sich ein versehentliches Offboarding mit Vorschau rückgängig machen.": "Offboarding disables employees in an orderly way. Accounts from the defined source OUs are disabled with one click (`userAccountControl` flag), removed from all security groups and moved to a configured target OU for inactive accounts. Accidentally offboarding your own administrator account is blocked by the software. Before every offboarding the program records OU, groups and account state. Under “Restore offboarded accounts” an accidental offboarding can be undone with a preview.",
+  "Das Paket 'smbprotocol' ist nicht installiert (Image neu bauen).": "The package 'smbprotocol' is not installed (rebuild the image).",
+  "Das Passwort ist abgelaufen. Bitte zuerst am Windows-Rechner ändern.": "The password has expired. Please change it on a Windows computer first.",
+  "Das Passwort ist falsch.": "The password is wrong.",
+  "Das Passwort ist zu kurz oder ungültig.": "The password is too short or invalid.",
+  "Das Passwort muss geändert werden. Bitte zuerst am Windows-Rechner ändern.": "The password must be changed. Please change it on a Windows computer first.",
+  "Das Python-Paket pypsrp ist nicht installiert. Docker-Image mit der aktuellen requirements.txt neu bauen.": "The Python package pypsrp is not installed. Rebuild the Docker image with the current requirements.txt.",
+  "Das Template hat keine Ziel-OU.": "The template has no target OU.",
+  "Das Template verwendet ein festes Passwort, aber es ist keines hinterlegt.": "The template uses a fixed password, but none is stored.",
+  "Das Zertifikat enthält keine alternativen Namen (SAN) - aktuelle Browser zeigen dann eine Warnung.": "The certificate contains no subject alternative names (SAN) - current browsers will show a warning.",
+  "Das Zertifikat ist ab sofort aktiv. Seite neu laden, damit der Browser es verwendet.": "The certificate is active now. Reload the page so the browser uses it.",
+  "Das aktuelle Zertifikat ist nicht lesbar.": "The current certificate cannot be read.",
+  "Das bisherige Zertifikat wird als": "The previous certificate is kept as",
+  "Datei oder Ordner ist in Benutzung (gesperrt).": "File or folder is in use (locked).",
+  "Dateien gelöscht:": "Files deleted:",
+  "Datenschutz": "Data protection",
+  "Datenschutz-Auskunft erstellt": "Subject access report created",
+  "Deaktiviert": "Disabled",
+  "Deaktivierte Konten samt Profil, Ordnerumleitung und Basisordner – zuerst als Simulation (Nur Administratoren)": "Disabled accounts including profile, folder redirection and home folder – simulated first (administrators only)",
+  "Der Administrator legt fest, in welcher OU deaktivierte Konten liegen und wo Roamingprofile, Ordnerumleitung und Basisordner gespeichert sind. Die Simulation zeigt für ein deaktiviertes Konto, was gefunden würde: das AD-Konto sowie die Ordner mit Dateianzahl und Größe. Danach lässt sich das Löschen durch Eintippen des Benutzernamens bestätigen; zuerst werden die Ordner gelöscht, das AD-Konto erst, wenn alle Ordner entfernt sind. Roamingprofile werden nur mit der konfigurierten Endung (z. B. .V2) gefunden. Der Dateiserver wird mit den Zugangsdaten des angemeldeten Administrators angesprochen; Account Operatoren sehen diese Funktion nicht.": "The administrator defines in which OU disabled accounts live and where roaming profiles, folder redirection and home folders are stored. For a disabled account the simulation shows what would be found: the AD account and the folders with file count and size. Deletion is then confirmed by typing the user name; folders are deleted first, the AD account only once all folders are gone. Roaming profiles are only found with the configured suffix (e.g. .V2). The file server is accessed with the signed-in administrator's credentials; account operators do not see this function.",
+  "Der Domänencontroller darf nur Buchstaben, Ziffern, Punkt und Bindestrich enthalten.": "The domain controller may only contain letters, digits, dots and hyphens.",
+  "Der Fortschritt kann nicht mehr abgefragt werden (": "Progress can no longer be queried (",
+  "Der Ordner hat keine Berechtigungsliste (NULL-DACL) - wird nicht verändert.": "The folder has no permission list (NULL DACL) - it is not changed.",
+  "Der Pfad braucht mindestens Server und Freigabe (\\\\server\\freigabe).": "The path needs at least server and share (\\\\server\\share).",
+  "Der Pfad enthält eine nicht auflösbare Variable (nur %username% wird ersetzt).": "The path contains a variable that cannot be resolved (only %username% is replaced).",
+  "Der Pfad enthält leere Teile (doppelte Trennzeichen).": "The path contains empty parts (double separators).",
+  "Der Pfad ist kein Ordner.": "The path is not a folder.",
+  "Der Pfad zeigt auf die Freigabe selbst, nicht auf einen Ordner darin.": "The path points to the share itself, not to a folder in it.",
+  "Der Plan ist abgelaufen oder ungültig - bitte die Simulation wiederholen.": "The plan has expired or is invalid - please repeat the simulation.",
+  "Der RSA-Schlüssel ist zu kurz (mindestens 2048 Bit).": "The RSA key is too short (at least 2048 bits).",
+  "Der Scan wurde wegen der Größe abgebrochen - die Zahlen sind Mindestwerte.": "The scan was stopped because of the size - the numbers are minimums.",
+  "Der Schlüssel ist mit einem Passwort geschützt - bitte das Passwort angeben.": "The key is password-protected - please enter the password.",
+  "Der Schlüssel ist nicht verschlüsselt - bitte das Passwortfeld leer lassen.": "The key is not encrypted - please leave the password field empty.",
+  "Der Schlüssel lässt sich nicht öffnen - ist das Passwort richtig?": "The key cannot be opened - is the password correct?",
+  "Der Servername darf nur Buchstaben, Ziffern, Punkt und Bindestrich enthalten (kein https://).": "The server name may only contain letters, digits, dots and hyphens (no https://).",
+  "Der Zugriff auf die Freigaben erfolgt mit Ihren eigenen Zugangsdaten – der Dateiserver entscheidet über die Rechte.": "The shares are accessed with your own credentials – the file server decides about permissions.",
+  "Der private Schlüssel fehlt.": "The private key is missing.",
+  "Der private Schlüssel ist nicht lesbar (PEM oder DER erwartet).": "The private key cannot be read (PEM or DER expected).",
+  "Der übergeordnete Ordner oder die Freigabe existiert nicht.": "The parent folder or the share does not exist.",
+  "Details": "Details",
+  "Deutsch": "German",
+  "Deutschland": "Germany",
+  "Die Anfrage braucht eine Längenangabe.": "The request needs a length.",
+  "Die Anfrage ist zu groß.": "The request is too large.",
+  "Die Anmeldeart 'basic' ist nur mit HTTPS erlaubt.": "The authentication 'basic' is only allowed with HTTPS.",
+  "Die Anwendung ist ausschließlich über HTTPS erreichbar. Sitzungen enden bei Abmeldung, nach Inaktivität oder beim Neustart.": "The application is only available over HTTPS. Sessions end on sign-out, after inactivity or on restart.",
+  "Die Berechtigung konnte nicht bestätigt werden.": "The permission could not be confirmed.",
+  "Die Berechtigungen konnten nicht geprüft werden. Details stehen im Protokoll.": "The permissions could not be checked. Details are in the log.",
+  "Die Berechtigungsliste würde zu groß.": "The permission list would become too large.",
+  "Die Bestätigung stimmt nicht mit dem Benutzernamen überein.": "The confirmation does not match the user name.",
+  "Die Datei ist zu groß (höchstens 1 MB).": "The file is too large (max. 1 MB).",
+  "Die Datei konnte nicht gelesen werden.": "The file could not be read.",
+  "Die Datei konnte nicht übertragen werden.": "The file could not be transferred.",
+  "Die E-Mail-Adresse ist ungültig.": "The e-mail address is invalid.",
+  "Die Löschfunktion ist nicht aktiviert (Einstellungen prüfen).": "Deletion is not enabled (check the settings).",
+  "Die Löschfunktion ist nicht aktiviert.": "Deletion is not enabled.",
+  "Die PFX/P12-Datei enthält keinen privaten Schlüssel. Beim Export „Privaten Schlüssel exportieren“ wählen.": "The PFX/P12 file contains no private key. Choose “Export the private key” when exporting.",
+  "Die PFX/P12-Datei lässt sich nicht öffnen - ist das Passwort richtig?": "The PFX/P12 file cannot be opened - is the password correct?",
+  "Die Passwörter stimmen nicht überein.": "The passwords do not match.",
+  "Die Rolle konnte gerade nicht im Active Directory geprüft werden. Bitte erneut versuchen.": "The role could not be checked in Active Directory right now. Please try again.",
+  "Die SMTP-Angaben dürfen keine Zeilenumbrüche enthalten.": "The SMTP settings must not contain line breaks.",
+  "Die Simulation verändert nichts. Sie zeigt, was gefunden würde (AD-Konto und Ordner mit Dateianzahl und Größe). Gelöscht wird erst danach mit Bestätigung –": "The simulation changes nothing. It shows what would be found (AD account and folders with file count and size). Deletion happens only afterwards, with confirmation –",
+  "Die Speicherorte unten sind": "The storage locations below are",
+  "Die eingegebene Anzahl stimmt nicht.": "The number entered is not correct.",
+  "Die gewählte Ziel-OU ist nicht in den erlaubten Ziel-OUs konfiguriert.": "The chosen target OU is not among the permitted target OUs.",
+  "Dieser Plan wurde bereits verwendet - bitte die Simulation wiederholen.": "This plan has already been used - please run the simulation again.",
+  "Dieses Konto wird gerade schon wiederhergestellt.": "This account is already being restored.",
+  "Display Name *": "Display name *",
+  "Dokumentations-E-Mail bei": "Documentation e-mail on",
+  "Domäne": "Domain",
+  "Domänen-Admins": "Domain Admins",
+  "Domänencontroller (leer = der von der Anmeldung)": "Domain controller (empty = the one used at sign-in)",
+  "Druck-Operatoren": "Print Operators",
+  "Duplizieren": "Duplicate",
+  "Durch eine übergeordnete OU bereits abgedeckt": "Already covered by a parent OU",
+  "Dürfen Onboarding durchführen, Konten verwalten, offboarden und Passwörter zurücksetzen – jedoch streng limitiert auf die vom Administrator freigegebenen OUs und Gruppenbereiche.": "May onboard, manage accounts, offboard and reset passwords – strictly limited to the OUs and group areas permitted by the administrator.",
+  "E-Mail": "E-mail",
+  "E-Mail (Template)": "E-mail (template)",
+  "E-Mail Pflicht": "E-mail required",
+  "E-Mail optional": "E-mail optional",
+  "E-Mail-Adresse (optional)": "E-mail address (optional)",
+  "E-Mail-Adresse *": "E-mail address *",
+  "E-Mail-Adresse / Postfach": "E-mail address / mailbox",
+  "E-Mail-Adresse optional (darf leer bleiben)": "E-mail address optional (may stay empty)",
+  "E-Mail-Adresse:": "E-mail address:",
+  "E-Mail-Benachrichtigung": "E-mail notification",
+  "E-Mail-Benachrichtigung bei": "E-mail notification on",
+  "E-Mail-Benachrichtigung inkl. Passwort bei": "E-mail notification incl. password on",
+  "E-Mail-Benachrichtigung nach dem": "E-mail notification after",
+  "E-Mail-Versand global aktivieren": "Enable e-mail sending globally",
+  "E-Mail:": "E-mail:",
+  "Eigener Account": "Own account",
+  "Eigener Mailserver ohne Exchange: E-Mail-Adresse ist Pflichtfeld": "Own mail server without Exchange: e-mail address is required",
+  "Eigenes Konto": "Own account",
+  "Eigenes Zertifikat": "Own certificate",
+  "Eigenes Zertifikat hinterlegen – es gilt sofort, ohne Neustart und ohne Reverse Proxy (Nur Administratoren)": "Install your own certificate – it takes effect immediately, without a restart or reverse proxy (administrators only)",
+  "Eigenes Zertifikat hochladen": "Upload your own certificate",
+  "Ein Laufwerk wurde nicht gesetzt, weil der Basisordner kein Netzwerkpfad ist.": "No drive letter was set because the home folder is not a network path.",
+  "Ein neues selbstsigniertes Zertifikat erzeugen und sofort verwenden? Das bisherige wird als .prev aufbewahrt.": "Create a new self-signed certificate and use it immediately? The previous one is kept as .prev.",
+  "Einrichtung": "Setup",
+  "Einstellungen gespeichert": "Settings saved",
+  "Einstellungen verweisen auf geänderte OUs oder Gruppen": "Settings refer to changed OUs or groups",
+  "Eintrag verwerfen": "Discard entry",
+  "Eintrag verworfen.": "Entry discarded.",
+  "Eintritt": "Joining",
+  "Einträge löschen": "Delete entries",
+  "Einträge)": "entries)",
+  "Endgültig löschen": "Delete permanently",
+  "Endungen der Profilordner (Windows hängt z. B. .V2 an; mehrere mit Komma)": "Profile folder suffixes (Windows appends e.g. .V2; several separated by commas)",
+  "English": "English",
+  "Entfernt:": "Removed:",
+  "Entfernte Gruppen:": "Removed groups:",
+  "Erfolgreich": "Successful",
+  "Ergebnis": "Result",
+  "Ergebnis:": "Result:",
+  "Ergebnisse": "Results",
+  "Erkannt: ": "Detected: ",
+  "Erlaubte Ziel-OUs (Verschieben)": "Permitted target OUs (moving)",
+  "Erlaubte Ziel-OUs (Verschieben):": "Permitted target OUs (moving):",
+  "Ermöglicht das Strukturieren und Verwalten bestehender Konten inklusive direkter Übersicht der aktuellen Gruppenmitgliedschaften in der Tabelle. Administratoren legen hier fest, welche Quell-OUs eingelesen und in welche": "Structures and manages existing accounts, with the current group memberships shown directly in the table. Administrators define which source OUs are read and to which",
+  "Erreichbar und lesbar.": "Reachable and readable.",
+  "Erreichbar, Inhalt lesbar.": "Reachable, content readable.",
+  "Erst Simulation, dann Löschen:": "Simulate first, then delete:",
+  "Erzeugen": "Create",
+  "Erzeugen fehlgeschlagen.": "Creation failed.",
+  "Es konnte kein freier Benutzername ermittelt werden.": "No free user name could be found.",
+  "Es sind keine Basispfade konfiguriert.": "No base paths are configured.",
+  "Es wurde kein Zertifikat gefunden.": "No certificate was found.",
+  "Es wurde nicht (vollständig) gelöscht.": "Nothing was deleted (completely).",
+  "Exchange": "Exchange",
+  "Exchange im eigenen Haus braucht die Einstellung „Exchange im eigenen Haus“ im Menüpunkt Templates. Für Microsoft 365 im Template die Gruppe der gruppenbasierten Lizenzierung eintragen.": "On-premises Exchange needs the “On-premises Exchange” setting in the Templates menu. For Microsoft 365, add the group used for group-based licensing to the template.",
+  "Exchange im eigenen Haus: Postfach automatisch anlegen (Nur Admin)": "On-premises Exchange: create mailbox automatically (admin only)",
+  "Exchange im eigenen Haus: nicht abfragen, Postfach automatisch anlegen": "On-premises Exchange: don't ask, create mailbox automatically",
+  "Exchange und Azure/Entra-Synchronisation (MSOL_-Konto)": "Exchange and Azure/Entra synchronisation (MSOL_ account)",
+  "Exchange-Anbindung aktivieren (gilt für Templates mit „Exchange im eigenen Haus“)": "Enable Exchange integration (applies to templates with “On-premises Exchange”)",
+  "Exchange-Einstellungen gespeichert!": "Exchange settings saved!",
+  "Exchange-Postfach": "Exchange mailbox",
+  "Exchange-Server (Name)": "Exchange server (name)",
+  "Exchange-Verbindung getestet": "Exchange connection tested",
+  "FAQ & Administrationshandbuch": "FAQ & administration guide",
+  "FAQ und Anleitung": "FAQ and guide",
+  "Falsches Passwort bei Bestätigung": "Wrong password on confirmation",
+  "Fax": "Fax",
+  "Fehler": "Error",
+  "Fehler bei der Simulation.": "Simulation failed.",
+  "Fehler beim Aktualisieren der Gruppen.": "Updating groups failed.",
+  "Fehler beim Duplizieren.": "Duplicating failed.",
+  "Fehler beim Kopieren:": "Copying failed:",
+  "Fehler beim Laden der Gruppen.": "Loading groups failed.",
+  "Fehler beim Löschen.": "Deletion failed.",
+  "Fehler beim Offboarding.": "Offboarding failed.",
+  "Fehler beim Senden der Test-Mail.": "Sending the test mail failed.",
+  "Fehler beim Speichern der Konfiguration.": "Saving the configuration failed.",
+  "Fehler beim Speichern der SMTP-Einstellungen.": "Saving the SMTP settings failed.",
+  "Fehler beim Speichern.": "Saving failed.",
+  "Fehler beim Test.": "Test failed.",
+  "Fehler beim Verschieben.": "Moving failed.",
+  "Fehler beim Verwerfen.": "Discarding failed.",
+  "Fehler beim Wiederherstellen.": "Restore failed.",
+  "Fehler beim Zurücksetzen des Passworts.": "Resetting the password failed.",
+  "Fehlerhafte Ordner:": "Failed folders:",
+  "Fehlgeschlagen": "Failed",
+  "Festes Standardpasswort": "Fixed default password",
+  "Fingerabdruck (SHA-256)": "Fingerprint (SHA-256)",
+  "Firma": "Company",
+  "Format": "Format",
+  "Formular leeren": "Clear form",
+  "Freigabe nicht gefunden.": "Share not found.",
+  "From (Absender) *": "From (sender) *",
+  "Für die Anmeldung. Die Sprachwahl liegt nur in Ihrem Browser.": "For signing in. The language choice is stored only in your browser.",
+  "Für dieses Konto läuft bereits ein Löschvorgang.": "A deletion is already running for this account.",
+  "Gelöscht": "Deleted",
+  "Gelöscht werden die als „Bereit“ markierten Konten samt ihrer Ordner –": "The accounts marked “Ready” are deleted together with their folders –",
+  "Gelöscht:": "Deleted:",
+  "Gelöschte Einträge lassen sich nicht wiederherstellen. Das Löschen selbst wird in den Änderungen vermerkt.": "Deleted entries cannot be restored. The deletion itself is recorded in the changes.",
+  "Generiert am": "Generated on",
+  "Gespeichert. Es wird nach einem Neustart des Containers aktiv.": "Saved. It becomes active after a container restart.",
+  "Gesperrt": "Locked",
+  "Gruppen": "Groups",
+  "Gruppen erfolgreich aktualisiert!": "Groups updated successfully!",
+  "Gruppen geändert": "Groups changed",
+  "Gruppen, OU, Passwort": "Groups, OU, password",
+  "Gruppen-OUs (Gruppen-Auswahl)": "Group OUs (group selection)",
+  "Gruppen-OUs (Gruppen-Zuweisung):": "Group OUs (group assignment):",
+  "Gruppen:": "Groups:",
+  "Gruppenmitgliedschaften geändert": "Group memberships changed",
+  "Gruppenmitgliedschaften verwalten": "Manage group memberships",
+  "Gruppenprüfung nicht möglich": "group check not possible",
+  "Gruppenänderungen (Benutzerverwaltung)": "group changes (user management)",
+  "Gültig bis": "Valid until",
+  "HTTPS verwenden": "Use HTTPS",
+  "HTTPS-Zertifikat": "HTTPS certificate",
+  "Haben uneingeschränkten Zugriff auf alle Module, Einstellungen, Templates sowie die globale Admin-Konfiguration (SMTP, Quell-/Ziel-OUs).": "Have unrestricted access to all modules, settings, templates and the global admin configuration (SMTP, source/target OUs).",
+  "Hallo,": "Hello,",
+  "Handbuch": "Manual",
+  "Handbuch wird geladen …": "Loading the manual …",
+  "Herunterladen": "Download",
+  "Hier können Sie Passwörter von Benutzern aus den freigegebenen Quell-OUs per Zufallsgenerator oder manueller Eingabe zurücksetzen. Zusätzlich lässt sich optional erzwingen, dass der Benutzer sein Passwort beim nächsten Login ändern muss, oder eine bestehende Kontensperrung (`lockoutTime`) aufheben.": "Here you can reset passwords of users in the permitted source OUs, randomly or manually. Optionally you can force the user to change the password at next logon, or remove an existing account lockout (`lockoutTime`).",
+  "Hier stehen technische Meldungen des Programms: Start, erkannter Verzeichnisdienst, gesendete E-Mails, Warnungen und Fehler. Was Benutzer getan haben, steht unter „Änderungen“.": "This shows technical messages from the program: start-up, detected directory service, sent e-mails, warnings and errors. What users did is shown under “Changes”.",
+  "Hilfe": "Help",
+  "Hinweis:": "Note:",
+  "Hinweise:": "Notes:",
+  "Hinzugefügt:": "Added:",
+  "IP-Telefon": "IP phone",
+  "Ihr Passwort": "Your password",
+  "Ihr Passwort liegt nur während der Sitzung im Arbeitsspeicher und nie auf der Festplatte. Kontodaten bleiben im Active Directory.": "Your password is held in memory only during the session and never on disk. Account data stays in Active Directory.",
+  "Ihr Passwort zur Bestätigung": "Your password to confirm",
+  "Ihre Sitzung ist beendet. Bitte erneut anmelden.": "Your session has ended. Please sign in again.",
+  "Im Handbuch suchen": "Search the manual",
+  "Info": "Info",
+  "Inhalt": "Content",
+  "Inhalt vorab nicht zählbar": "Content cannot be counted in advance",
+  "Initialen": "Initials",
+  "Interner Fehler. Details stehen im Protokoll.": "Internal error. Details are in the log.",
+  "Ist eine Verknüpfung (Junction/Symlink) - wird nicht verfolgt und übersprungen.": "Is a link (junction/symlink) - not followed and skipped.",
+  "Ist kein Ordner - wird übersprungen.": "Is not a folder - skipped.",
+  "Ja": "Yes",
+  "Kein Zugriff": "No access",
+  "Kein Zugriff (Berechtigung für den angemeldeten Administrator fehlt).": "No access (the signed-in administrator lacks permission).",
+  "Kein Zugriff - der Besitz würde übernommen. Inhalt vorab nicht zählbar.": "No access - ownership would be taken. Content cannot be counted in advance.",
+  "Kein offener Eintrag gefunden (bereits wiederhergestellt oder verworfen).": "No open entry found (already restored or discarded).",
+  "Keine": "None",
+  "Keine Berechtigung.": "Not permitted.",
+  "Keine E-Mail-Adresse für den Administrator hinterlegt.": "No e-mail address stored for the administrator.",
+  "Keine Einträge gefunden.": "No entries found.",
+  "Keine Einträge geladen": "No entries loaded",
+  "Keine Gruppen gespeichert.": "No groups stored.",
+  "Keine Gruppen in den konfigurierten Gruppen-OUs gefunden.": "No groups found in the configured group OUs.",
+  "Keine Gruppen zugewiesen": "No groups assigned",
+  "Keine Konten ausgewählt.": "No accounts selected.",
+  "Keine Konten gefunden.": "No accounts found.",
+  "Keine Ordner betroffen.": "No folders affected.",
+  "Keine Passwörter gespeichert": "No passwords stored",
+  "Keine Quell-OUs für Passwort-Reset konfiguriert.": "No source OUs configured for password reset.",
+  "Keine Quell-OUs für das Offboarding konfiguriert.": "No source OUs configured for offboarding.",
+  "Keine Quell-OUs für die Benutzer-Verwaltung konfiguriert.": "No source OUs configured for user management.",
+  "Keine Speicherorte aktiviert.": "No storage locations enabled.",
+  "Keine Treffer.": "No matches.",
+  "Keine Verbindungen ins Internet": "No connections to the internet",
+  "Keine Ziel-OU für deaktivierte Benutzer konfiguriert.": "No target OU configured for disabled users.",
+  "Keine Zwischenzertifikate enthalten. Das ist in Ordnung, wenn die Clients die ausstellende CA direkt kennen (z. B. Firmen-CA per Gruppenrichtlinie).": "No intermediate certificates included. That is fine if the clients know the issuing CA directly (e.g. company CA via group policy).",
+  "Keine konfiguriert": "None configured",
+  "Keine offgeboardeten Konten gespeichert. Konten, die vor Version 1.19 offgeboardet wurden, lassen sich nicht automatisch wiederherstellen.": "No offboarded accounts stored. Accounts offboarded before version 1.19 cannot be restored automatically.",
+  "Keine passenden Benutzer gefunden oder keine Quell-OUs konfiguriert.": "No matching users found or no source OUs configured.",
+  "Keine passenden Benutzer gefunden.": "No matching users found.",
+  "Keine vorhanden": "None present",
+  "Keine Änderungen vorgenommen.": "No changes made.",
+  "Keines der Konten kann gelöscht werden. Ursachen beheben und die Simulation wiederholen.": "None of the accounts can be deleted. Fix the causes and repeat the simulation.",
+  "Kennwort / Passwort:": "Password:",
+  "Kennwort bestätigen": "Confirm password",
+  "Kennwort läuft nie ab (Password never expires)": "Password never expires",
+  "Kennwort läuft nie ab:": "Password never expires:",
+  "Kennwort zurücksetzen": "Reset password",
+  "Kerberos-Dienstkonto (krbtgt)": "Kerberos service account (krbtgt)",
+  "Konfiguration (Nur Admin)": "Configuration (admin only)",
+  "Konfiguration des E-Mail-Versands für Account-Ersteller & Aktionen (Nur Administratoren können speichern)": "E-mail settings for account creators & actions (only administrators can save)",
+  "Konfiguration gespeichert!": "Configuration saved!",
+  "Konfiguration speichern": "Save configuration",
+  "Konten": "accounts",
+  "Konten aktualisieren": "Refresh accounts",
+  "Konten anlegen, pflegen und sauber beenden – direkt im Active Directory, für Administratoren und Kontenoperatoren.": "Create, maintain and cleanly close accounts – directly in Active Directory, for administrators and account operators.",
+  "Konten aus konfigurierten Quell-OUs deaktivieren und in Ziel-OU verschieben": "Disable accounts from configured source OUs and move them to the target OU",
+  "Konten gelöscht (mehrere)": "Accounts deleted (several)",
+  "Konten in der OU der Deaktivierten": "Accounts in the OU of disabled accounts",
+  "Konten löschen": "Delete accounts",
+  "Konten verschoben werden dürfen (wobei die Gesamt-Domäne strikt ausgeschlossen bleibt). Zudem können granulare Gruppenmitgliedschaften (aus definierten Gruppen-OUs) direkt verwaltet werden.": "accounts may be moved (the domain root itself always stays excluded). Group memberships (from defined group OUs) can also be managed directly.",
+  "Konten-Operatoren": "Account Operators",
+  "Konten:": "Accounts:",
+  "Konto": "Account",
+  "Konto aktivieren": "Enable account",
+  "Konto angelegt": "Account created",
+  "Konto deaktivieren": "Disable account",
+  "Konto gelöscht": "Account deleted",
+  "Konto oder Gruppe suchen...": "Search account or group...",
+  "Konto suchen...": "Search account...",
+  "Konto und Ordner wurden gelöscht.": "Account and folders were deleted.",
+  "Konto verschoben": "Account moved",
+  "Konto wiederhergestellt": "Account restored",
+  "Konto wiederhergestellt.": "Account restored.",
+  "Konto wiederherstellen": "Restore account",
+  "Kopieren": "Copy",
+  "LDAP-Anmeldung fehlgeschlagen. Bitte Zugangsdaten prüfen.": "LDAP sign-in failed. Please check your credentials.",
+  "LDAP-Anmeldung fehlgeschlagen. Details stehen im Protokoll.": "LDAP sign-in failed. Details are in the log.",
+  "LDAP-Fehler. Details stehen im Protokoll.": "LDAP error. Details are in the log.",
+  "Lade ...": "Loading ...",
+  "Lade Benutzer oder keine Quell-OUs konfiguriert...": "Loading users or no source OUs configured...",
+  "Lade Benutzer...": "Loading users...",
+  "Lade...": "Loading...",
+  "Land": "Country",
+  "Lebenszyklus": "Life cycle",
+  "Lebenszyklus eines Kontos": "Life cycle of an account",
+  "Leeren": "Clear",
+  "Lesbar.": "Readable.",
+  "Liegt nicht unterhalb eines freigegebenen Basispfads.": "Is not below a permitted base path.",
+  "Live-Abfrage der vorhandenen OUs und Gruppen": "Live query of the existing OUs and groups",
+  "Lokaler Pfad": "Local path",
+  "Läuft…": "Running…",
+  "Löschen": "Delete",
+  "Löschen eines Kontos": "deleting an account",
+  "Löschen fehlgeschlagen.": "Deletion failed.",
+  "Löschen konnte nicht gestartet werden.": "Deletion could not be started.",
+  "Löschen nicht möglich": "Deletion not possible",
+  "Löschen nicht möglich (STATUS_CANNOT_DELETE).": "Cannot delete (STATUS_CANNOT_DELETE).",
+  "Löschen unvollständig": "Deletion incomplete",
+  "Löschen: OU deaktivierter Konten": "Deletion: OU of disabled accounts",
+  "Löschfunktion aktivieren": "Enable deletion",
+  "Löschfunktion nicht aktiviert oder keine Konten vorhanden...": "Deletion not enabled or no accounts present...",
+  "Löschung": "Deletion",
+  "Löschung simuliert": "Deletion simulated",
+  "Löschung simuliert (mehrere)": "Deletion simulated (several)",
+  "Löschvorgang läuft – bitte warten und die Seite nicht schließen...": "Deletion running – please wait and do not close the page...",
+  "Mehr laden": "Load more",
+  "Meldung": "Message",
+  "Meldung schließen": "Close message",
+  "Menü schließen": "Close menu",
+  "Menü öffnen": "Open menu",
+  "Microsoft 365": "Microsoft 365",
+  "Microsoft 365 / Exchange Online: nicht abfragen (Postfach über die Lizenz)": "Microsoft 365 / Exchange Online: don't ask (mailbox via licence)",
+  "Mit (Pfad):": "To (path):",
+  "Mit deinem Domänenkonto. Die Rechte kommen aus dem AD.": "With your domain account. Permissions come from AD.",
+  "Mit freundlichen Grüßen": "Kind regards",
+  "Mitarbeiter Offboarding": "Employee offboarding",
+  "Mitarbeiter Offboarding (mehrere)": "Employee offboarding (several)",
+  "Mitarbeiter Onboarding": "Employee onboarding",
+  "Mitarbeiter Zugangsdaten (Netzwerk / Passwort)": "Employee credentials (network / password)",
+  "Mitarbeiter erfolgreich angelegt!": "Employee created successfully!",
+  "Mitarbeiter im Active Directory anlegen": "Create employee in Active Directory",
+  "Mitarbeiter:": "Employee:",
+  "Mobiltelefon": "Mobile",
+  "Moegliche Ursachen: Passwort erfuellt die Passwortrichtlinie nicht, die Verbindung ist nicht per TLS (LDAPS) verschluesselt oder es fehlen Rechte.": "Possible causes: the password does not meet the password policy, the connection is not encrypted with TLS (LDAPS) or permissions are missing.",
+  "Nachfolgend finden Sie Ihre Zugangsdaten für das Netzwerk und die IT-Dienste.": "Below are your credentials for the network and IT services.",
+  "Nachname *": "Last name *",
+  "Name": "Name",
+  "Namen im Zertifikat": "Names in the certificate",
+  "Namen und IP-Adressen (Komma-getrennt)": "Names and IP addresses (comma-separated)",
+  "Namens-Makro:": "Naming macro:",
+  "Navigation": "Navigation",
+  "Nein": "No",
+  "Neu einlesen": "Reload",
+  "Neu:": "New:",
+  "Neue Namen übernehmen": "Apply new names",
+  "Neuen Benutzer im Active Directory vollautomatisch anlegen": "Create a new user in Active Directory automatically",
+  "Neuer Mitarbeiter angelegt": "New employee created",
+  "Neues Kennwort": "New password",
+  "Neues Passwort manuell eingeben": "Enter a new password manually",
+  "Neues Passwort:": "New password:",
+  "Nicht (mehr) im AD gefunden": "Not found in AD (anymore)",
+  "Nicht alle Ordner konnten gelöscht werden - das AD-Konto besteht weiter.": "Not all folders could be deleted - the AD account remains.",
+  "Nicht alle Ordner konnten gelöscht werden. Das AD-Konto wurde NICHT gelöscht. Ursachen beheben und die Simulation wiederholen.": "Not all folders could be deleted. The AD account was NOT deleted. Fix the causes and repeat the simulation.",
+  "Nicht angemeldet": "Not signed in",
+  "Nicht gelöscht": "Not deleted",
+  "Nicht löschbar, siehe Hindernisse.": "Cannot be deleted, see obstacles.",
+  "Nicht mehr vorhanden": "No longer present",
+  "Nicht mehr vorhandene Objekte bitte in den Einstellungen bzw. im Template von Hand ersetzen.": "Please replace objects that no longer exist by hand in the settings or the template.",
+  "Nicht vorhanden": "Not present",
+  "Nicht vorhanden.": "Not present.",
+  "Noch aktiv": "Still enabled",
+  "Nur Administratoren": "Administrators only",
+  "Nur Administratoren dürfen Einträge verwerfen.": "Only administrators may discard entries.",
+  "Nur Administratoren dürfen Offboarding-Konfigurationen bearbeiten.": "Only administrators may edit offboarding configurations.",
+  "Nur Administratoren dürfen Passwort-Reset-Konfigurationen bearbeiten.": "Only administrators may edit password reset configurations.",
+  "Nur Administratoren dürfen SMTP-Einstellungen bearbeiten.": "Only administrators may edit SMTP settings.",
+  "Nur Administratoren dürfen SMTP-Einstellungen einsehen.": "Only administrators may view SMTP settings.",
+  "Nur Administratoren dürfen SMTP-Tests durchführen.": "Only administrators may run SMTP tests.",
+  "Nur Administratoren dürfen Templates duplizieren.": "Only administrators may duplicate templates.",
+  "Nur Administratoren dürfen Templates erstellen oder bearbeiten.": "Only administrators may create or edit templates.",
+  "Nur Administratoren dürfen Templates löschen.": "Only administrators may delete templates.",
+  "Nur Administratoren dürfen Verweise anpassen.": "Only administrators may update references.",
+  "Nur Administratoren dürfen das Zertifikat verwalten.": "Only administrators may manage the certificate.",
+  "Nur Administratoren dürfen die Benutzer-Verwaltungs Konfiguration bearbeiten.": "Only administrators may edit the user management configuration.",
+  "Nur Administratoren dürfen die Berichte sehen.": "Only administrators may view the reports.",
+  "Nur Administratoren dürfen die Exchange-Einstellungen bearbeiten.": "Only administrators may edit the Exchange settings.",
+  "Nur Administratoren dürfen die Löschfunktion nutzen.": "Only administrators may use the deletion function.",
+  "Nur Administratoren dürfen die Verweise prüfen.": "Only administrators may check the references.",
+  "Nur Administratoren dürfen eine Datenschutz-Auskunft erstellen.": "Only administrators may create a subject access report.",
+  "Nur Administratoren.": "Administrators only.",
+  "Nur Fehler": "Errors only",
+  "Nur RSA- oder ECDSA-Schlüssel werden unterstützt.": "Only RSA or ECDSA keys are supported.",
+  "Nur ein notwendiges Cookie": "Only one necessary cookie",
+  "Nur verschlüsselt (HTTPS)": "Encrypted only (HTTPS)",
+  "Nur über HTTPS erreichbar.": "Only available over HTTPS.",
+  "OU der deaktivierten Konten (nur Konten darin können gelöscht werden)": "OU of the disabled accounts (only accounts in it can be deleted)",
+  "OU und Gruppen": "OU and groups",
+  "OU:": "OU:",
+  "Oberfläche, Schriften und Icons kommen vom eigenen Server. Kein CDN, kein Tracking, keine Telemetrie.": "Interface, fonts and icons come from your own server. No CDN, no tracking, no telemetry.",
+  "Oder OU aus AD-Liste wählen": "Or choose an OU from the AD list",
+  "Offboarding": "Offboarding",
+  "Offboarding (mehrere)": "Offboarding (several)",
+  "Offboarding Konfiguration (Nur Admin)": "Offboarding configuration (admin only)",
+  "Offboarding erfolgreich durchgeführt!": "Offboarding completed successfully!",
+  "Offboarding-Konfiguration erfolgreich gespeichert!": "Offboarding configuration saved!",
+  "Offboarding: Quell-OU": "Offboarding: source OU",
+  "Offboarding: Ziel-OU": "Offboarding: target OU",
+  "Offgeboardet": "Offboarded",
+  "Offgeboardete Konten wiederherstellen": "Restore offboarded accounts",
+  "Ohne Verschlüsselung (nur internes Relay, nicht empfohlen)": "Without encryption (internal relay only, not recommended)",
+  "Ohne Verschlüsselung wird kein SMTP-Passwort gesendet. Benutzer und Passwort leer lassen (internes Relay) oder einen TLS-Modus wählen.": "Without encryption no SMTP password is sent. Leave user and password empty (internal relay) or choose a TLS mode.",
+  "Onboarding": "Onboarding",
+  "Onboarding Template wählen": "Choose onboarding template",
+  "Onboarding error: {0}": "Onboarding error: {0}",
+  "Onboarding-Vorlagen und Standard-Attribute festlegen": "Define onboarding templates and default attributes",
+  "Open Source unter AGPL-3.0-or-later": "Open source under AGPL-3.0-or-later",
+  "Optionale Empfänger (CC, kommagetrennt)": "Optional recipients (CC, comma-separated)",
+  "Ordner beim Anlegen des Benutzers automatisch erstellen und dem Konto Vollzugriff geben (nur der letzte Ordner; der übergeordnete Ordner muss existieren; ein vorhandener Ordner wird nicht verändert)": "Create the folder automatically when the user is created and give the account Full Control (last folder only; the parent folder must exist; an existing folder is not changed)",
+  "Ordner gelöscht, AD-Konto konnte nicht gelöscht werden.": "Folders deleted, the AD account could not be deleted.",
+  "Ordner ist nicht leer.": "Folder is not empty.",
+  "Ordner unvollständig gelöscht, Konto besteht weiter": "Folders incompletely deleted, account remains",
+  "Ordner:": "Folders:",
+  "Ordnerumleitung": "Folder redirection",
+  "Ordnerumleitung: gesucht wird": "Folder redirection: looks for",
+  "Organisations-Admins": "Enterprise Admins",
+  "Organisationsschlüsseladministratoren": "Enterprise Key Admins",
+  "Organizational Units (OUs)": "Organizational units (OUs)",
+  "Ort": "Location",
+  "PDF-Zugangsdaten": "PDF credentials",
+  "PFX/P12-Datei": "PFX/P12 file",
+  "PLZ": "Postal code",
+  "Password": "Password",
+  "Passwort": "Password",
+  "Passwort erfolgreich zurückgesetzt!": "Password reset successfully!",
+  "Passwort setzen": "Set password",
+  "Passwort zurückgesetzt": "Password reset",
+  "Passwort zurücksetzen": "Reset password",
+  "Passwort-Modus": "Password mode",
+  "Passwort-Modus:": "Password mode:",
+  "Passwort-Reset": "password reset",
+  "Passwort-Reset Konfiguration (Nur Admin)": "Password reset configuration (admin only)",
+  "Passwort-Reset Konfiguration erfolgreich gespeichert!": "Password reset configuration saved!",
+  "Passwort-Reset: Quell-OU": "Password reset: source OU",
+  "Passwort:": "Password:",
+  "Passwörter von Benutzern aus den konfigurierten OUs sicher zurücksetzen und Kontensperren aufheben": "Securely reset passwords of users in the configured OUs and unlock accounts",
+  "Pfad": "Path",
+  "Pfad aus dem AD-Attribut": "Use the path from the AD attribute",
+  "Pfad nicht gefunden.": "Path not found.",
+  "Pfade anzeigen": "Show paths",
+  "Pflege": "Maintenance",
+  "Port": "Port",
+  "Postfach": "P.O. box",
+  "Postfach nicht angelegt: Die Exchange-Anbindung ist nicht eingerichtet (Menüpunkt Templates, Kasten „Exchange im eigenen Haus“).": "Mailbox not created: the Exchange integration is not set up (menu Templates, box “On-premises Exchange”).",
+  "Postfach-Datenbank (leer = automatisch)": "Mailbox database (empty = automatic)",
+  "Privater Schlüssel": "Private key",
+  "Profil": "Profile",
+  "Profil (wie im RSAT-Reiter „Profil“)": "Profile (like the RSAT “Profile” tab)",
+  "Profilpfad": "Profile path",
+  "Protokoll": "Log",
+  "Protokoll löschen …": "Delete log …",
+  "Prüfe, was wiederhergestellt würde ...": "Checking what would be restored ...",
+  "Prüfen und übernehmen": "Check and apply",
+  "Quell-OUs (Scan-Bereich)": "Source OUs (scan area)",
+  "Quell-OUs (Scan-Bereich):": "Source OUs (scan area):",
+  "Quell-OUs wählen (Haken setzen)": "Choose source OUs (tick)",
+  "Quellcode": "Source code",
+  "Quelle": "Source",
+  "RSAT / Zusätzliche AD-Attribute": "RSAT / additional AD attributes",
+  "Read-only": "Read-only",
+  "Roamingprofil": "Roaming profile",
+  "SAMONBOARDING": "SAMONBOARDING",
+  "SAMONBOARDING Test-Mail": "SAMONBOARDING test mail",
+  "SAMONBOARDING läuft vollständig in Ihrem eigenen Netz. Es werden keine Daten an Dritte oder in die Cloud übertragen.": "SAMONBOARDING runs entirely in your own network. No data is transferred to third parties or to the cloud.",
+  "SMTP Benachrichtigung": "SMTP notification",
+  "SMTP Host *": "SMTP host *",
+  "SMTP Port": "SMTP port",
+  "SMTP-Einstellungen erfolgreich gespeichert!": "SMTP settings saved!",
+  "SMTP-Server *": "SMTP server *",
+  "Sammel-Simulation – es wurde nichts verändert": "Batch simulation – nothing was changed",
+  "Sammellöschung abgeschlossen": "Batch deletion completed",
+  "Sammellöschung mit Problemen": "Batch deletion with problems",
+  "Save": "Save",
+  "Schema-Admins": "Schema Admins",
+  "Schließen": "Close",
+  "Schlüssel": "Key",
+  "Schlüsseladministratoren": "Key Admins",
+  "Schutzprüfung nicht möglich": "protection check not possible",
+  "Schweiz": "Switzerland",
+  "Selbstsigniert": "Self-signed",
+  "Selbstsigniertes Zertifikat erzeugen": "Create self-signed certificate",
+  "Selbstsigniertes Zertifikat erzeugt": "Self-signed certificate created",
+  "Selbstsigniertes Zertifikat erzeugt und aktiv.": "Self-signed certificate created and active.",
+  "Selbstsigniertes Zertifikat erzeugt. Aktiv nach Neustart.": "Self-signed certificate created. Active after restart.",
+  "Send test email": "Send test email",
+  "Server oder Benutzername wurden geändert - bitte das SMTP-Passwort neu eingeben.": "Server or user name were changed - please enter the SMTP password again.",
+  "Server-Operatoren": "Server Operators",
+  "Sicherheitsfehler: Das eigene Konto kann nicht gelöscht werden!": "Security error: your own account cannot be deleted!",
+  "Sicherheitsfehler: Sie können Ihr eigenes Benutzerkonto nicht offboarden!": "Security error: you cannot offboard your own user account!",
+  "Sicherungs-Operatoren": "Backup Operators",
+  "Sie sind als": "You are signed in as",
+  "Sie sind laut Active Directory kein Administrator mehr.": "According to Active Directory you are no longer an administrator.",
+  "Simulation": "Simulation",
+  "Simulation läuft (kann bei großen Profilen etwas dauern)...": "Simulation running (may take a while for large profiles)...",
+  "Simulationsergebnis – es wurde nichts verändert": "Simulation result – nothing was changed",
+  "Sitzung ungueltig - bitte neu anmelden.": "Session invalid - please sign in again.",
+  "Speichern": "Save",
+  "Speicherorte getestet": "Storage locations tested",
+  "Sperre des Benutzerkontos aufheben": "Unlock the user account",
+  "Sprache": "Language",
+  "Standardpasswort": "Default password",
+  "Status": "Status",
+  "Status & Sperre": "Status & lock",
+  "Stellenbezeichnung": "Job title",
+  "Straße": "Street",
+  "Stufe": "Level",
+  "Suchen (Benutzer, Aktion, Ziel, Text)": "Search (user, action, target, text)",
+  "Suchen …": "Search …",
+  "TLS mode": "TLS mode",
+  "TLS-Modus": "TLS mode",
+  "Tel. Privat": "Home phone",
+  "Telefon": "Phone",
+  "Template": "Template",
+  "Template Name *": "Template name *",
+  "Template bearbeiten": "Edit template",
+  "Template erstellen": "Create template",
+  "Template gelöscht": "Template deleted",
+  "Template gespeichert": "Template saved",
+  "Template kopiert": "Template copied",
+  "Template nicht gefunden (wurde es bereits gelöscht?).": "Template not found (was it already deleted?).",
+  "Template nicht gefunden.": "Template not found.",
+  "Template not found.": "Template not found.",
+  "Template speichern": "Save template",
+  "Template wirklich löschen?": "Really delete this template?",
+  "Template:": "Template:",
+  "Template: Gruppe": "Template: group",
+  "Template: Ziel-OU": "Template: target OU",
+  "Templates": "Templates",
+  "Templates verwalten": "Manage templates",
+  "Test-Mail": "Test mail",
+  "Test-Mail erfolgreich gesendet!": "Test mail sent!",
+  "Test-Mail senden": "Send test email",
+  "Teste Verbindung...": "Testing connection...",
+  "UPN:": "UPN:",
+  "Uhr": "",
+  "Unbekannte Art von Bericht.": "Unknown kind of report.",
+  "Ungültige Anmeldeart.": "Invalid authentication method.",
+  "Ungültige Template-Daten.": "Invalid template data.",
+  "Ungültiger DN.": "Invalid DN.",
+  "Ungültiger Laufwerksbuchstabe (erlaubt: A: bis Z:).": "Invalid drive letter (allowed: A: to Z:).",
+  "Ungültiger Modus.": "Invalid mode.",
+  "Ungültiger Port.": "Invalid port.",
+  "Ungültiger SMTP-Port.": "Invalid SMTP port.",
+  "Ungültiger Servername.": "Invalid server name.",
+  "Ungültiger TLS-Modus.": "Invalid TLS mode.",
+  "Ungültiger Zeitraum.": "Invalid period.",
+  "Unter-OUs sind enthalten": "Sub-OUs are included",
+  "Unvollständig – Konto besteht weiter": "Incomplete – account remains",
+  "Ursache beheben (Rechte, Verknüpfungen, Erreichbarkeit) und die Simulation wiederholen.": "Fix the cause (permissions, links, reachability) and repeat the simulation.",
+  "User created successfully!": "User created successfully!",
+  "Username": "User name",
+  "Username Makro": "Username macro",
+  "Verbinden von": "Connect",
+  "Verbindung fehlgeschlagen.": "Connection failed.",
+  "Verbindung steht, aber das Konto darf Enable-Mailbox nicht verwenden (in Exchange fehlt die Rolle 'Mail Recipients').": "Connected, but the account may not use Enable-Mailbox (the 'Mail Recipients' role is missing in Exchange).",
+  "Verbindung steht.": "Connected.",
+  "Verbindung testen": "Test connection",
+  "Verbindung unterbrochen:": "Connection lost:",
+  "Verbindung wird geprüft...": "Checking connection...",
+  "Verbindung zu Exchange fehlgeschlagen.": "Connection to Exchange failed.",
+  "Verbindung zu Exchange steht, Enable-Mailbox ist für dieses Konto verfügbar.": "Connected to Exchange, Enable-Mailbox is available to this account.",
+  "Verbindung zu den Basispfaden testen": "Test connection to the base paths",
+  "Verbindungsfehler beim Offboarding.": "Connection error during offboarding.",
+  "Verbindungsfehler beim Wiederherstellen.": "Connection error during restore.",
+  "Verbindungsfehler.": "Connection error.",
+  "Verknüpfung(en)": "link(s)",
+  "Verschieben": "Move",
+  "Verschlüsselte Verbindung. Abmeldung nach 30 Minuten ohne Aktivität.": "Encrypted connection. Signed out after 30 minutes of inactivity.",
+  "Versehentlich offgeboardet? Das Konto kommt zurück in seine OU und Gruppen und wird wieder aktiv. Das Passwort bleibt, wie es war.": "Offboarded by mistake? The account returns to its OU and groups and is enabled again. The password stays as it was.",
+  "Vertrauliche IT-Information": "Confidential IT information",
+  "Verweise konnten nicht angepasst werden.": "References could not be updated.",
+  "Von einer Windows-CA: Zertifikat in der Zertifikatsverwaltung mit „Privaten Schlüssel exportieren“ als": "From a Windows CA: in the certificate manager, export the certificate with “Export the private key” as",
+  "Vor- und Nachname dürfen höchstens 64 Zeichen und keine Steuerzeichen enthalten.": "First and last name may have at most 64 characters and no control characters.",
+  "Vorgesetzter (Manager DN)": "Manager (manager DN)",
+  "Vorhanden": "Present",
+  "Vorhanden.": "Present.",
+  "Vorher in": "Previously in",
+  "Vorname *": "First name *",
+  "Vorname und Nachname sind Pflichtfelder.": "First and last name are required.",
+  "Vorname, Nachname und E-Mail-Adresse sind Pflichtfelder.": "First name, last name and e-mail address are required.",
+  "Vorschau fehlgeschlagen.": "Preview failed.",
+  "Warnung": "Warning",
+  "Warnungen und Fehler": "Warnings and errors",
+  "Wartet": "Waiting",
+  "Webseite": "Web page",
+  "Weder Exchange noch Azure/Entra-Synchronisation erkannt. Empfehlung: „Eigener Mailserver“.": "Neither Exchange nor Azure/Entra synchronisation detected. Recommendation: “Own mail server”.",
+  "Wer hat wann was geändert, und was hat das Programm gemeldet (Nur Administratoren)": "Who changed what and when, and what the program reported (administrators only)",
+  "Wichtiger Hinweis:": "Important:",
+  "Wiederherstellen": "Restore",
+  "Wiederherstellungs-Eintrag verworfen": "Restore entry discarded",
+  "Wirklich alle Protokoll-Einträge löschen?": "Really delete all log entries?",
+  "Wirklich alle Änderungen löschen?": "Really delete all changes?",
+  "Wählen Sie die Gruppen aus, in denen der Benutzer Mitglied sein soll (aus den konfigurierten Gruppen-OUs).": "Choose the groups the user should be a member of (from the configured group OUs).",
+  "Zeit": "Time",
+  "Zeitraum": "Period",
+  "Zertifikat": "Certificate",
+  "Zertifikat + Schlüssel": "Certificate + key",
+  "Zertifikat als": "Certificate as",
+  "Zertifikat des Exchange-Servers wird nicht akzeptiert (oder in den Einstellungen die Prüfung abschalten).": "The Exchange server's certificate is not accepted (or turn off verification in the settings).",
+  "Zertifikat hochgeladen": "Certificate uploaded",
+  "Zertifikat konnte nicht gelesen werden.": "The certificate could not be read.",
+  "Zertifikat prüfen": "Verify certificate",
+  "Zertifikat und Schlüssel gehören nicht zusammen.": "Certificate and key do not belong together.",
+  "Zertifikat übernommen.": "Certificate applied.",
+  "Ziel OU (DN)": "Target OU (DN)",
+  "Ziel OU:": "Target OU:",
+  "Ziel und Details": "Target and details",
+  "Ziel-OU (Deaktivierte Konten)": "Target OU (disabled accounts)",
+  "Ziel-OU wählen (Nur konfigurierte Ziel-OUs)": "Choose target OU (configured target OUs only)",
+  "Ziel-OU:": "Target OU:",
+  "Zu viele falsche Passwörter. Das Löschen ist für diese Sitzung kurz gesperrt (ca. 5 Minuten).": "Too many wrong passwords. Deletion is locked for this session for a short time (about 5 minutes).",
+  "Zu viele falsche Passwörter. Diese Aktion ist für diese Sitzung kurz gesperrt (ca. 5 Minuten).": "Too many wrong passwords. This action is briefly blocked for this session (about 5 minutes).",
+  "Zufallspasswort": "Random password",
+  "Zugang wiederherstellen": "Restore access",
+  "Zugangsdaten": "Credentials",
+  "Zugangsdaten in die Zwischenablage kopiert!": "Credentials copied to the clipboard!",
+  "Zugewiesene Gruppen:": "Assigned groups:",
+  "Zugriff verweigert: Sie müssen Mitglied der Domänen-Admins, der Administratoren oder der Konten-Operatoren sein.": "Access denied: you must be a member of Domain Admins, Administrators or Account Operators.",
+  "Zurück in die OU": "Back to the OU",
+  "Zurück zu einem selbstsignierten Zertifikat (z. B. zum Testen). Der Browser zeigt dann wieder eine Warnung.": "Go back to a self-signed certificate (e.g. for testing). The browser will show a warning again.",
+  "Zurücksetzen": "Reset",
+  "Zusammenfassung:": "Summary:",
+  "Zustand hat sich geändert": "State has changed",
+  "Zwischenzertifikate": "Intermediate certificates",
+  "Zwischenzertifikate (optional)": "Intermediate certificates (optional)",
+  "alle Einträge": "all entries",
+  "als privilegiertes Konto markiert (adminCount)": "marked as a privileged account (adminCount)",
+  "angemeldet. Sie können die SMTP-Einstellungen einsehen, aber nicht bearbeiten oder speichern.": "and can view the SMTP settings but not edit or save them.",
+  "aufbewahrt.": ".",
+  "ausgeführt. Es werden die Zugangsdaten des angemeldeten Benutzers verwendet, der in Exchange die Rolle „Mail Recipients“ braucht. Schlägt es fehl, bleibt das Konto bestehen und es erscheint eine Warnung.": "for it. The signed-in user's credentials are used; they need the “Mail Recipients” role in Exchange. If it fails, the account remains and a warning is shown.",
+  "ausgewählt": "selected",
+  "bereits Mitglied": "already a member",
+  "berücksichtigen (nur wenn unter einem Basispfad)": "(only if below a base path)",
+  "das Löschen": "deletion",
+  "das Offboarding": "offboarding",
+  "den Passwort-Reset": "password reset",
+  "die Benutzer-Verwaltung": "user management",
+  "dieses Konto": "this account",
+  "endgültig und ohne Papierkorb": "permanently and without a recycle bin",
+  "erlaubten Ziel-OUs": "permitted target OUs",
+  "gelöscht": "deleted",
+  "gelöscht und neu angelegt (anderes Objekt)": "deleted and created again (different object)",
+  "gesetzt und Vollzugriff erteilt, nur für Ordner, die gelöscht werden. Die angemeldete Person braucht dafür das Recht „Besitz übernehmen“ (Domänen-Admins haben es).": "and Full Control is granted, only for folders that are deleted. The signed-in person needs the “Take ownership” right (Domain Admins have it).",
+  "geändert": "changed",
+  "gibt es nicht mehr": "no longer exists",
+  "im Programmordner.": "in the program folder.",
+  "in": "in",
+  "integriertes Administratorkonto": "built-in Administrator account",
+  "keine": "none",
+  "mit Ordnern": "with folders",
+  "nicht alles wäre löschbar (fehlende Zugriffsrechte)": "not everything could be deleted (missing permissions)",
+  "nicht mehr vorhanden": "no longer exists",
+  "nie (unbegrenzt)": "never (unlimited)",
+  "oder": "or",
+  "offgeboardet": "offboarded",
+  "optional": "optional",
+  "sAMAccountName": "sAMAccountName",
+  "senden": "",
+  "speichern. Zwischenzertifikate werden mit übernommen.": "file. Intermediate certificates are included.",
+  "um": "at",
+  "umbenannt oder verschoben": "renamed or moved",
+  "unbegrenzt": "unlimited",
+  "unbekannter Fehler": "unknown error",
+  "und": "and",
+  "und alle oben als „Vorhanden“ oder „Besitz nötig“ gezeigten Ordner werden": "and all folders shown above as “Present” or “Ownership required” will be",
+  "unwiderruflich": "irrevocably",
+  "verschoben": "moved",
+  "von": "by",
+  "wiederhergestellt": "restored",
+  "wird beim Anlegen durch den Benutzernamen ersetzt. Ein Laufwerk braucht einen Netzwerkpfad (\\\\server\\freigabe\\…). Ohne die folgende Option wird nur das AD-Attribut gesetzt.": "is replaced by the user name on creation. A drive letter needs a network path (\\\\server\\share\\…). Without the following option only the AD attribute is set.",
+  "wird wieder zugewiesen": "will be assigned again",
+  "z. B. Deutschland": "e.g. Germany",
+  "z. B. Max": "e.g. Max",
+  "z. B. Mustermann": "e.g. Mustermann",
+  "zurückgesetzt": "reset",
+  "Änderung bei Login:": "Change at logon:",
+  "Änderungen": "Changes",
+  "Änderungen löschen …": "Delete changes …",
+  "Änderungen speichern": "Save changes",
+  "Österreich": "Austria",
+  "Über das Onboarding-Modul legen Sie neue Benutzerkonten automatisiert an. Ein Template definiert dabei das Namens-Makro (z.B. %LASTNAME%%FIRSTNAME%[3]), die Ziel-OU im Active Directory, den Passwort-Modus (Zufall oder Standard) sowie optionale RSAT-Attribute (Abteilung, Firma, Vorgesetzter) und initiale Gruppenmitgliedschaften. Nach erfolgreicher Erstellung erhalten Sie direkt die Zugangsdaten im Ausgabefenster und können diese kopieren oder als PDF drucken.": "The onboarding module creates new user accounts automatically. A template defines the naming macro (e.g. %LASTNAME%%FIRSTNAME%[3]), the target OU in Active Directory, the password mode (random or default) as well as optional RSAT attributes (department, company, manager) and initial group memberships. After creation you get the credentials right away in the result window and can copy them or print them as a PDF.",
+  "Übernahme fehlgeschlagen.": "Applying failed.",
+  "Übersprungen": "Skipped",
+  "Übersprungene Ordner bleiben bestehen.": "Skipped folders remain.",
+  "älter als 180 Tage": "older than 180 days",
+  "älter als 30 Tage": "older than 30 days",
+  "älter als 90 Tage": "older than 90 days",
+  "– würde gelöscht": "– would be deleted"
+ },
+ "patterns": [
+  [
+   "{0} Konten",
+   "{0} accounts"
+  ],
+  [
+   "{0} Gruppen",
+   "{0} groups"
+  ],
+  [
+   "{0} ausgewählt",
+   "{0} selected"
+  ],
+  [
+   "{0} Verknüpfung(en)",
+   "{0} link(s)"
+  ],
+  [
+   "{0}× Besitzübernahme",
+   "{0}× ownership taken"
+  ],
+  [
+   "Geschützt: {0}",
+   "Protected: {0}"
+  ],
+  [
+   "Erkannt: {0}. Empfehlung: „Exchange im eigenen Haus“ bzw. „Microsoft 365“.",
+   "Detected: {0}. Recommendation: “On-premises Exchange” or “Microsoft 365”."
+  ],
+  [
+   "Offgeboardet am {0} von {1}",
+   "Offboarded on {0} by {1}"
+  ],
+  [
+   "Offgeboardet am {0} von",
+   "Offboarded on {0} by"
+  ],
+  [
+   "Benutzernamen zur Bestätigung eintippen: {0}",
+   "Type the user name to confirm: {0}"
+  ],
+  [
+   "Anzahl eintippen: {0}",
+   "Type the number: {0}"
+  ],
+  [
+   "Quelle: {0}",
+   "Source: {0}"
+  ],
+  [
+   "Stand: {0}",
+   "As of: {0}"
+  ],
+  [
+   "Gruppenmitgliedschaften: {0}",
+   "Group memberships: {0}"
+  ],
+  [
+   "{0} Dateien, {1} Ordner, {2}",
+   "{0} files, {1} folders, {2}"
+  ],
+  [
+   "{0} Dateien, {1} Ordner, {2}, {3} Verknüpfung(en)",
+   "{0} files, {1} folders, {2}, {3} link(s)"
+  ],
+  [
+   "{0} Ordner, {1} Dateien, {2}",
+   "{0} folders, {1} files, {2}"
+  ],
+  [
+   "{0} Ordner, {1} Dateien",
+   "{0} folders, {1} files"
+  ],
+  [
+   "{0} Ordner, {1} Dateien, Besitz übernommen: {2}×",
+   "{0} folders, {1} files, ownership taken: {2}×"
+  ],
+  [
+   "{0} Ordner gefunden, {1} Dateien, {2}",
+   "{0} folders found, {1} files, {2}"
+  ],
+  [
+   "{0} Ordner gefunden, {1} Dateien, {2} –",
+   "{0} folders found, {1} files, {2} –"
+  ],
+  [
+   "Bei {0} Ordner(n) ohne Zugriff würde vor dem Löschen der Besitz übernommen (Administratoren erhalten Vollzugriff).",
+   "For {0} folder(s) without access, ownership would be taken before deleting (Administrators get Full Control)."
+  ],
+  [
+   "{0} Verknüpfung(en): Es wird nur die Verknüpfung entfernt, nie der Inhalt des Ziels.",
+   "{0} link(s): only the link is removed, never the content of the target."
+  ],
+  [
+   "{0} von {1} Konten sind bereit.",
+   "{0} of {1} accounts are ready."
+  ],
+  [
+   "{0} Konto/Konten endgültig löschen",
+   "Delete {0} account(s) permanently"
+  ],
+  [
+   "{0} {1} von {2} Konten gelöscht.",
+   "{0} {1} of {2} accounts deleted."
+  ],
+  [
+   "{0} {1} von {2} Konten gelöscht. Bei den übrigen bleibt das AD-Konto bestehen – Ursachen beheben und neu simulieren.",
+   "{0} {1} of {2} accounts deleted. For the others the AD account remains – fix the causes and simulate again."
+  ],
+  [
+   "Löschauftrag läuft: {0} von {1}. Die Seite kann offen bleiben; der Auftrag läuft auch auf dem Server weiter.",
+   "Deletion job running: {0} of {1}. You may keep the page open; the job also continues on the server."
+  ],
+  [
+   "Löschauftrag läuft: {0} von {1} – aktuell {2}. Die Seite kann offen bleiben; der Auftrag läuft auch auf dem Server weiter.",
+   "Deletion job running: {0} of {1} – currently {2}. You may keep the page open; the job also continues on the server."
+  ],
+  [
+   "Simulation für {0} Konto/Konten läuft (kann bei großen Profilen etwas dauern)...",
+   "Simulation for {0} account(s) running (may take a while for large profiles)..."
+  ],
+  [
+   "Der Plan ist nur kurz gültig (bis {0}).",
+   "The plan is only valid briefly (until {0})."
+  ],
+  [
+   "Der Plan ist nur kurz gültig.",
+   "The plan is only valid briefly."
+  ],
+  [
+   "gelöscht. Vor dem Löschen wird der Zustand erneut geprüft; hat sich etwas geändert, passiert nichts.",
+   "deleted. The state is checked again before deleting; if anything changed, nothing happens."
+  ],
+  [
+   "gelöscht. Übersprungene Ordner bleiben bestehen. Vor dem Löschen wird der Zustand erneut geprüft; hat sich etwas geändert, passiert nichts.",
+   "deleted. Skipped folders remain. The state is checked again before deleting; if anything changed, nothing happens."
+  ],
+  [
+   "Verbindung unterbrochen: {0}",
+   "Connection lost: {0}"
+  ],
+  [
+   "Verbindung unterbrochen: {0}. Bitte unter „Berichte“ prüfen, was erledigt wurde.",
+   "Connection lost: {0}. Please check under “Reports” what was done."
+  ],
+  [
+   "Verbindung unterbrochen: {0}. Bitte unter „Berichte“ prüfen, was erledigt wurde, und die Simulation wiederholen.",
+   "Connection lost: {0}. Please check under “Reports” what was done and repeat the simulation."
+  ],
+  [
+   "Der Fortschritt kann nicht mehr abgefragt werden ({0}). Der Löschauftrag läuft auf dem Server weiter – Ergebnis unter „Berichte“ prüfen.",
+   "Progress can no longer be queried ({0}). The deletion job continues on the server – check the result under “Reports”."
+  ],
+  [
+   "… und {0} weitere Fehler",
+   "… and {0} more errors"
+  ],
+  [
+   "... und {0} weitere",
+   "... and {0} more"
+  ],
+  [
+   "Fehler beim Speichern: {0}",
+   "Saving failed: {0}"
+  ],
+  [
+   "Fehler beim Kopieren: {0}",
+   "Copying failed: {0}"
+  ],
+  [
+   "AD-Abfrage fehlgeschlagen: {0}",
+   "AD query failed: {0}"
+  ],
+  [
+   "Pro Durchlauf sind höchstens {0} Konten erlaubt.",
+   "At most {0} accounts are allowed per run."
+  ],
+  [
+   "Es wurden {0} Konten ausgewählt, {1} weitere nicht (Obergrenze pro Durchlauf).",
+   "{0} accounts were selected, {1} more were not (limit per run)."
+  ],
+  [
+   "Möchten Sie den Benutzer '{0}' wirklich offboarden?",
+   "Do you really want to offboard the user '{0}'?"
+  ],
+  [
+   "Möchten Sie {0} Konten wirklich offboarden?",
+   "Do you really want to offboard {0} accounts?"
+  ],
+  [
+   "- Konto wird deaktiviert",
+   "- Account will be disabled"
+  ],
+  [
+   "- Konten werden deaktiviert",
+   "- Accounts will be disabled"
+  ],
+  [
+   "- Aus allen Gruppen entfernt",
+   "- Removed from all groups"
+  ],
+  [
+   "- In die Ziel-OU verschoben",
+   "- Moved to the target OU"
+  ],
+  [
+   "- Keine Löschung!",
+   "- No deletion!"
+  ],
+  [
+   "{0} von {1} Konten wurden offgeboardet.",
+   "{0} of {1} accounts were offboarded."
+  ],
+  [
+   "NICHT offgeboardet:",
+   "NOT offboarded:"
+  ],
+  [
+   "Hinweis: Bei {0} Konto/Konten konnten nicht alle Gruppen entfernt werden: {1}",
+   "Note: for {0} account(s) not all groups could be removed: {1}"
+  ],
+  [
+   "Eintrag für {0} verwerfen?",
+   "Discard the entry for {0}?"
+  ],
+  [
+   "Das Konto selbst wird nicht verändert. Es lässt sich danach nur noch von Hand wiederherstellen.",
+   "The account itself is not changed. Afterwards it can only be restored by hand."
+  ],
+  [
+   "Konto '{0}' und die gezeigten Ordner jetzt ENDGÜLTIG löschen?",
+   "Delete account '{0}' and the folders shown PERMANENTLY now?"
+  ],
+  [
+   "{0} Konto/Konten und die gezeigten Ordner jetzt ENDGÜLTIG löschen?",
+   "Delete {0} account(s) and the folders shown PERMANENTLY now?"
+  ],
+  [
+   "Das kann nicht rückgängig gemacht werden.",
+   "This cannot be undone."
+  ],
+  [
+   "Benutzername: {0}",
+   "User name: {0}"
+  ],
+  [
+   "UPN: {0}",
+   "UPN: {0}"
+  ],
+  [
+   "E-Mail: {0}",
+   "E-mail: {0}"
+  ],
+  [
+   "Passwort: {0}",
+   "Password: {0}"
+  ],
+  [
+   "Hallo {0},",
+   "Hello {0},"
+  ],
+  [
+   "Mitglied von „{0}“",
+   "Member of “{0}”"
+  ],
+  [
+   "Dieses Konto ist geschützt ({0}) und darf nicht {1} werden. Soll es trotzdem bearbeitet werden, zuerst die Mitgliedschaft im AD entfernen.",
+   "This account is protected ({0}) and must not be {1}. If it really has to be processed, remove the membership in AD first."
+  ],
+  [
+   "Zugriff verweigert: Sie müssen Mitglied der Gruppe 'Administrators' oder '{0}' sein.",
+   "Access denied: you must be a member of the group 'Administrators' or '{0}'."
+  ],
+  [
+   "Zu viele fehlgeschlagene Anmeldungen. Bitte in {0} Minute(n) erneut versuchen.",
+   "Too many failed sign-ins. Please try again in {0} minute(s)."
+  ],
+  [
+   "Domain Controller {0} nicht erreichbar ({1}).",
+   "Domain controller {0} not reachable ({1})."
+  ],
+  [
+   "LDAP-Fehler: {0}",
+   "LDAP error: {0}"
+  ],
+  [
+   "Unerwarteter Fehler: {0}",
+   "Unexpected error: {0}"
+  ],
+  [
+   "Keine Quell-OUs für {0} konfiguriert.",
+   "No source OUs configured for {0}."
+  ],
+  [
+   "Maximal {0} Konten gleichzeitig.",
+   "At most {0} accounts at a time."
+  ],
+  [
+   "Benutzer wurde nicht angelegt. {0}",
+   "The user was not created. {0}"
+  ],
+  [
+   "Passwortänderung beim nächsten Login konnte nicht erzwungen werden: {0}",
+   "Could not force a password change at next logon: {0}"
+  ],
+  [
+   "Änderung beim nächsten Login konnte nicht erzwungen werden: {0}",
+   "Could not force a change at next logon: {0}"
+  ],
+  [
+   "Gruppe '{0}' konnte nicht zugewiesen werden: {1}",
+   "Group '{0}' could not be assigned: {1}"
+  ],
+  [
+   "Basisordner {0} existiert bereits - Berechtigungen wurden nicht verändert.",
+   "Home folder {0} already exists - permissions were not changed."
+  ],
+  [
+   "Basisordner {0} konnte nicht angelegt werden: {1}",
+   "Home folder {0} could not be created: {1}"
+  ],
+  [
+   "Postfach konnte nicht angelegt werden: {0} Das Konto wurde angelegt, das Postfach bitte in Exchange nachholen.",
+   "Mailbox could not be created: {0} The account was created; please create the mailbox in Exchange."
+  ],
+  [
+   "Kontensperre konnte nicht aufgehoben werden: {0}",
+   "Account lockout could not be removed: {0}"
+  ],
+  [
+   "Gruppenmitgliedschaften teilweise aktualisiert. Fehler: {0}",
+   "Group memberships partly updated. Errors: {0}"
+  ],
+  [
+   "Gruppenänderung fehlgeschlagen: {0}",
+   "Group change failed: {0}"
+  ],
+  [
+   "{0} (hinzufügen): {1}",
+   "{0} (add): {1}"
+  ],
+  [
+   "{0} (entfernen): {1}",
+   "{0} (remove): {1}"
+  ],
+  [
+   "Die Gruppe '{0}' liegt nicht in einer freigegebenen Gruppen-OU.",
+   "The group '{0}' is not in a permitted group OU."
+  ],
+  [
+   "Hinweis: Aus folgenden Gruppen konnte der Benutzer nicht entfernt werden: {0}",
+   "Note: the user could not be removed from these groups: {0}"
+  ],
+  [
+   "Benutzer erfolgreich deaktiviert, aus Gruppen entfernt und in Ziel-OU verschoben! Hinweis: Aus folgenden Gruppen konnte der Benutzer nicht entfernt werden: {0}",
+   "User disabled, removed from groups and moved to the target OU! Note: the user could not be removed from these groups: {0}"
+  ],
+  [
+   "Das Konto wurde deaktiviert, konnte aber nicht in die Ziel-OU verschoben werden: {0}",
+   "The account was disabled but could not be moved to the target OU: {0}"
+  ],
+  [
+   "Das Konto konnte nicht verschoben werden: {0}",
+   "The account could not be moved: {0}"
+  ],
+  [
+   "Nicht wieder zugewiesen: {0}",
+   "Not assigned again: {0}"
+  ],
+  [
+   "Nicht mehr vorhanden, wird übersprungen: {0}",
+   "No longer present, skipped: {0}"
+  ],
+  [
+   "Die OU {0} gibt es nicht mehr. Bitte eine andere OU wählen.",
+   "The OU {0} no longer exists. Please choose another OU."
+  ],
+  [
+   "Die OU {0} gehört nicht zu den Quell-OUs des Offboardings. Bitte eine andere OU wählen.",
+   "The OU {0} is not one of the offboarding source OUs. Please choose another OU."
+  ],
+  [
+   "{0} wurde wiederhergestellt und ist wieder aktiv.",
+   "{0} was restored and is enabled again."
+  ],
+  [
+   "{0} wurde wiederhergestellt.",
+   "{0} was restored."
+  ],
+  [
+   "Das Offboarding von {0} ({1}) wurde rückgängig gemacht.",
+   "The offboarding of {0} ({1}) was undone."
+  ],
+  [
+   "SAMONBOARDING - Konto wiederhergestellt: {0} ({1})",
+   "SAMONBOARDING - Account restored: {0} ({1})"
+  ],
+  [
+   "SAMONBOARDING - Offboarding für {0} ({1})",
+   "SAMONBOARDING - Offboarding of {0} ({1})"
+  ],
+  [
+   "SAMONBOARDING - Offboarding von {0} Konten",
+   "SAMONBOARDING - Offboarding of {0} accounts"
+  ],
+  [
+   "SAMONBOARDING - Passwort-Reset für {0} ({1})",
+   "SAMONBOARDING - Password reset for {0} ({1})"
+  ],
+  [
+   "SAMONBOARDING - Gruppenänderungen für {0} ({1})",
+   "SAMONBOARDING - Group changes for {0} ({1})"
+  ],
+  [
+   "SAMONBOARDING - {0}: {1} ({2})",
+   "SAMONBOARDING - {0}: {1} ({2})"
+  ],
+  [
+   "Neuer Mitarbeiter angelegt: {0} ({1})",
+   "New employee created: {0} ({1})"
+  ],
+  [
+   "Im Active Directory wurde erfolgreich ein neuer Benutzer für {0} eingerichtet.",
+   "A new user for {0} was created in Active Directory."
+  ],
+  [
+   "Das Konto von {0} ({1}) wurde erfolgreich deaktiviert und verschoben.",
+   "The account of {0} ({1}) was disabled and moved."
+  ],
+  [
+   "Das Konto von {0} ({1}) wurde endgültig gelöscht.",
+   "The account of {0} ({1}) was deleted permanently."
+  ],
+  [
+   "Das Löschen des Kontos von {0} ({1}) wurde nicht vollständig durchgeführt.",
+   "Deleting the account of {0} ({1}) was not completed."
+  ],
+  [
+   "Das Kennwort für das Benutzerkonto von {0} wurde erfolgreich zurückgesetzt.",
+   "The password for the user account of {0} was reset."
+  ],
+  [
+   "Für den Mitarbeiter {0} ({1}) wurden Gruppenanpassungen vorgenommen.",
+   "Group changes were made for the employee {0} ({1})."
+  ],
+  [
+   "{0} von {1} Konten wurden deaktiviert und in die Ziel-OU verschoben.",
+   "{0} of {1} accounts were disabled and moved to the target OU."
+  ],
+  [
+   "{0} von {1} Konten wurden gelöscht.",
+   "{0} of {1} accounts were deleted."
+  ],
+  [
+   "NICHT offgeboardet - {0}",
+   "NOT offboarded - {0}"
+  ],
+  [
+   "Dies ist eine erfolgreiche Test-Mail der SAMONBOARDING Suite v{0}.",
+   "This is a successful test mail from SAMONBOARDING Suite v{0}."
+  ],
+  [
+   "Test-Mail konnte nicht gesendet werden: {0}",
+   "Test mail could not be sent: {0}"
+  ],
+  [
+   "Test-Mail an {0} gesendet.",
+   "Test mail sent to {0}."
+  ],
+  [
+   "Konto {0} und {1} Ordner wurden gelöscht.",
+   "Account {0} and {1} folder(s) were deleted."
+  ],
+  [
+   "Konto {0} wurde gelöscht.",
+   "Account {0} was deleted."
+  ],
+  [
+   "Die Ordner wurden gelöscht, das AD-Konto aber nicht: {0}",
+   "The folders were deleted, but the AD account was not: {0}"
+  ],
+  [
+   "Ordner gelöscht, aber AD-Konto nicht: {0}",
+   "Folders deleted, but not the AD account: {0}"
+  ],
+  [
+   "Seit der Simulation hat sich etwas geändert, es wurde nichts gelöscht. Bitte die Simulation wiederholen. Abweichungen: {0}",
+   "Something changed since the simulation; nothing was deleted. Please repeat the simulation. Differences: {0}"
+  ],
+  [
+   "Die eingegebene Anzahl stimmt nicht. Es würden {0} Konten gelöscht.",
+   "The number entered is not correct. {0} accounts would be deleted."
+  ],
+  [
+   "{0} Ordner nicht vollständig gelöscht - AD-Konto bleibt bestehen",
+   "{0} folder(s) not completely deleted - AD account remains"
+  ],
+  [
+   "{0} {1}: nicht vollständig löschbar ({2})",
+   "{0} {1}: not completely deletable ({2})"
+  ],
+  [
+   "{0}: kein Ordner gefunden (erwartet: {1}).",
+   "{0}: no folder found (expected: {1})."
+  ],
+  [
+   "{0}: liegt nicht mehr unter einem freigegebenen Basispfad",
+   "{0}: no longer below a permitted base path"
+  ],
+  [
+   "{0}: nicht mehr Teil des Ergebnisses",
+   "{0}: no longer part of the result"
+  ],
+  [
+   "{0}: neu hinzugekommen",
+   "{0}: newly added"
+  ],
+  [
+   "{0}: ungültiger Name, übersprungen",
+   "{0}: invalid name, skipped"
+  ],
+  [
+   "{0}: Bitte mindestens eine Endung angeben (z. B. V2).",
+   "{0}: please enter at least one suffix (e.g. V2)."
+  ],
+  [
+   "{0}: Bitte mindestens einen Basispfad angeben.",
+   "{0}: please enter at least one base path."
+  ],
+  [
+   "{0}: Endung '{1}' ungültig (nur Buchstaben/Ziffern).",
+   "{0}: suffix '{1}' is invalid (letters/digits only)."
+  ],
+  [
+   "{0}: Basispfad '{1}' ungültig. {2}",
+   "{0}: base path '{1}' is invalid. {2}"
+  ],
+  [
+   "{0} Unterordner mit Fehler, z. B. {1}",
+   "{0} subfolder(s) with errors, e.g. {1}"
+  ],
+  [
+   "{0} Unterordner ohne Zugriff - Löschen wäre unvollständig.",
+   "{0} subfolder(s) without access - deletion would be incomplete."
+  ],
+  [
+   "{0} Unterordner ohne Zugriff - der Besitz würde übernommen. Deren Inhalt ist in den Zahlen nicht enthalten.",
+   "{0} subfolder(s) without access - ownership would be taken. Their content is not included in the numbers."
+  ],
+  [
+   "{0} Verknüpfung(en) enthalten - nur die Verknüpfung selbst wird entfernt, das Ziel bleibt unberührt.",
+   "{0} link(s) contained - only the link itself is removed, the target stays untouched."
+  ],
+  [
+   "{0} endet mit Punkt oder Leerzeichen.",
+   "{0} ends with a dot or space."
+  ],
+  [
+   "{0} enthält '{1}'.",
+   "{0} contains '{1}'."
+  ],
+  [
+   "{0} enthält unzulässige Zeichen (z. B. * ? : % < > |).",
+   "{0} contains invalid characters (e.g. * ? : % < > |)."
+  ],
+  [
+   "Ungültiger Pfad: {0}",
+   "Invalid path: {0}"
+  ],
+  [
+   "Benutzername '{0}' ist als Ordnername nicht zulässig.",
+   "User name '{0}' is not allowed as a folder name."
+  ],
+  [
+   "Wird auch von anderen Konten verwendet ({0}) - würde deren Daten löschen.",
+   "Also used by other accounts ({0}) - would delete their data."
+  ],
+  [
+   "Dateiserver nicht erreichbar ({0}).",
+   "File server not reachable ({0})."
+  ],
+  [
+   "Besitzübernahme fehlgeschlagen: {0}",
+   "Taking ownership failed: {0}"
+  ],
+  [
+   "Berechtigung nicht setzbar: {0}",
+   "Permission could not be set: {0}"
+  ],
+  [
+   "gelöscht ({0} Ordner, {1} Dateien)",
+   "deleted ({0} folders, {1} files)"
+  ],
+  [
+   "nicht gelöscht: {0}",
+   "not deleted: {0}"
+  ],
+  [
+   "Server {0}:{1} nicht erreichbar. Name, Port und Firewall prüfen.",
+   "Server {0}:{1} not reachable. Check name, port and firewall."
+  ],
+  [
+   "{0} Details: {1}",
+   "{0} Details: {1}"
+  ],
+  [
+   "Verbindung steht, aber Abfrage schlug fehl: {0}",
+   "Connected, but the query failed: {0}"
+  ],
+  [
+   "Postfach konnte nicht angelegt werden: {0}",
+   "Mailbox could not be created: {0}"
+  ],
+  [
+   "{0} ({1} Einträge)",
+   "{0} ({1} entries)"
+  ],
+  [
+   "Onboarding error: {0}",
+   "Onboarding error: {0}"
+  ],
+  [
+   "Form processing error: {0}",
+   "Form processing error: {0}"
+  ],
+  [
+   "Datenschutz: Einträge werden {0} Tage nach dem Offboarding automatisch entfernt.",
+   "Data protection: entries are removed automatically {0} days after offboarding."
+  ],
+  [
+   "Aufbewahrung: Audit-Log {0}, Wiederherstellungs-Einträge {1}, Anmeldungen {2} Stunden.",
+   "Retention: audit log {0}, restore entries {1}, sign-ins {2} hours."
+  ],
+  [
+   "{0} Tage",
+   "{0} days"
+  ],
+  [
+   "{0} Einträge gefunden.",
+   "{0} entries found."
+  ],
+  [
+   "Aufbewahrung: Berichte {0}, Protokoll {1}, Wiederherstellungs-Einträge {2}. Abmeldung nach {3} Minuten ohne Aktivität.",
+   "Retention: reports {0}, log {1}, restore entries {2}. Signed out after {3} minutes of inactivity."
+  ],
+  [
+   "Verschlüsselte Verbindung. Abmeldung nach {0} Minuten ohne Aktivität.",
+   "Encrypted connection. Signed out after {0} minutes of inactivity."
+  ],
+  [
+   "Sie wurden abgemeldet, weil {0} Minuten lang nichts passiert ist.",
+   "You were signed out because nothing happened for {0} minutes."
+  ],
+  [
+   "{0} von {1} angezeigt",
+   "{0} of {1} shown"
+  ],
+  [
+   "Automatisch gelöscht werden Änderungen nach {0} und das Protokoll nach {1}. Hier können Sie Einträge vorher löschen.",
+   "Changes are deleted automatically after {0} and the log after {1}. You can delete entries earlier here."
+  ],
+  [
+   "{0} Tagen",
+   "{0} days"
+  ],
+  [
+   "Alle Änderungen löschen, die älter als {0} Tage sind?",
+   "Delete all changes older than {0} days?"
+  ],
+  [
+   "Alle Protokoll-Einträge löschen, die älter als {0} Tage sind?",
+   "Delete all log entries older than {0} days?"
+  ],
+  [
+   "{0} Einträge gelöscht.",
+   "{0} entries deleted."
+  ],
+  [
+   "abgelaufen seit {0} Tagen",
+   "expired {0} days ago"
+  ],
+  [
+   "noch {0} Tage",
+   "{0} days left"
+  ],
+  [
+   "{0}: Die Datei enthält kein lesbares Zertifikat.",
+   "{0}: the file contains no readable certificate."
+  ],
+  [
+   "{0}: Die Datei ist kein Zertifikat (PEM oder DER/CER erwartet).",
+   "{0}: the file is not a certificate (PEM or DER/CER expected)."
+  ],
+  [
+   "Das Zertifikat ist abgelaufen (am {0}).",
+   "The certificate has expired (on {0})."
+  ],
+  [
+   "Das Zertifikat gilt erst ab {0} UTC.",
+   "The certificate is only valid from {0} UTC."
+  ],
+  [
+   "Das Zertifikat läuft bald ab (am {0}).",
+   "The certificate expires soon (on {0})."
+  ],
+  [
+   "Das Zertifikat wird vom Server nicht angenommen: {0}",
+   "The server does not accept the certificate: {0}"
+  ],
+  [
+   "Ungültiger Name: {0}",
+   "Invalid name: {0}"
+  ],
+  [
+   "Zertifikat konnte nicht gespeichert werden: {0}",
+   "The certificate could not be saved: {0}"
+  ],
+  [
+   "Zugriff verweigert: Sie müssen Mitglied der Domänen-Admins, der Administratoren, der Konten-Operatoren oder der Gruppe '{0}' sein.",
+   "Access denied: you must be a member of Domain Admins, Administrators, Account Operators or the group '{0}'."
+  ],
+  [
+   "Die Gruppe „{0}“ ist privilegiert und darf nur von Administratoren geändert werden.",
+   "The group “{0}” is privileged and may only be changed by administrators."
+  ],
+  [
+   "{0} (privilegierte Gruppe - nur Administratoren)",
+   "{0} (privileged group - administrators only)"
+  ],
+  [
+   "Der Ordnername passt nicht zum Benutzernamen '{0}' - wird nicht gelöscht.",
+   "The folder name does not match the user name '{0}' - it will not be deleted."
+  ],
+  [
+   "Der SMTP-Server {0} bietet keine Verschlüsselung (STARTTLS) an - die Anmeldedaten werden nicht unverschlüsselt gesendet. TLS-Modus 'SSL/TLS' wählen oder den Server prüfen.",
+   "The SMTP server {0} does not offer encryption (STARTTLS) - the credentials are not sent unencrypted. Choose TLS mode 'SSL/TLS' or check the server."
+  ],
+  [
+   "Der SMTP-Server {0} bietet keine Verschlüsselung (STARTTLS) an - es wird nichts unverschlüsselt gesendet. TLS-Modus 'SSL/TLS' wählen, den Server prüfen oder (nur für ein internes Relay) bewusst 'Ohne Verschlüsselung' einstellen.",
+   "The SMTP server {0} does not offer encryption (STARTTLS) - nothing is sent unencrypted. Choose TLS mode 'SSL/TLS', check the server or (only for an internal relay) deliberately set 'Without encryption'."
+  ],
+  [
+   "{0} fehlgeschlagen: {1}. Moegliche Ursachen: Passwort erfuellt die Passwortrichtlinie nicht, die Verbindung ist nicht per TLS (LDAPS) verschluesselt oder es fehlen Rechte.",
+   "{0} failed: {1}. Possible causes: the password does not meet the password policy, the connection is not encrypted with TLS (LDAPS) or permissions are missing."
+  ],
+  [
+   "{0} fehlgeschlagen: {1}.",
+   "{0} failed: {1}."
+  ],
+  [
+   "{0}: Maximal 260 Zeichen erlaubt.",
+   "{0}: at most 260 characters allowed."
+  ],
+  [
+   "Domain Controller {0} nicht erreichbar. Details stehen im Protokoll.",
+   "Domain controller {0} not reachable. Details are in the log."
+  ],
+  [
+   "Höchstens {0} Gruppenänderungen auf einmal.",
+   "At most {0} group changes at once."
+  ],
+  [
+   "Verweise angepasst: {0}",
+   "References updated: {0}"
+  ],
+  [
+   "Diese Objekte wurden gelöscht und unter gleichem Namen neu angelegt. Das neue Objekt übernehmen?\n\n{0}",
+   "These objects were deleted and created again under the same name. Accept the new object?\n\n{0}"
+  ],
+  [
+   "SMTP-Server {0} nicht erreichbar ({1}). Servername, Port und Firewall prüfen.",
+   "SMTP server {0} not reachable ({1}). Check server name, port and firewall."
+  ]
+ ]
+}

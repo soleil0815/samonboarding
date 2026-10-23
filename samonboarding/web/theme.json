@@ -1,0 +1,17 @@
+{
+  "_comment": "Farben und Schriften der Oberflaeche. Wird von tailwind.config.js (Docker-Build) gelesen. 'slate' ist die Grundfarbe (Nachtblau), 'cyan' der Akzent (Iris).",
+  "colors": {
+    "slate": {
+      "50": "#f4f6fb", "100": "#e7ebf4", "200": "#cdd4e4", "300": "#a9b3cb", "400": "#8590ad",
+      "500": "#66718e", "600": "#4c5672", "700": "#353d56", "800": "#252c42", "900": "#181e30", "950": "#0e1220"
+    },
+    "cyan": {
+      "50": "#eef0ff", "100": "#dfe3ff", "200": "#c4caff", "300": "#a3abff", "400": "#8b95ff",
+      "500": "#6f78f9", "600": "#5a5de9", "700": "#4a47c9", "800": "#3b39a0", "900": "#34347e", "950": "#1f1e4a"
+    }
+  },
+  "fontFamily": {
+    "sans": ["Manrope", "system-ui", "-apple-system", "Segoe UI", "sans-serif"],
+    "mono": ["JetBrains Mono", "ui-monospace", "SFMono-Regular", "Consolas", "monospace"]
+  }
+}

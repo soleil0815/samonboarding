@@ -1,0 +1,38 @@
+const fs = require('fs');
+const src = require('./load_script.js');
+const els = {};
+const el = id => els[id] || (els[id] = {id, innerHTML:'', textContent:'', value:'', checked:false, disabled:false, classList:{add(){},remove(){},toggle(){}}, style:{}});
+const doc = {getElementById: el, querySelectorAll: () => [], addEventListener(){}};
+let body;
+const fetchStub = async (u, o) => { if(o && o.method==='POST' && u==='/api/templates') body = JSON.parse(o.body); return {ok:true, json: async()=>[]}; };
+const f = new Function('document','window','navigator','alert','fetch', src.replace(/document\.addEventListener\("DOMContentLoaded"[\s\S]*?\}\);\s*\n/, '') + `
+return {setHomeDriveForm, toggleHomeMode, saveTemplateFromModal, openTemplateModal, setRole:r=>{currentUserRole=r}, setT:t=>{templates=t}, stub:()=>{adTreeGetSelected=()=>[]; adTreeSetSelected=()=>{}; togglePwdMode=()=>{};}};`);
+(async () => {
+  const api = f(doc, {}, {language:'de'}, m => console.log('ALERT', m), fetchStub);
+  api.stub();
+  api.setHomeDriveForm('h');
+  console.assert(els['tpl-homedrive'].innerHTML.includes('value="H:"') && !els['tpl-homedrive'].innerHTML.includes('value="C:"') && els['tpl-homedrive'].value === 'H:' && els['tpl-home-mode-connect'].checked && !els['tpl-homedrive'].disabled, 'Laufwerk gesetzt');
+  api.setHomeDriveForm('');
+  console.assert(els['tpl-homedrive'].value === 'Z:' && els['tpl-home-mode-local'].checked && els['tpl-homedrive'].disabled, 'lokal');
+  api.setHomeDriveForm('C:');
+  console.assert(els['tpl-homedrive'].innerHTML.includes('value="C:"'), 'Sonderlaufwerk bleibt erhalten');
+  ['tpl-name','tpl-homedir','tpl-script'].forEach(el); els['tpl-name'].value = 'T'; els['tpl-home-mode-connect'].checked = true; els['tpl-homedrive'].value='M:'; els['tpl-homedir'].value='\\\\fs\\h$\\%username%'; els['tpl-script'].value='a.bat';
+  await api.saveTemplateFromModal();
+  console.assert(body.homeDrive === 'M:' && body.scriptPath === 'a.bat' && body.homeDirectory.startsWith('\\\\fs'), 'Payload connect ' + JSON.stringify(body));
+  console.assert(body.createHomeFolder === false, 'createHomeFolder Standard aus');
+  els['tpl-home-create'] = els['tpl-home-create'] || el('tpl-home-create'); els['tpl-home-create'].checked = true;
+  await api.saveTemplateFromModal();
+  console.assert(body.createHomeFolder === true, 'createHomeFolder im Payload');
+  els['tpl-home-create'].checked = false;
+  els['tpl-home-mode-connect'].checked = false; els['tpl-home-mode-local'].checked = true;
+  await api.saveTemplateFromModal();
+  console.assert(body.homeDrive === '', 'Payload lokal ohne Laufwerk');
+  api.setRole('Administrator'); api.setT([{id:1,name:'x',homeDrive:'H:',homeDirectory:'\\\\a\\b\\%username%',scriptPath:'s.bat',profilePath:'p',groups:[],createHomeFolder:true}]);
+  api.openTemplateModal(1);
+  console.assert(els['tpl-script'].value === 's.bat' && els['tpl-homedir'].value.includes('%username%') && els['tpl-homedrive'].value === 'H:' && els['tpl-home-mode-connect'].checked, 'Bearbeiten laedt Felder');
+  console.assert(els['tpl-home-create'].checked === true, 'Bearbeiten laedt createHomeFolder');
+  api.openTemplateModal(null);
+  console.assert(els['tpl-homedir'].value === '' && els['tpl-home-mode-local'].checked, 'Neu: leer');
+  console.assert(els['tpl-home-create'].checked === false, 'Neu: createHomeFolder aus');
+  console.log('Template-UI-Tests fertig');
+})();

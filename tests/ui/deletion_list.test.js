@@ -1,0 +1,53 @@
+const fs = require('fs');
+const src = require('./load_script.js');
+const els = {};
+const el = id => els[id] || (els[id] = {id, innerHTML:'', textContent:'', value:'', checked:false, focus(){}, classList:{add(){},remove(){},toggle(){}}, style:{}});
+global.document = {getElementById: el, querySelectorAll: () => [], addEventListener(){}};
+global.window = {};
+global.navigator = {language:'de'};
+global.alert = m => { global.lastAlert = m; };
+let calls = [];
+global.fetch = async (url, opt) => {
+  calls.push([url, opt && opt.method]);
+  if(url === '/api/deletion-config') return {ok:true, json: async () => ({enabled:true, disabledOu:'OU=D', profile:{enabled:true, roots:['\\\\fs\\p$'], useAdAttr:true, suffixes:['V2','V6'], takeOwnership:true}, folderRedirection:{enabled:true, roots:[]}, home:{enabled:false, roots:[], useAdAttr:false}})};
+  if(url === '/api/deletion/users') return {ok:true, json: async () => ({users:[{dn:'CN=a,OU=D', name:'<img src=x onerror=1>', sam:'a', disabled:true, self:false},{dn:'x', name:'B', sam:'b', disabled:false},{dn:'y', name:'C', sam:'c', disabled:true, self:true}]})};
+  if(url === '/api/deletion/simulate' && global.simTake) return {ok:true, json: async () => ({account:{name:'n', sam:'x', dn:'CN=x', groups:[]}, simulatedAt:'t', summary:{folders:1, files:0, size:0, allDeletable:true, takeovers:2, links:3}, warnings:[], blockers:[], planId:'p', targets:[{label:'Basisordner', path:'\\\\fs\\h$\\x', source:'AD-Attribut', status:'takeover', files:0, dirs:0, size:0, truncated:false, warnings:[], message:'Kein Zugriff - der Besitz würde übernommen.'}]})};
+  if(url === '/api/deletion/simulate') return {ok:true, json: async () => ({account:{name:'<b>x</b>', sam:'x', dn:'CN=x', groups:['G1'], }, simulatedAt:'t', summary:{folders:1, files:3, size:2048, allDeletable:false}, warnings:['w<1>'], targets:[{label:'Roamingprofil', path:'\\\\fs\\p$\\x.V2', source:'AD-Attribut', status:'found', files:3, dirs:1, size:2048, truncated:true, warnings:['y'], message:'Vorhanden.'},{label:'Basisordner', path:'', source:'Konto', status:'skipped', message:'nope <script>', warnings:[]}]})};
+  if(url === '/api/deletion/test') return {ok:true, json: async () => ({results:[{ok:true, label:'Profil', root:'\\\\fs\\p$', message:'ok', entries:3},{ok:false, label:'Home', root:'\\\\x', message:'fail<', entries:0}]})};
+};
+const run = new Function('document','window','navigator','alert','fetch', src.replace(/document\.addEventListener\("DOMContentLoaded"[\s\S]*?\}\);\s*\n/, '') + `
+return {loadDeletionConfig, saveDeletionConfig, loadDeletionUsers, simulateDeletion, testDeletionPaths, filterDeletionTable, setRole: r => { currentUserRole = r; }, fmtBytes};`);
+(async () => {
+  const api = run(global.document, global.window, global.navigator, global.alert, global.fetch);
+  api.setRole('Account Operator');
+  await api.loadDeletionConfig(); await api.loadDeletionUsers();
+  console.assert(calls.length === 0, 'Operator darf nichts laden');
+  api.setRole('Administrator');
+  await api.loadDeletionConfig();
+  console.assert(els['del-enabled'].checked === true && els['del-profile-suffixes'].value === 'V2, V6' && els['del-profile-roots'].value.includes('fs'), 'Config laden');
+  await api.loadDeletionUsers();
+  const list = els['del-user-list'].innerHTML;
+  console.assert(!list.includes('<img') && list.includes('&lt;img'), 'XSS Liste');
+  console.assert(list.match(/Simulation<\/button>/g).length === 1 && list.includes('Noch aktiv') && list.includes('Eigenes Konto'), 'Aktionen');
+  await api.simulateDeletion('CN=a,OU=D');
+  const sim = els['del-sim-result'].innerHTML;
+  console.assert(!sim.includes('<b>x') && !sim.includes('<script>') && sim.includes('2.0 KB') && sim.includes('3+ Dateien') && sim.includes('nicht alles wäre löschbar'), 'Simulation Render');
+  console.assert(els['del-profile-take'].checked === true && els['del-home-take'].checked === false, 'takeOwnership laden');
+  global.simTake = true;
+  await api.simulateDeletion('CN=a,OU=D');
+  const sim2 = els['del-sim-result'].innerHTML;
+  console.assert(sim2.includes('Besitz nötig') && sim2.includes('Inhalt vorab nicht zählbar') && sim2.includes('Besitz übernommen (Administratoren') && sim2.includes('Bei 2 Ordner') && sim2.includes('3 Verknüpfung'), 'Takeover Render');
+  global.simTake = false;
+  await api.testDeletionPaths();
+  console.assert(els['del-test-result'].innerHTML.includes('fail&lt;'), 'Test Render');
+  els['del-profile-take'].checked = true; els['del-home-take'].checked = false;
+  els['del-profile-suffixes'].value = 'V2, .V6;V4';
+  els['del-profile-roots'].value = ' \\\\fs\\p$ \n\n';
+  let body; global.fetch = async (u, o) => { body = JSON.parse(o.body); return {ok:true, json: async()=>({})}; };
+  const api2 = run(global.document, global.window, global.navigator, global.alert, global.fetch); api2.setRole('Administrator');
+  els['del-cfg-ou'].value = 'OU=D';
+  try { await api2.saveDeletionConfig(); } catch(e) {}
+  console.assert(body.profile.suffixes.join('|') === 'V2|.V6|V4' && body.profile.roots.join('|') === '\\\\fs\\p$' && body.disabledOu === 'OU=D', 'Save-Payload ' + JSON.stringify(body));
+  console.assert(body.profile.takeOwnership === true && body.home.takeOwnership === false && body.folderRedirection.takeOwnership === false, 'takeOwnership im Payload');
+  console.log('UI-Tests fertig');
+})();

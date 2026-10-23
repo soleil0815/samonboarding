@@ -1,0 +1,7 @@
+# Tools for tests and checks (exact versions, so formatting and checks are the same everywhere)
+-r requirements.txt
+iniconfig==2.1.0
+packaging==25.0
+pluggy==1.5.0
+pytest==8.3.5
+ruff==0.16.8
