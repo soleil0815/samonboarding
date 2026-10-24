@@ -121,7 +121,7 @@ dc_ohne_compose() {
         config) echo "$PLAIN_IMAGE" ;;  # only "config --images" is needed
         build)
             docker build "$@" --build-arg PYTHON_IMAGE="$PYTHON_IMAGE" --build-arg NODE_IMAGE="$NODE_IMAGE" \
-                -t "$PLAIN_IMAGE" . ;;
+                --build-arg APT_REFRESH="${APT_REFRESH:-}" -t "$PLAIN_IMAGE" . ;;
         ps)
             local all=()
             [ "${1:-}" = "-a" ] && all=(-a)
@@ -459,6 +459,8 @@ load_images() {
     NODE_IMAGE="$(sed -n 's/^NODE_IMAGE=//p' images.lock | tail -n1)"
     [ -n "$PYTHON_IMAGE" ] && [ -n "$NODE_IMAGE" ] || fail "images.lock is incomplete."
     export PYTHON_IMAGE NODE_IMAGE
+    APT_REFRESH="$(date '+%Y%m%d')"  # Debian security updates are fetched again every day a build runs
+    export APT_REFRESH
 }
 load_images
 SAMONBOARDING_IMAGE="$(env_value SAMONBOARDING_IMAGE)"

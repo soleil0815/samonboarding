@@ -7,6 +7,7 @@ Entries starting with "Security:" or "Fixed:" are marked accordingly in the inte
 
 ## 1.46.1 – 2026-10-24
 - Security: every image is checked for known vulnerabilities with Trivy on GitHub before it is published. If Trivy finds a serious vulnerability (CRITICAL/HIGH) for which a fix exists, the image is not published. In addition, the published image is checked again every Monday.
+- Security: the current Debian security updates are now installed at build time (among others OpenSSL, GnuTLS, Kerberos, PAM, Perl). The packages `setuptools` and `wheel`, which are not needed, are removed from the image. The first Trivy scan had found several serious vulnerabilities here.
 
 ## 1.46.0 – 2026-10-24
 - Security: members of Key Admins, Enterprise Key Admins, Group Policy Creator Owners and Cert Publishers are now protected as well. Until now operators could reset their passwords.

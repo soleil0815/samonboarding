@@ -40,10 +40,16 @@ RUN npx tailwindcss -c tailwind.config.js -i tailwind.input.css -o dist/app.css 
 # Official, lightweight Python image with a fixed version
 FROM ${PYTHON_IMAGE}
 
+# Security updates of the Debian packages in the base image (OpenSSL, GnuTLS, Kerberos, ...) at build time.
+# APT_REFRESH changes with every build (update.sh: date, GitHub: run number), so the result is never an old cached layer.
 # Time zone for logs, audit log and mails (can be changed with TZ in .env)
+ARG APT_REFRESH=
 ENV TZ=Europe/Berlin
-RUN test -f /usr/share/zoneinfo/Europe/Berlin \
- || (apt-get update && apt-get install -y --no-install-recommends tzdata && rm -rf /var/lib/apt/lists/*)
+RUN echo "security updates: ${APT_REFRESH:-local}" \
+ && apt-get update \
+ && apt-get upgrade -y --no-install-recommends \
+ && (test -f /usr/share/zoneinfo/Europe/Berlin || apt-get install -y --no-install-recommends tzdata) \
+ && rm -rf /var/lib/apt/lists/*
 
 # Marker: when cleaning up, update.sh only removes old images with this label
 LABEL de.helfi.samonboarding="1"
@@ -55,7 +61,9 @@ WORKDIR /app
 # pip check verifies that everything fits together
 ENV PIP_DISABLE_PIP_VERSION_CHECK=1 PYTHONDONTWRITEBYTECODE=1
 COPY requirements.txt .
-RUN pip install --no-cache-dir --no-deps -r requirements.txt && pip check
+# setuptools and wheel come with the base image but are not needed at runtime (and often have known vulnerabilities)
+RUN pip install --no-cache-dir --no-deps -r requirements.txt && pip check \
+ && (pip uninstall -y setuptools wheel >/dev/null 2>&1 || true) && pip check
 
 # Copy the rest of the source code into the container
 COPY . .

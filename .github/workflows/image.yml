@@ -78,7 +78,11 @@ jobs:
           build-args: |
             PYTHON_IMAGE=${{ steps.meta.outputs.python }}
             NODE_IMAGE=${{ steps.meta.outputs.node }}
+            APT_REFRESH=${{ github.run_id }}
           cache-from: type=gha
+
+      - name: Start check of the built image (all packages can be imported)
+        run: docker run --rm --entrypoint python samonboarding:scan -c "import samonboarding.main, smbclient, pypsrp.powershell, ldap3; print('import ok')"
 
       - name: Vulnerability scan (Trivy)
         uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25  # v0.36.0
@@ -117,6 +121,7 @@ jobs:
           build-args: |
             PYTHON_IMAGE=${{ steps.meta.outputs.python }}
             NODE_IMAGE=${{ steps.meta.outputs.node }}
+            APT_REFRESH=${{ github.run_id }}
           tags: |
             ${{ steps.meta.outputs.image }}:latest
             ${{ steps.meta.outputs.image }}:${{ steps.meta.outputs.version }}
