@@ -5,6 +5,9 @@ Update on the server: `sudo sh update.sh --pull`.
 
 Entries starting with "Security:" or "Fixed:" are marked accordingly in the interface.
 
+## 1.46.1 – 2026-10-24
+- Security: every image is checked for known vulnerabilities with Trivy on GitHub before it is published. If Trivy finds a serious vulnerability (CRITICAL/HIGH) for which a fix exists, the image is not published. In addition, the published image is checked again every Monday.
+
 ## 1.46.0 – 2026-10-24
 - Security: members of Key Admins, Enterprise Key Admins, Group Policy Creator Owners and Cert Publishers are now protected as well. Until now operators could reset their passwords.
 - Security: computer and service accounts (gMSA) can no longer be changed via password reset, offboarding, moving or deletion, not even with a specifically crafted DN.

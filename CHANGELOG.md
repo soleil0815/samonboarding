@@ -5,6 +5,9 @@ Update auf dem Server: `sudo sh update.sh --pull`.
 
 Einträge, die mit „Sicherheit:“ oder „Behoben:“ beginnen, werden in der Oberfläche entsprechend markiert.
 
+## 1.46.1 – 2026-10-24
+- Sicherheit: Jedes Image wird vor der Veröffentlichung auf GitHub mit Trivy auf bekannte Schwachstellen geprüft. Findet Trivy eine schwere Lücke (CRITICAL/HIGH), für die es schon eine Korrektur gibt, wird das Image nicht veröffentlicht. Zusätzlich wird das veröffentlichte Image jeden Montag erneut geprüft.
+
 ## 1.46.0 – 2026-10-24
 - Sicherheit: Mitglieder von Schlüsseladministratoren, Organisationsschlüsseladministratoren, Richtlinien-Ersteller-Besitzer und Zertifikatherausgeber gelten jetzt ebenfalls als geschützt. Bisher durften Operatoren deren Passwort zurücksetzen.
 - Sicherheit: Computer- und Dienstkonten (gMSA) lassen sich nicht mehr über Passwort-Reset, Offboarding, Verschieben oder Löschen bearbeiten, auch nicht mit einem gezielt übergebenen DN.

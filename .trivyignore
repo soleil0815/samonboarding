@@ -1,0 +1,9 @@
+# Trivy: bewusst hingenommene Funde (Accepted findings)
+#
+# Der Build auf GitHub wird rot, wenn Trivy im Image eine Schwachstelle der Stufe CRITICAL oder HIGH findet, für die
+# es schon eine korrigierte Version gibt. Lässt sie sich (noch) nicht beheben und betrifft SAMONBOARDING nachweislich
+# nicht, kommt sie hier hinein - immer mit Begründung und Datum, damit sie später erneut geprüft wird:
+#
+#   CVE-2026-12345   # libfoo: nur für den Druckdienst, der im Container nie läuft - geprüft 2026-10-24, erneut prüfen 2027-01
+#
+# Leer = nichts wird ignoriert.

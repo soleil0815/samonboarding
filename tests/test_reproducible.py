@@ -222,6 +222,24 @@ class UpdateScriptTests(unittest.TestCase):
         for key in keys - {"DOCKER_SUBNET"}:
             self.assertIn(f"      {key}: ${{{key}:", compose)
 
+    def test_trivy_vor_dem_veroeffentlichen(self):
+        """Veroeffentlicht wird erst, wenn Trivy keine behebbare CRITICAL/HIGH-Luecke findet; dazu woechentlich."""
+        flow = (ROOT / ".github" / "workflows" / "image.yml").read_text(encoding="utf-8")
+        scan = flow.index("aquasecurity/trivy-action@")
+        self.assertLess(flow.index("load: true"), scan)
+        self.assertLess(scan, flow.index("Vulnerability report"))
+        # erst pruefen, dann anmelden
+        self.assertLess(flow.index("Vulnerability report"), flow.index("docker/login-action@"))
+        self.assertIn("severity: CRITICAL,HIGH", flow)
+        self.assertIn("ignore-unfixed: true", flow)
+        self.assertIn("trivyignores: .trivyignore", flow)
+        self.assertIn("schedule:", flow)
+        self.assertIn("weekly-scan:", flow)
+        self.assertTrue((ROOT / ".trivyignore").exists())
+        for line in flow.splitlines():
+            if "uses:" in line:  # alle Actions auf einen festen Commit gepinnt
+                self.assertRegex(line, r"@[0-9a-f]{40}\b", line)
+
     def test_image_von_github_holen(self):
         """--pull holt das fertige Image von ghcr.io (kein git, kein Bauen) - mit Sicherung und Zuruecksetzen."""
         text = (ROOT / "update.sh").read_text(encoding="utf-8")
