@@ -340,7 +340,7 @@ Ein Template beschreibt, wie ein neuer Benutzer angelegt wird:
 | Username Makro | Aufbau des Benutzernamens (`sAMAccountName`), siehe Tabelle unten |
 | Ziel OU (DN) | OU, in der das Konto angelegt wird (Eingabe als DN oder Auswahl aus der AD-Liste) |
 | E-Mail-Adresse / Postfach | Ob die E-Mail-Adresse Pflicht, optional oder gar nicht abgefragt wird und ob ein Exchange-Postfach entsteht (siehe [unten](#e-mail-adresse-und-postfach-je-template-einstellbar)) |
-| Passwort-Modus | *Automatisches Zufallspasswort* (12 Zeichen) oder *Festes Standardpasswort* (dann muss das Feld *Standardpasswort* ausgefüllt sein) |
+| Passwort-Modus | *Automatisches Zufallspasswort* (12 Zeichen, ohne verwechselbare Zeichen wie 0/O oder 1/l/I) oder *Festes Standardpasswort* (dann muss das Feld *Standardpasswort* ausgefüllt sein) |
 | Benutzer muss Passwort beim nächsten Login ändern | Erzwingt die Änderung beim ersten Login |
 | Kennwort läuft nie ab | Setzt das entsprechende Konto-Flag |
 | AD Gruppen zuweisen | Gruppen, in die der Benutzer aufgenommen wird (Baum mit Haken) |

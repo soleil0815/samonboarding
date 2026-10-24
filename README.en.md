@@ -340,7 +340,7 @@ A template describes how a new user is created:
 | *Username Makro* | Structure of the user name (`sAMAccountName`), see table below |
 | *Ziel OU (DN)* | OU in which the account is created (enter a DN or pick from the AD list) |
 | *E-Mail-Adresse / Postfach* | Whether the e-mail address is required, optional or not asked, and whether an Exchange mailbox is created (see [below](#e-mail-address-and-mailbox-per-template)) |
-| *Passwort-Modus* | *Automatic random password* (12 characters) or *fixed default password* (then the field *Standardpasswort* must be filled) |
+| *Passwort-Modus* | *Automatic random password* (12 characters, without easily confused characters such as 0/O or 1/l/I) or *fixed default password* (then the field *Standardpasswort* must be filled) |
 | *Benutzer muss Passwort beim nächsten Login ändern* | Forces a change at first logon |
 | *Kennwort läuft nie ab* | Sets the "password never expires" flag |
 | *AD Gruppen zuweisen* | Groups the user is added to (tree with checkboxes) |

@@ -119,7 +119,7 @@ The table shows all accounts from the released OUs with their groups, sorted alp
 
 1. Open **Reset password**, find the account in the list, click **Reset password**.
 2. Choose the mode:
-   - **Automatic strong random password** (12 characters) or
+   - **Automatic strong random password** (12 characters, without easily confused characters such as 0/O or 1/l/I) or
    - **Enter a new password manually** (twice; the AD password policy applies).
 3. Options:
    - **User must change password at next logon** (recommended, on by default)

@@ -5,16 +5,20 @@ import secrets
 import string
 import unicodedata
 
+# Zeichen, die man beim Abtippen oder Vorlesen leicht verwechselt (0/O/o, 1/l/I), kommen nicht vor
+AMBIGUOUS_CHARS = "0Oo1lI"
+PASSWORD_SPECIALS = "!@#$%&*"
+
 
 def generate_secure_password(length=12):
-    alphabet = string.ascii_letters + string.digits + "!@#$%&*"
+    alphabet = "".join(c for c in string.ascii_letters + string.digits + PASSWORD_SPECIALS if c not in AMBIGUOUS_CHARS)
     while True:
         pwd = "".join(secrets.choice(alphabet) for _ in range(length))
         if (
             any(c.islower() for c in pwd)
             and any(c.isupper() for c in pwd)
             and any(c.isdigit() for c in pwd)
-            and any(c in "!@#$%&*" for c in pwd)
+            and any(c in PASSWORD_SPECIALS for c in pwd)
         ):
             return pwd
 

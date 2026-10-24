@@ -24,6 +24,8 @@ check("country_code", M["country_code"]("Österreich") == "AT" and M["country_co
 check("Passwort-Generator erfuellt Komplexitaet", all(
     any(c.islower() for c in p) and any(c.isupper() for c in p) and any(c.isdigit() for c in p) and len(p) == 12
     for p in (M["generate_secure_password"]() for _ in range(50))))
+check("Passwort ohne verwechselbare Zeichen (0 O o 1 l I)", not any(
+    c in "0Oo1lI" for c in "".join(M["generate_secure_password"]() for _ in range(300))))
 
 # ---- 2. Login
 bad, e = raises(lambda: login("admin", "falsch"), 401)

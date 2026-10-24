@@ -117,7 +117,7 @@ Die Tabelle zeigt alle Konten aus den freigegebenen OUs mit ihren Gruppen, alpha
 
 1. Menü **Passwort zurücksetzen**, Konto in der Liste suchen, auf **Kennwort zurücksetzen** klicken.
 2. Modus wählen:
-   - **Automatisches starkes Zufallspasswort** (12 Zeichen) oder
+   - **Automatisches starkes Zufallspasswort** (12 Zeichen, ohne leicht verwechselbare Zeichen wie 0/O oder 1/l/I) oder
    - **manuell eingeben** (zweimal; die Passwortrichtlinie des AD gilt).
 3. Optionen:
    - **Benutzer muss Kennwort bei der nächsten Anmeldung ändern** (empfohlen, standardmäßig an)
