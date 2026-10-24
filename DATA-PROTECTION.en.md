@@ -38,7 +38,7 @@ This document describes the personal data SAMONBOARDING processes: where it is k
 | Reference list: path (DN) and objectGUID of the OUs and groups chosen in the settings and templates. **No accounts, no personal data** | `data/verweise.json` | Notice when an OU/group was renamed, moved or deleted in AD |
 | Account lists of the modules and AD structure (names/DNs for the pickers) (cache, so that switching between pages is fast) | **In memory only**, per session; invalid after 60 seconds and removed on the next access, cleared immediately on every change, on sign-out and on restart. **No copy in a database** | Operation |
 | Notification mails (for onboarding and password reset they contain the new password) | Your own mail server, mailbox of the acting employee | Handing over credentials |
-| Language setting DE/EN | Browser `localStorage` | Usability |
+| Language setting DE/EN and the last version read in News | Browser `localStorage` | Usability |
 | Container log (errors, notices) | Docker log, rotated (3 × 10 MB) | Operation / troubleshooting |
 
 ---

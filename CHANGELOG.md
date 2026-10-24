@@ -1,7 +1,12 @@
 # Changelog
 
-Alle wichtigen Änderungen an SAMONBOARDING, neueste zuerst.
+Alle wichtigen Änderungen an SAMONBOARDING, neueste zuerst. Die Oberfläche zeigt sie unter *Hilfe → Neuigkeiten*.
 Update auf dem Server: `sudo sh update.sh --pull`.
+
+Einträge, die mit „Sicherheit:“ oder „Behoben:“ beginnen, werden in der Oberfläche entsprechend markiert.
+
+## 1.45.0 – 2026-10-24
+- Neuigkeiten in der Oberfläche: Unter *Hilfe → Neuigkeiten* steht, was sich in den installierten Versionen geändert hat. Gibt es seit dem letzten Lesen eine neue Version, zeigt ein kleiner Punkt das an; bei Sicherheitsupdates ist er orange.
 
 ## 1.44.0 – 2026-10-24
 - Automatisch erzeugte Passwörter (Onboarding, Passwort-Reset) enthalten keine leicht verwechselbaren Zeichen mehr: 0 O o 1 l I.
@@ -50,15 +55,13 @@ Update auf dem Server: `sudo sh update.sh --pull`.
 - Behoben: Nach einem DC-Ausfall wurde die Ersatzliste zwischengespeichert.
 
 ## 1.36.0 – 2026-10-22
-- Code-Review:
+- Behoben: Fehler aus dem Code-Review:
   - LDAP-Suchen erkennen Abbrüche und Fehler.
   - Zeitlimits für den DC.
   - DN-Vergleich nach Bestandteilen.
-- Löschen:
-  - Prüfung auf Ordner, die auch andere Konten nutzen.
-  - Admin-Passwort und Rolle werden vor dem Löschen erneut geprüft.
+- Sicherheit: Beim Löschen werden Admin-Passwort und Rolle unmittelbar vorher erneut geprüft. Ordner, die auch andere Konten nutzen, werden nicht gelöscht.
 - Wiederherstellen nur noch über die GUID. Ein Onboarding, das abbricht, wird sauber zurückgerollt.
-- SMTP: neuer Modus „Ohne Verschlüsselung“ für interne Relays. Im Modus „Auto“ wird ohne STARTTLS nichts gesendet.
+- Sicherheit: Im SMTP-Modus „Auto“ wird ohne STARTTLS nichts mehr gesendet. Für interne Relays ohne TLS gibt es den Modus „Ohne Verschlüsselung“.
 - Namensbildung: Ø, Æ, Œ, Ł, Đ und Þ werden umgeschrieben.
 
 ## 1.35.1 – 2026-10-22

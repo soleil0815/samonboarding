@@ -40,6 +40,7 @@ SAMONBOARDING ist eine Weboberfläche für den Lebenszyklus von Benutzerkonten i
 | **AD-Struktur** | Übersicht über OUs und Gruppen |
 | **Berichte** | Wer hat wann was getan, Programm-Meldungen (nur Administratoren) |
 | **Zertifikat** | HTTPS-Zertifikat hochladen (nur Administratoren) |
+| **Neuigkeiten** | Was sich in den installierten Versionen geändert hat. Ein kleiner Punkt zeigt eine neue Version an, ein oranger Punkt ein Sicherheitsupdate |
 
 Wichtig zu wissen:
 

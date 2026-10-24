@@ -192,6 +192,16 @@
             background: linear-gradient(180deg, var(--stage-in), var(--stage-care) 35%, var(--stage-out) 72%, var(--stage-del));
         }
         .nav-dot { position: relative; z-index: 1; width: 12px; height: 12px; margin-left: 3px; flex: none; border-radius: 999px; border: 2px solid var(--stage); background: var(--ink-925); transition: background-color .2s, box-shadow .2s; }
+        .news-dot { margin-left: auto; width: 8px; height: 8px; flex: none; border-radius: 999px; background: var(--iris-300); box-shadow: 0 0 0 3px rgba(139, 149, 255, .18); }
+        .news-dot.is-security { background: #f59e0b; box-shadow: 0 0 0 3px rgba(245, 158, 11, .2); }
+        .news-entry + .news-entry { border-top: 1px solid var(--ink-800); padding-top: 14px; }
+        .news-entry ul { list-style: disc; padding-left: 18px; }
+        .news-entry ul ul { list-style: circle; margin-top: 2px; }
+        .news-entry code { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--ink-300); }
+        .news-chip { display: inline-block; font-size: 10px; font-weight: 700; letter-spacing: .03em; padding: 0 6px; border-radius: 6px; margin-right: 6px; vertical-align: 1px; }
+        .news-chip-fix { color: #a5b4fc; background: rgba(99, 102, 241, .14); }
+        .news-chip-security { color: #fbbf24; background: rgba(245, 158, 11, .14); }
+        .news-chip-unread { color: #67e8f9; background: rgba(34, 211, 238, .12); }
         .nav-item:hover .nav-dot { background: color-mix(in srgb, var(--stage) 35%, var(--ink-925)); }
         .nav-item.is-active .nav-dot { background: var(--stage); box-shadow: 0 0 0 4px color-mix(in srgb, var(--stage) 22%, transparent), 0 0 14px var(--stage); }
         .sidebar-user { display: flex; align-items: center; gap: 10px; padding: 14px 16px; border-top: 1px solid var(--ink-800); background: rgba(14, 18, 32, .45); }
@@ -367,6 +377,7 @@
 
                 <p class="nav-group">Hilfe</p>
                 <button onclick="switchTab('faq')" id="nav-faq" class="nav-item nav-plain"><i class="fa-solid fa-book nav-icon"></i><span class="nav-name">Handbuch</span></button>
+                <button onclick="openNews()" id="nav-news" class="nav-item nav-plain"><i class="fa-solid fa-bullhorn nav-icon"></i><span class="nav-name">Neuigkeiten</span><span id="news-dot" class="news-dot hidden" title="Neue Version"></span></button>
                 <button onclick="openPrivacy()" id="nav-privacy" class="nav-item nav-plain"><i class="fa-solid fa-user-shield nav-icon"></i><span class="nav-name">Datenschutz</span></button>
                 <a href="https://helfi.space" target="_blank" rel="noopener noreferrer" id="nav-web" class="nav-item nav-plain" style="text-decoration:none"><i class="fa-solid fa-globe nav-icon"></i><span class="nav-name">helfi.space</span><i class="fa-solid fa-arrow-up-right-from-square" style="margin-left:auto;font-size:10px;opacity:.5"></i></a>
             </nav>
@@ -1150,7 +1161,7 @@
             <div class="space-y-2.5">
                 <div class="privacy-fact"><i class="fa-solid fa-lock"></i><div><b>Nur verschlüsselt (HTTPS)</b><span>Die Anwendung ist ausschließlich über HTTPS erreichbar. Sitzungen enden bei Abmeldung, nach Inaktivität oder beim Neustart.</span></div></div>
                 <div class="privacy-fact"><i class="fa-solid fa-plug-circle-xmark"></i><div><b>Keine Verbindungen ins Internet</b><span>Oberfläche, Schriften und Icons kommen vom eigenen Server. Kein CDN, kein Tracking, keine Telemetrie.</span></div></div>
-                <div class="privacy-fact"><i class="fa-solid fa-cookie-bite"></i><div><b>Nur ein notwendiges Cookie</b><span>Für die Anmeldung. Die Sprachwahl liegt nur in Ihrem Browser.</span></div></div>
+                <div class="privacy-fact"><i class="fa-solid fa-cookie-bite"></i><div><b>Nur ein notwendiges Cookie</b><span>Für die Anmeldung. Die Sprachwahl und der zuletzt gelesene Stand der Neuigkeiten liegen nur in Ihrem Browser.</span></div></div>
                 <div class="privacy-fact"><i class="fa-solid fa-key"></i><div><b>Keine Passwörter gespeichert</b><span>Ihr Passwort liegt nur während der Sitzung im Arbeitsspeicher und nie auf der Festplatte. Kontodaten bleiben im Active Directory.</span></div></div>
                 <div class="privacy-fact"><i class="fa-solid fa-clock-rotate-left"></i><div><b>Automatische Löschung</b><span id="privacy-retention">Berichte, Protokoll und Wiederherstellungs-Einträge werden nach festen Fristen gelöscht.</span></div></div>
             </div>
@@ -1164,6 +1175,14 @@
             </div>
             <p class="text-[11px] text-slate-500">Ausführlich, mit Vorlage für das Verzeichnis von Verarbeitungstätigkeiten: <span translate="no" class="font-mono">DATENSCHUTZ.md</span> im Programmordner.</p>
             <button type="button" onclick="closePrivacy()" class="w-full py-2.5 bg-slate-800 hover:bg-slate-700 rounded-xl text-xs text-slate-300">Schließen</button>
+        </div>
+    </div>
+
+    <div id="news-modal" class="modal-backdrop hidden" role="dialog" aria-modal="true" aria-labelledby="news-title">
+        <div class="modal-panel bg-slate-900 border border-slate-800 rounded-2xl max-w-lg w-full p-6 space-y-5 shadow-2xl relative max-h-[90vh] overflow-y-auto">
+            <h3 id="news-title" class="text-lg font-bold text-white flex items-center gap-2"><i class="fa-solid fa-bullhorn text-cyan-400"></i> Neuigkeiten</h3>
+            <div id="news-list" class="space-y-4 text-sm text-slate-300"><p class="text-xs text-slate-500">Wird geladen …</p></div>
+            <button type="button" onclick="closeNews()" class="w-full py-2.5 bg-slate-800 hover:bg-slate-700 rounded-xl text-xs text-slate-300">Schließen</button>
         </div>
     </div>
 
@@ -1460,6 +1479,8 @@
             if (i18nObserver) { i18nObserver.takeRecords(); i18nObserve(); }
             const manualTab = document.getElementById('tab-faq');
             try { if (manualTab && !manualTab.classList.contains('hidden')) loadManual(); } catch(e) {}
+            const newsModal = document.getElementById('news-modal');
+            try { if (newsModal && !newsModal.classList.contains('hidden')) loadNews().then(renderNews); } catch(e) {}
         }
 
         function initialLanguage() {
@@ -1565,6 +1586,7 @@
                     startIdleWatch(data.idleMinutes);
                     
                     setupRoleVisibility(data.role);
+                    checkNews();
                     await refreshAllLdapData();
                 }
             } catch(e) {}
@@ -1781,6 +1803,7 @@
                 startIdleWatch(data.idleMinutes);
                 
                 setupRoleVisibility(data.role);
+                checkNews();
                 await refreshAllLdapData();
             } else { 
                 const err = await res.json();
@@ -2373,6 +2396,74 @@
         function onRestoreOuChange() {
             if(!restorePlan) return;
             openRestore(restorePlan.id, document.getElementById('restore-ou').value);
+        }
+
+        // ---------------------------------------------------------------
+        // Neuigkeiten: Changelog der installierten Version (kommt vom eigenen Server, nicht aus dem Internet).
+        // Ein kleiner Punkt am Menueeintrag, wenn seit dem letzten Lesen eine neue Version installiert wurde
+        // (orange bei Sicherheitsupdates). Der gelesene Stand liegt nur im Browser.
+        // ---------------------------------------------------------------
+        const NEWS_KEY = 'samonboarding.newsSeen';
+        let newsData = null, newsLang = null, newsUnread = new Set();
+        function newsSeen() { try { return localStorage.getItem(NEWS_KEY) || ''; } catch(e) { return ''; } }
+        function setNewsSeen(v) { try { localStorage.setItem(NEWS_KEY, v); } catch(e) {} }
+        function versionNewer(a, b) {
+            const x = String(a || '').split('.').map(n => parseInt(n, 10) || 0), y = String(b || '').split('.').map(n => parseInt(n, 10) || 0);
+            for(let i = 0; i < 3; i++) { if((x[i] || 0) !== (y[i] || 0)) return (x[i] || 0) > (y[i] || 0); }
+            return false;
+        }
+        async function loadNews() {
+            const lang = uiLang === 'en' ? 'en' : 'de';
+            if(newsData && newsLang === lang) return newsData;
+            try {
+                const res = await fetch('/api/news?lang=' + lang);
+                if(!res.ok) return null;
+                newsData = await res.json(); newsLang = lang;
+            } catch(e) { return null; }
+            return newsData;
+        }
+        async function checkNews() {
+            const dot = document.getElementById('news-dot');
+            const data = await loadNews();
+            if(!dot || !data) return;
+            const seen = newsSeen();
+            if(!seen) { setNewsSeen(data.version); return; }  // erste Nutzung: kein Hinweis auf alte Versionen
+            const unread = (data.entries || []).filter(e => versionNewer(e.version, seen));
+            newsUnread = new Set(unread.map(e => e.version));
+            dot.classList.toggle('hidden', unread.length === 0);
+            dot.classList.toggle('is-security', unread.some(e => (e.items || []).some(i => i.kind === 'security')));
+        }
+        function newsInline(text) {
+            return esc(text).replace(/`([^`]+)`/g, '<code>$1</code>').replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>').replace(/\*([^*]+)\*/g, '<em>$1</em>');
+        }
+        function renderNews() {
+            const list = document.getElementById('news-list');
+            if(!list) return;
+            const entries = (newsData && newsData.entries) || [];
+            if(!entries.length) { list.innerHTML = '<p class="text-xs text-slate-500">' + esc(tr('Keine Neuigkeiten vorhanden.')) + '</p>'; return; }
+            const chip = {fix: tr('Behoben'), security: tr('Sicherheit')};
+            list.innerHTML = entries.map(e => '<div class="news-entry">'
+                + '<p class="text-xs text-slate-400 mb-1.5"><span class="font-semibold text-slate-200" translate="no">' + esc(e.title) + '</span>'
+                + (e.date ? ' · <span translate="no">' + esc(e.date) + '</span>' : '')
+                + (newsUnread.has(e.version) ? ' <span class="news-chip news-chip-unread">' + esc(tr('Neu')) + '</span>' : '') + '</p>'
+                + '<ul class="space-y-1" translate="no">' + (e.items || []).map(i => '<li>'
+                    + (chip[i.kind] ? '<span class="news-chip news-chip-' + esc(i.kind) + '">' + esc(chip[i.kind]) + '</span>' : '')
+                    + newsInline(i.text)
+                    + ((i.sub || []).length ? '<ul>' + i.sub.map(t => '<li>' + newsInline(t) + '</li>').join('') + '</ul>' : '')
+                    + '</li>').join('') + '</ul></div>').join('');
+        }
+        async function openNews() {
+            toggleSidebar(false);
+            document.getElementById('news-modal').classList.remove('hidden');
+            await loadNews();
+            renderNews();
+            if(newsData) setNewsSeen(newsData.version);
+            const dot = document.getElementById('news-dot');
+            if(dot) dot.classList.add('hidden');
+        }
+        function closeNews() {
+            document.getElementById('news-modal').classList.add('hidden');
+            newsUnread = new Set();
         }
 
         async function openPrivacy() {

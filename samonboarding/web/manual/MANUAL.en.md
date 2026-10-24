@@ -42,6 +42,7 @@ SAMONBOARDING is a web interface for the life cycle of user accounts in Active D
 | **AD structure** | Overview of OUs and groups |
 | **Reports** | Who did what and when, program messages (administrators only) |
 | **Certificate** | Upload the HTTPS certificate (administrators only) |
+| **News** | What changed in the installed versions. A small dot marks a new version, an orange dot a security update |
 
 Good to know:
 

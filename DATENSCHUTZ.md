@@ -38,7 +38,7 @@ Dieses Dokument beschreibt, welche personenbezogenen Daten SAMONBOARDING verarbe
 | Merkliste der Verweise: Pfad (DN) und objectGUID der OUs und Gruppen, die in den Einstellungen und Templates gewählt sind. **Keine Konten, keine Personendaten** | `data/verweise.json` | Hinweis, wenn eine OU/Gruppe im AD umbenannt, verschoben oder gelöscht wurde |
 | Kontolisten der Module und AD-Struktur (Namen/DNs für die Auswahllisten) (Zwischenspeicher, damit der Wechsel zwischen den Bereichen schnell geht) | **Nur im Arbeitsspeicher**, je Sitzung; nach 60 Sekunden ungültig und beim nächsten Zugriff entfernt, sofort geleert bei jeder Änderung, beim Abmelden und beim Neustart. **Keine Kopie in einer Datenbank** | Bedienung |
 | Benachrichtigungs-Mails (bei Onboarding und Passwort-Reset mit neuem Passwort) | Eigener Mailserver, Postfach des ausführenden Mitarbeiters | Übergabe der Zugangsdaten |
-| Spracheinstellung DE/EN | `localStorage` im Browser | Bedienung |
+| Spracheinstellung DE/EN und zuletzt gelesene Version der Neuigkeiten | `localStorage` im Browser | Bedienung |
 | Container-Protokoll (Fehler, Hinweise) | Docker-Log, rotiert (3 × 10 MB) | Betrieb / Fehlersuche |
 
 ---
