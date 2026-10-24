@@ -233,8 +233,10 @@ class UpdateScriptTests(unittest.TestCase):
         self.assertIn("severity: CRITICAL,HIGH", flow)
         self.assertIn("ignore-unfixed: true", flow)
         self.assertIn("trivyignores: .trivyignore", flow)
-        self.assertIn("schedule:", flow)
-        self.assertIn("weekly-scan:", flow)
+        self.assertIn("schedule:", flow)  # montags Neubau mit denselben Pruefungen wie bei einem Push
+        self.assertNotIn("weekly-scan:", flow)
+        self.assertNotIn("github.event_name != 'schedule'", flow)
+        self.assertIn("APT_REFRESH=${{ github.run_id }}", flow)  # Debian-Updates bei jedem Neubau
         self.assertTrue((ROOT / ".trivyignore").exists())
         for line in flow.splitlines():
             if "uses:" in line:  # alle Actions auf einen festen Commit gepinnt

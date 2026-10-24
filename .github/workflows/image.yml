@@ -2,14 +2,15 @@
 # for known vulnerabilities (Trivy) and publishes it as ghcr.io/<owner>/samonboarding:latest and :<version>.
 # Published only if the tests pass with exactly the Python packages that go into the image AND Trivy finds no
 # CRITICAL/HIGH vulnerability for which a fixed version exists. Accepted findings: .trivyignore (with reason).
-# Additionally every Monday: scan of the published image (new vulnerabilities are reported all the time).
+# Additionally every Monday: the same run again without a code change - rebuilt with the newest packages and Debian
+# security updates, tested, scanned, and published under :latest only if everything passes.
 name: Image
 
 on:
   push:
     branches: [main]
   schedule:
-    - cron: "17 5 * * 1"  # Mondays 05:17 UTC: scan the published image again
+    - cron: "17 5 * * 1"  # Mondays 05:17 UTC: rebuild with current components (same checks as a push)
   workflow_dispatch:
 
 permissions:
@@ -22,7 +23,6 @@ concurrency:
 
 jobs:
   image:
-    if: github.event_name != 'schedule'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262  # v4
@@ -133,51 +133,3 @@ jobs:
             org.opencontainers.image.licenses=AGPL-3.0-or-later
           cache-from: type=gha
           cache-to: type=gha,mode=max
-
-  # Weekly: scan the image that servers fetch with "update.sh --pull". If the run turns red, GitHub sends an e-mail;
-  # then usually a rebuild with updated packages / base image (push to main) fixes it.
-  weekly-scan:
-    if: github.event_name == 'schedule'
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      packages: read
-    steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262  # v4
-        with:
-          persist-credentials: false
-
-      - uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9  # v3
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Fetch the published image
-        id: img
-        run: |
-          image="ghcr.io/$(echo '${{ github.repository }}' | tr '[:upper:]' '[:lower:]'):latest"
-          docker pull "$image"
-          echo "ref=$image" >> "$GITHUB_OUTPUT"
-
-      - name: Vulnerability scan (Trivy)
-        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25  # v0.36.0
-        with:
-          image-ref: ${{ steps.img.outputs.ref }}
-          severity: CRITICAL,HIGH
-          ignore-unfixed: true
-          trivyignores: .trivyignore
-          format: json
-          output: trivy.json
-
-      - name: Vulnerability report
-        run: |
-          found="$(jq -r '[.Results[]?.Vulnerabilities[]?] | unique_by(.VulnerabilityID + .PkgName)
-            | .[] | "\(.Severity) \(.VulnerabilityID) \(.PkgName) \(.InstalledVersion) -> \(.FixedVersion)"' trivy.json)"
-          if [ -n "$found" ]; then
-            printf '%s\n' "$found"
-            # one annotation with the whole list (visible on the run page and via the API)
-            echo "::error title=Trivy::$(printf '%s\n' "$found" | head -n 60 | sed ':a;N;$!ba;s/\n/%0A/g')"
-            exit 1
-          fi
-          echo "Trivy: no CRITICAL/HIGH vulnerabilities with an available fix."

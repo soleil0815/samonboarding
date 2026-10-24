@@ -6,7 +6,7 @@ Update on the server: `sudo sh update.sh --pull`.
 Entries starting with "Security:" or "Fixed:" are marked accordingly in the interface.
 
 ## 1.46.1 – 2026-10-24
-- Security: every image is checked for known vulnerabilities with Trivy on GitHub before it is published. If Trivy finds a serious vulnerability (CRITICAL/HIGH) for which a fix exists, the image is not published. In addition, the published image is checked again every Monday.
+- Security: every image is checked for known vulnerabilities with Trivy on GitHub before it is published. If Trivy finds a serious vulnerability (CRITICAL/HIGH) for which a fix exists, the image is not published. In addition, GitHub rebuilds the image every Monday with the newest packages and Debian security updates. It goes through the same tests and the same scan and is published under `latest` only if everything passes. It reaches a server only with `sh update.sh --pull`.
 - Security: the current Debian security updates are now installed at build time (among others OpenSSL, GnuTLS, Kerberos, PAM, Perl). The packages `setuptools` and `wheel`, which are not needed, are removed from the image. The first Trivy scan had found several serious vulnerabilities here.
 
 ## 1.46.0 – 2026-10-24

@@ -6,7 +6,7 @@ Update auf dem Server: `sudo sh update.sh --pull`.
 Einträge, die mit „Sicherheit:“ oder „Behoben:“ beginnen, werden in der Oberfläche entsprechend markiert.
 
 ## 1.46.1 – 2026-10-24
-- Sicherheit: Jedes Image wird vor der Veröffentlichung auf GitHub mit Trivy auf bekannte Schwachstellen geprüft. Findet Trivy eine schwere Lücke (CRITICAL/HIGH), für die es schon eine Korrektur gibt, wird das Image nicht veröffentlicht. Zusätzlich wird das veröffentlichte Image jeden Montag erneut geprüft.
+- Sicherheit: Jedes Image wird vor der Veröffentlichung auf GitHub mit Trivy auf bekannte Schwachstellen geprüft. Findet Trivy eine schwere Lücke (CRITICAL/HIGH), für die es schon eine Korrektur gibt, wird das Image nicht veröffentlicht. Zusätzlich baut GitHub das Image jeden Montag mit den neuesten Paketen und Debian-Sicherheitsupdates neu. Es durchläuft dieselben Tests und dieselbe Prüfung und wird nur bei Erfolg unter `latest` veröffentlicht. Auf den Server kommt es erst mit `sh update.sh --pull`.
 - Sicherheit: Beim Bauen werden jetzt die aktuellen Debian-Sicherheitsupdates eingespielt (unter anderem OpenSSL, GnuTLS, Kerberos, PAM, Perl). Die nicht benötigten Pakete `setuptools` und `wheel` sind aus dem Image entfernt. Die erste Trivy-Prüfung hatte hier mehrere schwere Lücken gefunden.
 
 ## 1.46.0 – 2026-10-24
