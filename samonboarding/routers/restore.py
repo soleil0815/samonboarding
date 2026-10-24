@@ -106,8 +106,14 @@ def build_plan(conn, rec, off_cfg, target_ou=None, admin=True):
     ou_allowed = dn_in_any(target, sources)
     if not entry:
         blockers.append("Das Konto wurde im AD nicht gefunden (gelöscht?). Es kann nicht wiederhergestellt werden.")
-    elif not admin and off_cfg.get("targetOu") and not dn_in_any(entry.dn, [off_cfg["targetOu"]]):
-        # Ein Administrator hat das Konto inzwischen woanders hin verschoben (z. B. zum Loeschen) - nicht ueberstimmen
+    elif (
+        not admin
+        and not (off_cfg.get("targetOu") and dn_in_any(entry.dn, [off_cfg["targetOu"]]))
+        and not dn_in_any(entry.dn, sources)
+    ):
+        # Operatoren: nur aus der OU der offgeboardeten Konten (oder ein abgebrochener Versuch, der das Konto schon in
+        # eine Quell-OU zurueckgebracht hat). Liegt es woanders, hat ein Administrator es dorthin verschoben (z. B. zum
+        # Loeschen) - nicht ueberstimmen. Ohne eingestellte Ziel-OU gilt das ebenso.
         blockers.append(
             "Das Konto liegt nicht mehr in der OU der offgeboardeten Konten. Nur Administratoren können es "
             "von dort wiederherstellen."
@@ -235,6 +241,10 @@ def restore_account(
                     if not conn.modify_dn(dn, rdn, new_superior=plan["targetOu"]):
                         raise AdError("Das Konto konnte nicht verschoben werden: " + ldap_error_text(conn))
                     dn = rdn + "," + plan["targetOu"]
+                    try:  # bricht ein spaeterer Schritt ab, findet ein neuer Versuch das Konto am neuen Ort
+                        offboard_store.update_current_dn(record_id, dn)
+                    except Exception as e:
+                        log.warning("Neuer Ort von %s nicht gespeichert: %s", dn, e)
 
                 # 2. Gruppen
                 added, failed = [], []

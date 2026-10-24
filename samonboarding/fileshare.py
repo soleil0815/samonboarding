@@ -201,6 +201,11 @@ def build_targets(kind, loc_cfg, sam, attr_value=""):
     suffixes = [s for s in loc_cfg.get("suffixes", []) if valid_suffix(s)] if kind == "profile" else []
     if not valid_sam(sam):
         return [_target(kind, "", "Konto", f"Benutzername '{sam}' ist als Ordnername nicht zulässig.")]
+    if "~" in str(sam):
+        # Windows-Kurznamen (z. B. ADMINI~1 fuer Administrator) koennten auf den Ordner eines anderen zeigen
+        return [
+            _target(kind, "", "Konto", f"Benutzername '{sam}' enthält '~' - Ordner werden nicht automatisch gelöscht.")
+        ]
 
     bases = []
     if loc_cfg.get("useAdAttr") and attr_value:
@@ -321,6 +326,21 @@ def delete_tree(backend, root, takeover=False):
             except FsError as e:
                 result.fail(f"{path}: {e.message}")
             continue
+        if path != root and hasattr(backend, "stat"):
+            # Unmittelbar vor dem Hineingehen erneut pruefen: Wurde der Ordner inzwischen durch eine Verknuepfung
+            # (Junction) ersetzt, nur die Verknuepfung entfernen - nie ihrem Ziel folgen
+            try:
+                now = run(backend.stat, path, True)
+            except FsError as e:
+                result.fail(f"{path}: {e.message}")
+                continue
+            if now.reparse:
+                try:
+                    run(backend.rmdir if now.is_dir else backend.remove, path, now.is_dir)
+                    result.links += 1
+                except FsError as e:
+                    result.fail(f"{path}: {e.message}")
+                continue
         try:
             entries = run(backend.listdir, path, True)
         except FsError as e:

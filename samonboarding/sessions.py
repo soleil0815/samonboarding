@@ -76,11 +76,22 @@ def throttle_check(key):
                 status_code=429,
                 detail=f"Zu viele fehlgeschlagene Anmeldungen. Bitte in {minutes} Minute(n) erneut versuchen.",
             )
+        # Der Versuch zaehlt sofort (unter der Sperre) - sonst kaemen viele gleichzeitige Anfragen alle durch, bevor
+        # der erste Fehlschlag vermerkt ist. Bei Erfolg oder ohne Passwortpruefung wird er wieder freigegeben.
+        _login_failures.setdefault(key, []).append(now)
+        return now
 
 
 def throttle_fail(key):
+    """Fehlschlag: der bei throttle_check vermerkte Versuch bleibt einfach stehen."""
+
+
+def throttle_release(key, stamp):
+    """Versuch zuruecknehmen (z. B. DC nicht erreichbar - das Passwort wurde gar nicht geprueft)."""
     with _login_lock:
-        _login_failures.setdefault(key, []).append(time.time())
+        attempts = _login_failures.get(key, [])
+        if stamp in attempts:
+            attempts.remove(stamp)
 
 
 def throttle_clear(key):

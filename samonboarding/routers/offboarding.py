@@ -9,12 +9,13 @@ from .. import listcache, offboard_store
 from ..adguid import read_guid
 from ..audit import actor_name, audited
 from ..config import OFFBOARDING_CONFIG_FILE, SMTP_CONFIG_FILE, default_offboarding_config, default_smtp_config
-from ..dn import parent_dn, rdn_label, split_dn
+from ..dn import dn_norm, parent_dn, rdn_label, split_dn
 from ..errors import AdError
 from ..ldap_client import (
     ad_session,
     collect_users,
     ensure,
+    get_object,
     ldap_error_text,
     member_change_ok,
     row_display_name,
@@ -134,6 +135,16 @@ def offboard_account(user, off_cfg, user_dn):
                 info["protected"] = reason
                 raise HTTPException(status_code=403, detail=protected_message(reason, "offgeboardet"))
 
+            # Vorher pruefen, ob das Verschieben klappen kann: steht in der Ziel-OU schon ein gleichnamiges Objekt
+            # (z. B. ein Namensvetter), nichts veraendern - sonst bliebe das Konto halb offgeboardet zurueck
+            new_dn = split_dn(user_dn)[0] + "," + target_ou
+            if dn_norm(new_dn) != dn_norm(user_dn) and get_object(conn, new_dn, ["cn"], "(objectClass=*)"):
+                raise HTTPException(
+                    status_code=409,
+                    detail=f"In der Ziel-OU gibt es schon ein Objekt mit dem Namen „{rdn_label(user_dn)}“. "
+                    "Bitte das Konto zuerst umbenennen (z. B. in RSAT) - es wurde nichts verändert.",
+                )
+
             # Vorher festhalten, wo das Konto war - fuer eine spaetere Wiederherstellung
             record_id = remember_state(conn, user, entry, target_sam, target_name)
             info["restorable"] = bool(record_id)
@@ -157,7 +168,9 @@ def offboard_account(user, off_cfg, user_dn):
                 else:
                     failed_groups.append(f"{rdn_label(group_dn)} ({ldap_error_text(conn)})")
 
-            if not conn.modify_dn(user_dn, split_dn(user_dn)[0], new_superior=target_ou):
+            if dn_norm(new_dn) == dn_norm(user_dn):
+                pass  # liegt schon in der Ziel-OU
+            elif not conn.modify_dn(user_dn, split_dn(user_dn)[0], new_superior=target_ou):
                 raise AdError(
                     "Das Konto wurde deaktiviert, konnte aber nicht in die Ziel-OU verschoben werden: "
                     + ldap_error_text(conn)

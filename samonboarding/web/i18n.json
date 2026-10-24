@@ -1638,6 +1638,14 @@
   [
    "SMTP-Server {0} nicht erreichbar ({1}). Servername, Port und Firewall prüfen.",
    "SMTP server {0} not reachable ({1}). Check server name, port and firewall."
+  ],
+  [
+   "In der Ziel-OU gibt es schon ein Objekt mit dem Namen „{0}“. Bitte das Konto zuerst umbenennen (z. B. in RSAT) - es wurde nichts verändert.",
+   "The target OU already contains an object named “{0}”. Please rename the account first (e.g. in RSAT) - nothing was changed."
+  ],
+  [
+   "Benutzername '{0}' enthält '~' - Ordner werden nicht automatisch gelöscht.",
+   "User name '{0}' contains '~' - folders are not deleted automatically."
   ]
  ]
 }

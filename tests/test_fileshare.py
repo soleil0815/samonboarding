@@ -151,6 +151,11 @@ class PathTests(unittest.TestCase):
         self.assertTrue(target["skip"])
         self.assertEqual(fs.build_targets("home", {"enabled": False, "roots": ["\\\\a\\b"]}, "x"), [])
 
+    def test_build_targets_kurzname_mit_tilde(self):
+        """ADMINI~1 koennte auf dem Dateiserver der Kurzname von 'Administrator' sein - nie automatisch loeschen."""
+        targets = fs.build_targets("home", {"enabled": True, "roots": ["\\\\fs1\\home$"]}, "ADMINI~1")
+        self.assertTrue(all(t["skip"] for t in targets))
+
     def test_build_targets_boeser_benutzername(self):
         target = fs.build_targets("folderRedirection", {"enabled": True, "roots": ["\\\\fs1\\r$"]}, "..")[0]
         self.assertTrue(target["skip"])
@@ -187,6 +192,21 @@ class DeleteTests(unittest.TestCase):
         self.assertIn(ROOT.lower() + "\\docs\\sub\\child", share.tree)  # nie hineingegangen
         self.assertIn(target.lower(), share.tree)
         self.assertNotIn(("listdir", ROOT + "\\Docs\\Sub"), share.calls)
+
+    def test_ordner_wird_zwischendurch_zur_verknuepfung(self):
+        """Wird ein Unterordner nach dem Auflisten durch eine Junction ersetzt, wird nur sie entfernt (kein Folgen)."""
+        share = sample()
+        sub = ROOT + "\\Docs\\Sub"
+
+        class Racy(type(share)):
+            def stat(self, path):
+                self.calls.append(("stat", path))
+                return fs.FsStat(is_dir=True, size=0, reparse=path.lower() == sub.lower())
+
+        share.__class__ = Racy
+        result = fs.delete_tree(share, ROOT)
+        self.assertEqual(result.links, 1)
+        self.assertNotIn(("listdir", sub), share.calls)
 
     def test_ohne_erlaubnis_keine_besitzuebernahme(self):
         share = sample(locked=[ROOT + "\\readme.txt"])

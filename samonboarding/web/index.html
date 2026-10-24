@@ -1634,6 +1634,17 @@
         // (schnell), die Kontolisten vom DC - die liest der Server je Sitzung bis zu 60 Sekunden aus dem
         // Zwischenspeicher. force=true ("Aktualisieren", "Neu einlesen") liest immer frisch vom DC.
         let currentTab = 'hire';
+        // Schutz vor doppeltem Absenden (Doppelklick, Enter + Klick): dieselbe Aktion laeuft nie zweimal gleichzeitig
+        const busyActions = new Set();
+        async function guarded(key, fn) {
+            if(busyActions.has(key)) return;
+            busyActions.add(key);
+            try { return await fn(); } finally { busyActions.delete(key); }
+        }
+        // Ein Fehler beim Laden eines Bereichs darf die anderen nicht verhindern
+        async function safeLoad(fn, ...args) {
+            try { await fn(...args); } catch(e) { console.warn('Laden fehlgeschlagen:', e); }
+        }
         const TAB_LISTS = {
             usermgmt: force => loadUserMgmtUsers(force),
             offboard: async force => { await loadOffboardingUsers(force); await loadOffboardRecords(); },
@@ -1643,17 +1654,17 @@
         function freshQuery(force) { return force === true ? '?frisch=1' : ''; }
         async function refreshAllLdapData(force) {
             force = force === true;
-            await loadInfrastructure(force);
-            await loadTemplates();
-            if(currentUserRole === "Administrator") await loadExchangeConfig();
-            await loadOffboardingConfig();
-            await loadPwdResetConfig();
-            await loadUserMgmtConfig();
-            await loadSmtpConfig();
-            await loadDeletionConfig();
+            await safeLoad(loadInfrastructure, force);
+            await safeLoad(loadTemplates);
+            if(currentUserRole === "Administrator") await safeLoad(loadExchangeConfig);
+            await safeLoad(loadOffboardingConfig);
+            await safeLoad(loadPwdResetConfig);
+            await safeLoad(loadUserMgmtConfig);
+            await safeLoad(loadSmtpConfig);
+            await safeLoad(loadDeletionConfig);
             const loadList = TAB_LISTS[currentTab];
-            if(loadList) await loadList(force);
-            await loadReferenceCheck(force);
+            if(loadList) await safeLoad(loadList, force);
+            await safeLoad(loadReferenceCheck, force);
         }
 
         // Einstellungen verweisen auf OUs/Gruppen per DN. Wurde eine davon im AD umbenannt, verschoben oder
@@ -2159,9 +2170,12 @@
             }
         }
 
+        let groupsRequest = 0;
         async function openUserGroupsModal(dn, sam) {
-            document.getElementById('groups-user-dn').value = dn;
+            const mine = ++groupsRequest;  // nur die zuletzt angeklickte Person zaehlt (langsame Antworten verwerfen)
             const res = await fetch(`/api/usermgmt/user-groups?userDn=${encodeURIComponent(dn)}`);
+            if(mine !== groupsRequest) return;
+            document.getElementById('groups-user-dn').value = dn;
             if(res.ok) {
                 const data = await res.json();
                 const memberOf = data.userMemberOf.map(x => x.toLowerCase());
@@ -2189,7 +2203,8 @@
             }
         }
 
-        async function submitUpdateUserGroups() {
+        function submitUpdateUserGroups() { return guarded('groups', _submitUpdateUserGroups); }
+        async function _submitUpdateUserGroups() {
             const userDn = document.getElementById('groups-user-dn').value;
             const checkboxes = document.querySelectorAll('input[name="group-chk"]');
             
@@ -2235,7 +2250,7 @@
             const cnt = document.getElementById('off-sel-count');
             if(cnt) cnt.textContent = n;
             const btn = document.getElementById('off-batch-btn');
-            if(btn) btn.disabled = n === 0;
+            if(btn) btn.disabled = n === 0 || busyActions.has('offboard-batch');
         }
 
         function toggleOffboardSelect(dn, on) {
@@ -2268,7 +2283,8 @@
             filterOffboardTable();
         }
 
-        async function executeOffboardBatch() {
+        function executeOffboardBatch() { return guarded('offboard-batch', _executeOffboardBatch); }
+        async function _executeOffboardBatch() {
             const dns = [...offSelected];
             if(dns.length === 0) return;
             const names = dns.map(dn => { const u = cachedOffboardUsers.find(x => x.dn === dn); return u ? `${u.name} (${u.sam})` : dn; });
@@ -2673,7 +2689,8 @@
             document.getElementById('pwdreset-manual-box').classList.toggle('hidden', mode !== 'manual');
         }
 
-        async function submitPwdReset() {
+        function submitPwdReset() { return guarded('pwdreset', _submitPwdReset); }
+        async function _submitPwdReset() {
             const userDn = document.getElementById('pwdreset-target-dn').value;
             const mode = document.getElementById('pwdreset-mode').value;
             const forceChange = document.getElementById('pwdreset-force').checked;
@@ -2721,7 +2738,8 @@
             }
         }
 
-        async function executeOffboard(userDn, samName) {
+        function executeOffboard(userDn, samName) { return guarded('offboard', () => _executeOffboard(userDn, samName)); }
+        async function _executeOffboard(userDn, samName) {
             if(!confirm(`Möchten Sie den Benutzer '${samName}' wirklich offboarden?\n\n- Konto wird deaktiviert\n- Aus allen Gruppen entfernt\n- In die Ziel-OU verschoben\n- Keine Löschung!`)) return;
             
             const res = await fetch('/api/offboarding/execute', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ userDn }) });
@@ -2752,7 +2770,7 @@
             el.textContent = label ? label + (dir.host ? ' · ' + dir.host : '') : '';
         }
 
-        async function performLogout() { await fetch('/api/logout', {method: 'POST'}); location.reload(); }
+        async function performLogout() { try { await fetch('/api/logout', {method: 'POST'}); } catch(e) {} finally { location.reload(); } }
         
         // ---------------------------------------------------------------
         // Handbuch (Hilfe): Markdown vom Server, sicher dargestellt (alles wird escaped,
@@ -3315,7 +3333,7 @@
 
         function toggleSelectAllDeletion(on) {
             const q = document.getElementById('del-search').value.toLowerCase();
-            const visible = cachedDeleteUsers.filter(u => u.disabled && !u.self && ((u.name || '').toLowerCase().includes(q) || (u.sam || '').toLowerCase().includes(q)));
+            const visible = cachedDeleteUsers.filter(u => u.disabled && !u.self && !u.protected && ((u.name || '').toLowerCase().includes(q) || (u.sam || '').toLowerCase().includes(q)));
             if(!on) visible.forEach(u => delSelected.delete(u.dn));
             else {
                 let skipped = 0;
@@ -3367,6 +3385,7 @@
         }
 
         async function simulateDeletion(userDn) {
+            if(delJobTimer) { clearTimeout(delJobTimer); delJobTimer = null; }  // Anzeige eines Sammellaufs nicht ueberschreiben lassen
             const box = document.getElementById('del-sim-result');
             box.innerHTML = '<div class="text-xs text-slate-400">Simulation läuft (kann bei großen Profilen etwas dauern)...</div>';
             const res = await fetch('/api/deletion/simulate', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ userDn }) });
@@ -3501,7 +3520,8 @@
             document.getElementById('del-batch-btn').disabled = !ok;
         }
 
-        async function executeBatch() {
+        function executeBatch() { return guarded('delete-batch', _executeBatch); }
+        async function _executeBatch() {
             if(currentUserRole !== "Administrator" || !delBatchPlan) return;
             const countText = document.getElementById('del-batch-count').value.trim();
             const password = document.getElementById('del-batch-pw').value;
@@ -4270,7 +4290,8 @@
             }
         }
 
-        async function submitOnboard() {
+        function submitOnboard() { return guarded('onboard', _submitOnboard); }
+        async function _submitOnboard() {
             const fn = document.getElementById('hire-fn').value.trim();
             const ln = document.getElementById('hire-ln').value.trim();
             const mail = document.getElementById('hire-mail').value.trim();

@@ -48,11 +48,15 @@ log = logging.getLogger(__name__)
 router = APIRouter()
 
 
-def unique_sam(conn, search_base, base_sam):
-    """Liefert einen freien sAMAccountName (max. 20 Zeichen, bei Kollision mit Zaehler ab 2)."""
+def unique_sam(conn, search_base, base_sam, domain=""):
+    """Liefert einen freien sAMAccountName (max. 20 Zeichen, bei Kollision mit Zaehler ab 2). Frei heisst auch: kein
+    anderes Konto hat den daraus gebildeten Anmeldenamen (UPN) <name>@<domain>."""
     sam, counter = base_sam, 1
     while True:
-        rows = ldap_search(conn, search_base, f"(sAMAccountName={ldap_escape(sam)})", ["sAMAccountName"])
+        flt = f"(sAMAccountName={ldap_escape(sam)})"
+        if domain:
+            flt = f"(|{flt}(userPrincipalName={ldap_escape(f'{sam}@{domain}')}))"
+        rows = ldap_search(conn, search_base, flt, ["sAMAccountName"])
         if not rows:
             return sam
         counter += 1
@@ -196,7 +200,7 @@ def execute_onboard(data: OnboardModel, background: BackgroundTasks, user: dict 
     with audited(user, "onboard", f"{first_name} {last_name}", template=tmpl.get("name")) as info:
         with ad_session(user) as conn:
             search_base = base_dn(cfg["domain"])
-            sam = unique_sam(conn, search_base, base_sam)
+            sam = unique_sam(conn, search_base, base_sam, cfg["domain"])
             cn_val = unique_cn(conn, search_base, f"{first_name} {last_name}")
             upn = f"{sam}@{cfg['domain']}"
             user_dn = f"CN={escape_rdn_value(cn_val)},{tmpl['ouDn']}"

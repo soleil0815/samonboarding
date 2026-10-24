@@ -212,7 +212,7 @@ All settings are in the file **`.env`** (template: `.env.example`). After a chan
 
 Notes:
 
-- **Certificate validation:** By default the application trusts the DC's LDAPS certificate automatically, including a self-signed one (Samba) or one from your own company CA. Nothing has to be imported. The connection is still encrypted. For more security set `LDAP_CA_FILE` (see [section 5](#5-preparing-active-directory)). `AD_DC_IP` must then be the name contained in the certificate.
+- **Certificate validation:** By default the application trusts the DC's LDAPS certificate automatically, including a self-signed one (Samba) or one from your own company CA. Nothing has to be imported. The connection is still encrypted, but without the check someone on the network could pose as the DC and read the passwords of people signing in (man-in-the-middle). Setting `LDAP_CA_FILE` is therefore **recommended** (see [section 5](#5-preparing-active-directory)). `AD_DC_IP` must then be the name contained in the certificate.
 - **Name resolution:** If you use a name instead of an IP for `AD_DC_IP`, the Docker host must be able to resolve it. If it cannot, add the AD DNS server to a `docker-compose.override.yml` (kept on updates):
 
   ```yaml

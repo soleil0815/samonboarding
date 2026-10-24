@@ -52,6 +52,13 @@ class PrivilegedTests(unittest.TestCase):
         self.assertIn("Schema-Admins", self.reason(["S-1-5-21-9-9-9-518"]))
         self.assertIn("Organisations-Admins", self.reason(["S-1-5-21-9-9-9-519"]))
 
+    def test_schluessel_und_richtlinien_admins_geschuetzt(self):
+        """Dieselben Gruppen, in die nur Admins aufnehmen duerfen, schuetzen auch ihre Mitglieder (z. B. Key Admins)."""
+        groups = ((526, "Schlüsseladmin"), (527, "Organisationsschlüssel"), (520, "Richtlinien"), (517, "Zertif"))
+        for rid, name in groups:
+            self.assertIn(name, self.reason([f"{DOMAIN}-{rid}"]), rid)
+        self.assertIs(protection.PRIVILEGED_DOMAIN_GROUP_RIDS, protection.DOMAIN_GROUP_RIDS)
+
     def test_eingebaute_gruppen(self):
         # Diese SIDs bestehen nur aus Bytes < 0x80: ohne Rohdaten wuerde ldap3 sie als Text missdeuten
         self.assertIn("Administratoren", self.reason(["S-1-5-32-544"]))

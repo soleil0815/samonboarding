@@ -23,7 +23,17 @@ BUILTIN_GROUPS = {
     "S-1-5-32-551": "Sicherungs-Operatoren",
 }
 # Gruppen mit festem Relativ-Teil (RID) hinter der Domaenen-SID
-DOMAIN_GROUP_RIDS = {512: "Domänen-Admins", 518: "Schema-Admins", 519: "Organisations-Admins"}
+# Privilegierte Gruppen der Domaene (an der RID erkannt). Mitglieder sind geschuetzt, und nur Administratoren duerfen
+# jemanden in diese Gruppen aufnehmen - EINE Liste fuer beides (520/526/527 fuehren ebenfalls zur Domaenen-Uebernahme)
+DOMAIN_GROUP_RIDS = {
+    512: "Domänen-Admins",
+    517: "Zertifikatherausgeber",
+    518: "Schema-Admins",
+    519: "Organisations-Admins",
+    520: "Richtlinien-Ersteller-Besitzer",
+    526: "Schlüsseladministratoren",
+    527: "Organisationsschlüsseladministratoren",
+}
 # Konten mit festem RID
 SPECIAL_ACCOUNT_RIDS = {500: "integriertes Administratorkonto", 502: "Kerberos-Dienstkonto (krbtgt)"}
 
@@ -139,14 +149,8 @@ def _nested_privileged(conn, user_dn):
         return "Schutzprüfung nicht möglich"
 
 
-# Gruppen, in die nur Administratoren Konten aufnehmen duerfen (zusaetzlich zu den Gruppen oben)
-PRIVILEGED_DOMAIN_GROUP_RIDS = {
-    **DOMAIN_GROUP_RIDS,
-    517: "Zertifikatherausgeber",
-    520: "Richtlinien-Ersteller-Besitzer",
-    526: "Schlüsseladministratoren",
-    527: "Organisationsschlüsseladministratoren",
-}
+# Gruppen, in die nur Administratoren Konten aufnehmen duerfen (dieselbe Liste wie fuer geschuetzte Konten)
+PRIVILEGED_DOMAIN_GROUP_RIDS = DOMAIN_GROUP_RIDS
 
 
 def _privileged_name(sid):

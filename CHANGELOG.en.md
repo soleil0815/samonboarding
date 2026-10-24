@@ -5,6 +5,26 @@ Update on the server: `sudo sh update.sh --pull`.
 
 Entries starting with "Security:" or "Fixed:" are marked accordingly in the interface.
 
+## 1.46.0 – 2026-10-24
+- Security: members of Key Admins, Enterprise Key Admins, Group Policy Creator Owners and Cert Publishers are now protected as well. Until now operators could reset their passwords.
+- Security: computer and service accounts (gMSA) can no longer be changed via password reset, offboarding, moving or deletion, not even with a specifically crafted DN.
+- Security: when deleting folders:
+  - User names containing "~" (possible Windows short names) are skipped.
+  - Folders inside another account's folder are not deleted.
+  - If a subfolder is replaced by a link while deleting, the link is not followed.
+- Security: the lockout after failed sign-ins can no longer be bypassed with many simultaneous attempts.
+- Security: on GitHub the build step with the newly installed packages can no longer see the access token. The GitHub Actions used are pinned to fixed versions. Images are only published from the `main` branch.
+- Fixed: a double click on "Create", "Reset password", offboarding or deletion no longer runs the action twice.
+- Fixed: after switching quickly between two people, the group window no longer shows the wrong person's groups.
+- Fixed: onboarding also detects a sign-in name (UPN) that is already taken.
+- Fixed: if an object with the same name already exists in the target OU, offboarding stops before changing anything.
+- Fixed: an interrupted restore can be repeated.
+- Fixed: `update.sh`:
+  - The backup of `data/` is taken only once the container is stopped.
+  - A local build no longer replaces a newer version from GitHub.
+  - The right version is shown after `--pull`.
+- Fixed: if one page fails to load, the others still load.
+
 ## 1.45.0 – 2026-10-24
 - News in the interface: *Help → News* shows what changed in the installed versions. A small dot appears if there is a new version since you last read it; for security updates it is orange.
 

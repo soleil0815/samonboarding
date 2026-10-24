@@ -6,7 +6,7 @@ import ldap3
 from fastapi import HTTPException
 
 from . import acl, protection
-from .config import CUSTOM_OPERATOR_GROUP
+from .config import CUSTOM_OPERATOR_GROUP, USER_FILTER
 from .dn import dn_in_any, ldap_escape
 from .ldap_client import ldap_search
 
@@ -223,7 +223,7 @@ def resolve_account(conn, user_dn, ous, what, attrs):
     from .ldap_client import get_object
 
     require_user_in_ous(user_dn, ous, what)
-    entry = get_object(conn, user_dn, attrs)
+    entry = get_object(conn, user_dn, attrs, USER_FILTER)  # nur Benutzer - keine Computer- oder Dienstkonten (gMSA)
     if not entry:
         raise HTTPException(status_code=404, detail="Benutzer im AD nicht gefunden.")
     require_user_in_ous(entry.dn, ous, what)

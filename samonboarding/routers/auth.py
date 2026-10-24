@@ -20,6 +20,7 @@ from ..sessions import (
     throttle_clear,
     throttle_fail,
     throttle_key,
+    throttle_release,
 )
 from ..storage import load_json
 
@@ -81,7 +82,7 @@ def login(credentials: LoginModel, request: Request, response: Response):
         raise HTTPException(status_code=401, detail="Benutzername und Passwort sind erforderlich.")
 
     key = throttle_key(request, clean_user)
-    throttle_check(key)
+    attempt = throttle_check(key)
 
     # Genau EIN Bind-Versuch pro Anmeldung: jeder fehlgeschlagene Versuch zaehlt gegen die AD-Kontosperre.
     # Wer "DOMAIN\\user" oder "user@suffix" eingibt, wird unveraendert verwendet; sonst user@domain.
@@ -97,8 +98,12 @@ def login(credentials: LoginModel, request: Request, response: Response):
             clean_user, "login", ok=False, error="bind fehlgeschlagen", ip=request.client.host if request.client else ""
         )
         raise HTTPException(status_code=401, detail=bind_error_message(str(e)))
+    except Exception:
+        throttle_release(key, attempt)  # z. B. DC nicht erreichbar: kein falsches Passwort
+        raise
 
     if not role:
+        throttle_release(key, attempt)
         audit(clean_user, "login", ok=False, error="keine Berechtigung")
         raise HTTPException(status_code=403, detail=role_err)
 

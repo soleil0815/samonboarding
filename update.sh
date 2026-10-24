@@ -411,6 +411,7 @@ zip_einspielen() {
 }
 
 if [ "${#ZIPS[@]}" -gt 0 ]; then
+    [ "$DO_PULL" = 0 ] || fail "--pull and a ZIP file cannot be combined."
     # With "samonboarding-*.zip" matching several files, take the newest version
     ZIP_DATEI="$(printf '%s\n' "${ZIPS[@]}" | neueste_zip)"
     [ "${#ZIPS[@]}" = 1 ] || warn "Several ZIP files found - using the newest: $(basename "$ZIP_DATEI")"
@@ -430,6 +431,7 @@ fi
 ok ".env found"
 
 VERSION="$(sed -n 's/^VERSION = "\(.*\)"/\1/p' samonboarding/config.py)"
+[ -z "${SAMONB_IMAGE_VERSION:-}" ] || VERSION="$SAMONB_IMAGE_VERSION"  # --pull: the version of the image counts
 
 # Value from .env as Docker Compose reads it: optional "export ", quotes removed, " # comment" removed
 env_value() {
@@ -478,6 +480,7 @@ image_holen() {
     fi
     ver="$(docker image inspect --format '{{index .Config.Labels "org.opencontainers.image.version"}}' "$img" 2>/dev/null || true)"
     ok "Image fetched: SAMONBOARDING ${ver:-?}"
+    [ -z "$ver" ] || VERSION="$ver"
 
     # update.sh and docker-compose.yml of the same version come with the image
     tmpd="$(mktemp -d "$PWD/.update-XXXXXX")"
@@ -499,7 +502,8 @@ image_holen() {
         chmod +x update.sh 2>/dev/null || true
         ok "update.sh and docker-compose.yml updated to the version of the image"
         # Continue with the new update.sh (restart, check, clean up)
-        exec env SAMONB_IMAGE_GEHOLT=1 SAMONB_PULL_BACKUP="$sicherung" SAMONB_TMP="$tmpd" bash "$PWD/update.sh" \
+        exec env SAMONB_IMAGE_GEHOLT=1 SAMONB_IMAGE_VERSION="$ver" SAMONB_PULL_BACKUP="$sicherung" SAMONB_TMP="$tmpd" \
+            bash "$PWD/update.sh" \
             ${PASS_ARGS[@]+"${PASS_ARGS[@]}"}
     fi
     IMAGE_GEHOLT=1
@@ -670,6 +674,15 @@ if [ -n "$OLD_IMAGE" ] && [ -n "$OLD_USER" ] && [ -n "$IMAGE_NAME" ]; then
     ROLLBACK_OK=1
 fi
 
+# Running a newer image from GitHub (--pull) than the files here? Then building here would install OLD code.
+if [ "$IMAGE_GEHOLT" = 0 ] && [ -n "$OLD_IMAGE" ] && [ "$DO_PULL" = 0 ]; then
+    LAUFENDE_VERSION="$(docker image inspect --format '{{index .Config.Labels "org.opencontainers.image.version"}}' "$OLD_IMAGE" 2>/dev/null || true)"
+    if printf '%s' "$LAUFENDE_VERSION" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+$' && [ "$LAUFENDE_VERSION" != "$VERSION" ] \
+        && [ "$(printf '%s\n%s\n' "$VERSION" "$LAUFENDE_VERSION" | neueste_zip)" = "$LAUFENDE_VERSION" ]; then
+        fail "SAMONBOARDING $LAUFENDE_VERSION from GitHub is running, the files here are $VERSION - building here would install the older version. Use: sudo sh update.sh --pull"
+    fi
+fi
+
 # New requirements in requirements.in (e.g. a security update)? Then pin and check automatically - but only if a
 # failed start can be rolled back. Otherwise first set up this version with the current packages and update the
 # packages in a second pass.
@@ -696,9 +709,10 @@ if [ "$IMAGE_GEHOLT" = 0 ] && [ "$DO_LOCK" = 0 ] && ! python_lock_in_sync; then
 fi
 
 # -----------------------------------------------------------------------------
-# Back up data/
+# Back up data/ - only once the container is stopped, so that the SQLite databases are not copied mid-write
 # -----------------------------------------------------------------------------
-if [ "$DO_BACKUP" = 1 ] && [ -d data ]; then
+daten_sichern() {
+    [ "$DO_BACKUP" = 1 ] && [ -d data ] || return 0
     step "Backing up data/"
     mkdir -p "$BACKUP_DIR"
     chmod 700 "$BACKUP_DIR"
@@ -708,7 +722,6 @@ if [ "$DO_BACKUP" = 1 ] && [ -d data ]; then
     tar_rc=$?
     set -e
     if [ "$tar_rc" = 0 ] || [ "$tar_rc" = 1 ]; then
-        # 1 = a file changed while it was read (the container is still running) - the backup exists anyway
         chmod 600 "$archive"
         ok "$archive"
         [ "$tar_rc" = 0 ] || warn "Note: data/ was written to during the backup ($tar_out)."
@@ -717,9 +730,10 @@ if [ "$DO_BACKUP" = 1 ] && [ -d data ]; then
         warn "Start with sudo or use --no-backup."
         rm -f "$archive"
     fi
-    # keep only the last KEEP_BACKUPS backups (they contain personal data - GDPR)
-    { ls -1t "$BACKUP_DIR"/data-*.tar.gz 2>/dev/null || true; } | tail -n +"$((KEEP_BACKUPS + 1))" | xargs -r rm -f
-fi
+    # keep only the last KEEP_BACKUPS backups (they contain personal data - GDPR), at least the one just made
+    { ls -1t "$BACKUP_DIR"/data-*.tar.gz 2>/dev/null || true; } \
+        | tail -n +"$(( (KEEP_BACKUPS < 1 ? 1 : KEEP_BACKUPS) + 1 ))" | xargs -r rm -f
+}
 
 # -----------------------------------------------------------------------------
 # Build and start
@@ -786,6 +800,7 @@ sperre_entfernen() {
 step "Setting permissions for the container user ($APP_UID)"
 # Stop first: otherwise the old container could still create files as another user between chown and restart
 dc stop "$SERVICE" >/dev/null 2>&1 || true
+daten_sichern
 # A container from the other mode (with/without Docker Compose) would block the port
 for _id in $(docker ps -q --filter "label=com.docker.compose.service=$SERVICE" 2>/dev/null) \
     $(docker ps -q --filter "name=^${PLAIN_NAME}\$" 2>/dev/null); do

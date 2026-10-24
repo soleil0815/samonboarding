@@ -5,6 +5,26 @@ Update auf dem Server: `sudo sh update.sh --pull`.
 
 Einträge, die mit „Sicherheit:“ oder „Behoben:“ beginnen, werden in der Oberfläche entsprechend markiert.
 
+## 1.46.0 – 2026-10-24
+- Sicherheit: Mitglieder von Schlüsseladministratoren, Organisationsschlüsseladministratoren, Richtlinien-Ersteller-Besitzer und Zertifikatherausgeber gelten jetzt ebenfalls als geschützt. Bisher durften Operatoren deren Passwort zurücksetzen.
+- Sicherheit: Computer- und Dienstkonten (gMSA) lassen sich nicht mehr über Passwort-Reset, Offboarding, Verschieben oder Löschen bearbeiten, auch nicht mit einem gezielt übergebenen DN.
+- Sicherheit: Beim Löschen von Ordnern:
+  - Benutzernamen mit „~“ (mögliche Windows-Kurznamen) werden übersprungen.
+  - Ordner, die im Ordner eines anderen Kontos liegen, werden nicht gelöscht.
+  - Wird ein Unterordner während des Löschens durch eine Verknüpfung ersetzt, wird ihr nicht gefolgt.
+- Sicherheit: Die Sperre nach fehlgeschlagenen Anmeldungen lässt sich nicht mehr mit vielen gleichzeitigen Versuchen umgehen.
+- Sicherheit: Auf GitHub sieht der Build-Schritt mit den neu installierten Paketen den Zugangsschlüssel nicht mehr. Die verwendeten GitHub-Actions sind auf feste Versionen festgelegt. Images werden nur vom Branch `main` veröffentlicht.
+- Behoben: Doppelklick auf „Anlegen“, „Passwort zurücksetzen“, Offboarding oder Löschen löst die Aktion nicht mehr zweimal aus.
+- Behoben: Das Gruppenfenster zeigt nach schnellem Wechsel zwischen zwei Personen nicht mehr die Gruppen der falschen Person.
+- Behoben: Beim Onboarding wird auch ein bereits vergebener Anmeldename (UPN) erkannt.
+- Behoben: Steht in der Ziel-OU schon ein gleichnamiges Objekt, bricht das Offboarding ab, bevor etwas verändert wird.
+- Behoben: Eine abgebrochene Wiederherstellung lässt sich wiederholen.
+- Behoben: `update.sh`:
+  - Die Sicherung von `data/` entsteht erst bei angehaltenem Container.
+  - Ein lokaler Build ersetzt keine neuere Version von GitHub mehr.
+  - Nach `--pull` wird die richtige Version angezeigt.
+- Behoben: Fällt beim Laden ein Bereich aus, werden die übrigen trotzdem geladen.
+
 ## 1.45.0 – 2026-10-24
 - Neuigkeiten in der Oberfläche: Unter *Hilfe → Neuigkeiten* steht, was sich in den installierten Versionen geändert hat. Gibt es seit dem letzten Lesen eine neue Version, zeigt ein kleiner Punkt das an; bei Sicherheitsupdates ist er orange.
 

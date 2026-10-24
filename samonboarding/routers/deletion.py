@@ -32,6 +32,7 @@ from ..fileshare import (
     LOCATION_LABELS,
     FsError,
     build_targets,
+    canonical,
     delete_tree,
     expand_username,
     is_strictly_below,
@@ -272,9 +273,14 @@ def _others_using(conn, search_base, attr, target_path, own_dn, kind):
     oder ohne Domaene, abschliessender Backslash, Profil-Endung)."""
     profile = kind == "profile"
     want = {_path_key(target_path), _path_key(target_path, strip_suffix=profile)}
-    names = {parse_unc(target_path)[2][-1]}
-    if profile and "." in next(iter(names)):
-        names.add(next(iter(names)).rsplit(".", 1)[0])
+    # Liegt der Ordner IM Ordner eines anderen Kontos (z. B. \\fs\home$\chef\mueller), gehoert er nicht allein
+    # diesem Konto - auch dann nicht loeschen
+    server, share, parts = parse_unc(target_path)
+    ancestors = {_path_key(canonical(server, share, parts[:i])) for i in range(1, len(parts))}
+    last = parts[-1]
+    names = {last, *parts[:-1]}
+    if profile and "." in last:
+        names.add(last.rsplit(".", 1)[0])
     clauses = "".join(
         f"({attr}=*{ldap_escape(chr(92) + n)})({attr}=*{ldap_escape(chr(92) + n + chr(92))})" for n in names
     )
@@ -287,7 +293,7 @@ def _others_using(conn, search_base, attr, target_path, own_dn, kind):
             other = normalize_unc(expand_username(r.text(attr), r.text("sAMAccountName")))
         except ValueError:
             continue
-        if {_path_key(other), _path_key(other, strip_suffix=profile)} & want:
+        if {_path_key(other), _path_key(other, strip_suffix=profile)} & (want | ancestors):
             others.append(r.text("sAMAccountName"))
     return sorted(others)
 

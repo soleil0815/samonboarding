@@ -212,7 +212,7 @@ Alle Einstellungen stehen in der Datei **`.env`** (Vorlage: `.env.example`). Nac
 
 Hinweise:
 
-- **Zertifikatsprüfung:** Standardmäßig vertraut die Anwendung dem LDAPS-Zertifikat des DC automatisch, auch einem selbstsignierten (Samba) oder einem aus der eigenen Firmen-CA. Es muss nichts importiert werden. Die Verbindung ist trotzdem verschlüsselt. Für mehr Sicherheit setzt du `LDAP_CA_FILE` (siehe [Abschnitt 5](#5-active-directory-vorbereiten)). Dann muss `AD_DC_IP` der Name sein, der im Zertifikat steht.
+- **Zertifikatsprüfung:** Standardmäßig vertraut die Anwendung dem LDAPS-Zertifikat des DC automatisch, auch einem selbstsignierten (Samba) oder einem aus der eigenen Firmen-CA. Es muss nichts importiert werden. Die Verbindung ist trotzdem verschlüsselt, aber ohne Prüfung könnte sich jemand im Netz als DC ausgeben und die Passwörter der Anmeldenden mitlesen (Man-in-the-Middle). **Empfohlen** ist deshalb `LDAP_CA_FILE` (siehe [Abschnitt 5](#5-active-directory-vorbereiten)). Dann muss `AD_DC_IP` der Name sein, der im Zertifikat steht.
 - **Namensauflösung:** Wenn du einen Namen statt einer IP bei `AD_DC_IP` einträgst, muss der Docker-Host diesen Namen auflösen können. Wenn nicht, trage den DNS-Server des AD in eine `docker-compose.override.yml` ein (bleibt bei Updates erhalten):
 
   ```yaml

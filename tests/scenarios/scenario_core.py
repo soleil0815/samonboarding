@@ -162,6 +162,8 @@ ok, _ = raises(lambda: M["execute_pwdreset"](PR(userDn=MAX, mode="manual", newPa
 check("zu kurzes PW -> 400", ok)
 ok, _ = raises(lambda: M["execute_pwdreset"](PR(userDn="CN=Nope,OU=Staff," + B, mode="auto", newPassword="", forceChange=True, unlockAccount=False), bg, adm), 404)
 check("unbekannter Benutzer -> 404", ok)
+ok, _ = raises(lambda: M["execute_pwdreset"](PR(userDn="CN=PC1,OU=Staff," + B, mode="auto", newPassword="", forceChange=True, unlockAccount=False), bg, adm), 404)
+check("Computerkonto -> 404 (kein Passwort-Reset fuer Rechner)", ok)
 STATE["deny"] = {"lockoutTime"}
 r = M["execute_pwdreset"](PR(userDn=MAX, mode="auto", newPassword="", forceChange=False, unlockAccount=True), bg, adm)
 check("Teilfehler (Entsperren) -> warnings, Passwort trotzdem geliefert", r["warnings"] and r["newPassword"])
@@ -184,6 +186,11 @@ mx = "CN=Mustermann\\, Max,OU=Archive," + B
 check("Offboarding: deaktiviert, Gruppen leer, verschoben", mx in D and D[mx]["userAccountControl"] == [514] and all(MAX not in e.get("member", []) for e in D.values()), r)
 ok, _ = raises(lambda: M["execute_offboarding"](OB(userDn=mx), bg, adm), 403)
 check("Offboarding ausserhalb Quell-OU -> 403", ok)
+add("CN=Namensvetter,OU=Staff," + B, objectClass=["top", "person", "organizationalPerson", "user"], sAMAccountName="vetter1", userAccountControl="512", memberOf=[])
+add("CN=Namensvetter,OU=Archive," + B, objectClass=["top", "person", "organizationalPerson", "user"], sAMAccountName="vetter2", userAccountControl="514")
+D["CN=VPN,OU=Groups," + B]["member"].append("CN=Namensvetter,OU=Staff," + B)
+ok, _ = raises(lambda: M["execute_offboarding"](OB(userDn="CN=Namensvetter,OU=Staff," + B), bg, adm), 409, "schon ein Objekt")
+check("Gleichnamiges Objekt in der Ziel-OU -> 409, nichts veraendert", ok and D["CN=Namensvetter,OU=Staff," + B]["userAccountControl"] == ["512"] and "CN=Namensvetter,OU=Staff," + B in D["CN=VPN,OU=Groups," + B]["member"])
 
 # Geschuetzte Konten (Domaenen-Admins & Co.) lassen sich nicht offboarden
 UCLS = ["top", "person", "organizationalPerson", "user"]
@@ -285,6 +292,9 @@ r2 = M["execute_onboard"](OBM(firstName="Hans", lastName="Meier, Jr.", templateI
 check("SAM-Kollision -> Zaehler", r2["samAccountName"].endswith("2"), (r["samAccountName"], r2["samAccountName"]))
 check("SAM max. 20 Zeichen", len(r["samAccountName"]) <= 20 and len(r2["samAccountName"]) <= 20)
 check("CN-Kollision -> 'Hans Meier, Jr. 2'", "CN=Hans Meier\\, Jr. 2,OU=Staff," + B in D, [k for k in D if "Hans" in k])
+add("CN=UPN Belegt,OU=Staff," + B, objectClass=["top", "person", "organizationalPerson", "user"], sAMAccountName="anders", userPrincipalName="ZZTEST@test.local")
+with M["ad_session"](adm) as _c:
+    check("UPN belegt -> naechster freier Name", M["unique_sam"](_c, B, "ZZTEST", "test.local") == "ZZTEST2")
 before = set(D)
 STATE["pwd_fail"] = True
 ok, e = raises(lambda: M["execute_onboard"](OBM(firstName="Eva", lastName="Fehler", templateId=1, customMail="e@x.de"), bg, adm), 500, "nicht angelegt")
