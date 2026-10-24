@@ -1,6 +1,6 @@
 # SAMONBOARDING
 
-*Deutsche Version: [README.md](README.md)* · **Manual: [MANUAL.en.md](samonboarding/web/manual/MANUAL.en.md)** · **Data protection (GDPR): [DATA-PROTECTION.en.md](DATA-PROTECTION.en.md)** · Website: [helfi.space](https://helfi.space) · License: [AGPL-3.0-or-later](LICENSE)
+*Deutsche Version: [README.md](README.md)* · **Manual: [MANUAL.en.md](samonboarding/web/manual/MANUAL.en.md)** · **Data protection (GDPR): [DATA-PROTECTION.en.md](DATA-PROTECTION.en.md)** · Website: [helfi.space](https://helfi.space) · License: [AGPL-3.0-or-later](LICENSE) · Changes (German): [CHANGELOG.md](CHANGELOG.md)
 
 Web application for day-to-day user management in Active Directory (**Samba AD** or **Windows Server AD**):
 

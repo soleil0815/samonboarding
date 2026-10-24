@@ -1,6 +1,6 @@
 # SAMONBOARDING
 
-*English version: [README.en.md](README.en.md)* · **Handbuch: [HANDBUCH.md](samonboarding/web/manual/HANDBUCH.md)** · **Datenschutz (DSGVO): [DATENSCHUTZ.md](DATENSCHUTZ.md)** · Webseite: [helfi.space](https://helfi.space) · Lizenz: [AGPL-3.0-or-later](LICENSE)
+*English version: [README.en.md](README.en.md)* · **Handbuch: [HANDBUCH.md](samonboarding/web/manual/HANDBUCH.md)** · **Datenschutz (DSGVO): [DATENSCHUTZ.md](DATENSCHUTZ.md)** · Webseite: [helfi.space](https://helfi.space) · Lizenz: [AGPL-3.0-or-later](LICENSE) · Änderungen: [CHANGELOG.md](CHANGELOG.md)
 
 Webanwendung für die tägliche Benutzerverwaltung im Active Directory (**Samba AD** oder **Windows Server AD**):
 
