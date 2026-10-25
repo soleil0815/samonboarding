@@ -5,6 +5,19 @@ Update on the server: `sudo sh update.sh --pull`.
 
 Entries starting with "Security:" or "Fixed:" are marked accordingly in the interface.
 
+## 1.48.0 – 2026-10-25
+- Security: reproducible build. Base images are pinned with a fixed version and checksum (digest), the Debian packages via a fixed state of snapshot.debian.org (`os-packages.lock`), all Python and npm packages including indirect ones with an exact version. The script `scripts/pins.py` renews the versions.
+- Security: weekly security update on GitHub (Mondays, can also be started by hand). It brings the base image, all Debian packages and all dependencies up to date, but only within the base:
+  - same Debian version ("trixie"), same Python (3.13) and Node series (24)
+  - every package within its major version, below 1.0 within its minor version; calendar versions such as root certificates without a limit
+  - build without cache, tests in the image (amd64 and arm64), HTTPS start check and Trivy
+  - published only if everything passed, as `<version>-s<counter>` (e.g. `1.48.0-s1`), with an entry here including the list of changed packages. If nothing changed, nothing happens.
+- Security: Trivy no longer runs as a GitHub Action but as a fixed version whose checksum (SHA-256) is checked before use. Accepted findings are listed in `.trivyignore` with a reason and an expiry date.
+- Security: the published image is scanned with Trivy every day, so vulnerabilities that only become known after the release are noticed.
+- Weekly check of how long Debian, Python and Node still get security updates (endoflife.date): a note from 12 months before, a red run from 6 months before. The base is never raised automatically.
+- Published versions are never overwritten, `latest` always points to the highest version. Every job only gets the rights it needs.
+- News in the interface show security updates (`-s1`, `-s2` …) as separate entries.
+
 ## 1.47.1 – 2026-10-25
 - The interface is now built with Node 24 (updates until April 2028) instead of Node 22, which ends in April 2027. Node is only used while building, not in the finished image; the generated interface is unchanged.
 

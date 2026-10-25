@@ -22,6 +22,8 @@ const api = f({getElementById: el, querySelector: () => null, querySelectorAll: 
   localStorage, async url => { fetchCalls.push(url); return {ok: true, json: async () => payload}; });
 (async () => {
   console.assert(api.versionNewer('1.10.0', '1.9.9') && !api.versionNewer('1.9.9', '1.10.0') && !api.versionNewer('1.45.0', '1.45.0'), 'Versionsvergleich numerisch');
+  console.assert(api.versionNewer('1.45.0-s1', '1.45.0') && api.versionNewer('1.45.0-s10', '1.45.0-s9') && api.versionNewer('1.46.0', '1.45.0-s3')
+    && !api.versionNewer('1.45.0-s1', '1.45.0-s1') && !api.versionNewer('1.45.0', '1.45.0-s1'), 'Sicherheitsupdates -s<Zaehler>');
   // Erste Nutzung: kein Punkt, Stand wird gemerkt
   await api.checkNews();
   console.assert(el('news-dot').classList.contains('hidden') && store['samonboarding.newsSeen'] === '1.45.0', 'erste Nutzung: kein Hinweis');

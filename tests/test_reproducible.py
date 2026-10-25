@@ -47,13 +47,14 @@ class PythonPinsTests(unittest.TestCase):
         self.assertIn("starlette>=1.3.1,<2", text)
         self.assertRegex(text, r"(?m)^fastapi>=0\.129")
 
-    def test_geaenderte_vorgaben_werden_automatisch_festgeschrieben(self):
+    def test_festschreiben_nur_ueber_das_pins_skript(self):
+        """update.sh --lock nutzt dasselbe Skript wie GitHub; ungepruefte Vorgaben werden nie gebaut."""
         text = (ROOT / "update.sh").read_text(encoding="utf-8")
-        self.assertIn('if [ "$IMAGE_GEHOLT" = 0 ] && [ "$DO_LOCK" = 0 ] && ! python_lock_in_sync; then', text)
-        lock = text[text.index("lock_python() {") : text.index('if [ "$DO_LOCK" = 1 ]; then')]
-        self.assertIn("comm -13 /tmp/alt.txt /tmp/neu.txt", lock)  # nur NEUE Testfehler zaehlen
-        self.assertIn('-v "$PWD":/w:ro', lock)  # Projekt nur lesend im Pruef-Container
-        self.assertIn("# requirements.in: $(in_hash)", lock)
+        self.assertIn("python3 scripts/pins.py", text)
+        self.assertIn("pins update ||", text)
+        self.assertIn('pins os-lock "$IMAGE_NAME" --arch "$arch"', text)
+        self.assertNotIn("lock_python", text)  # kein eigenes, abweichendes Festschreiben mehr
+        self.assertIn('if [ "$IMAGE_GEHOLT" = 0 ] && [ "$DO_LOCK" = 0 ] && ! python_lock_in_sync; then\n    fail', text)
         # Fehlstart der neuen Version -> vorheriges Image wieder starten
         self.assertIn('docker tag "$OLD_IMAGE" "$IMAGE_NAME"', text)
         self.assertLess(text.index("OLD_IMAGE="), text.index("dc build ${BUILD_ARGS[@]+"))
@@ -64,34 +65,50 @@ class PythonPinsTests(unittest.TestCase):
 
 
 class ImagePinsTests(unittest.TestCase):
-    def test_basis_images_mit_patch_version(self):
+    def test_basis_images_mit_version_und_digest(self):
         lock = dict(
             line.split("=", 1)
             for line in (ROOT / "images.lock").read_text(encoding="utf-8").splitlines()
             if line and not line.startswith("#")
         )
-        self.assertRegex(lock["PYTHON_IMAGE"], r"^python:3\.13(\.\d+)?-slim-trixie(@sha256:[0-9a-f]+)?$")
-        self.assertRegex(lock["NODE_IMAGE"], r"^node:\d+(\.\d+\.\d+)?-trixie-slim(@sha256:[0-9a-f]+)?$")
+        self.assertRegex(lock["PYTHON_IMAGE"], r"^python:3\.13\.\d+-slim-trixie@sha256:[0-9a-f]{64}$")
+        self.assertRegex(lock["NODE_IMAGE"], r"^node:24\.\d+\.\d+-trixie-slim@sha256:[0-9a-f]{64}$")
+        self.assertRegex(lock["DEBIAN_SNAPSHOT"], r"^\d{8}T\d{6}Z$")
         docker = (ROOT / "Dockerfile").read_text(encoding="utf-8")
         compose = (ROOT / "docker-compose.yml").read_text(encoding="utf-8")
-        for key in ("PYTHON_IMAGE", "NODE_IMAGE"):
-            tag = lock[key].split("@")[0]
-            self.assertIn(f"ARG {key}={tag}", docker)
-            self.assertIn(f"${{{key}:-{tag}}}", compose)
+        for key in ("PYTHON_IMAGE", "NODE_IMAGE", "DEBIAN_SNAPSHOT"):
+            self.assertIn(f"ARG {key}\n", docker)  # ohne Vorgabe: kein Build mit einem wechselnden Tag
+            self.assertIn(f"{key}: ${{{key}:-}}", compose)
         self.assertIn("FROM ${PYTHON_IMAGE}", docker)
         self.assertIn("FROM ${NODE_IMAGE} AS assets", docker)
-        self.assertNotRegex(docker, r"FROM (python|node):\d+(-slim)?\b")
+        self.assertNotRegex(docker, r"FROM (python|node):")
+        # alle Debian-Pakete (auch die des Basis-Images) aus dem festen Snapshot, nur aus dem eigenen Release
+        self.assertIn("snapshot.debian.org/archive/%s/%s", docker)
+        self.assertIn("full-upgrade", docker)
+        self.assertIn("$VERSION_CODENAME-security", docker)
+        self.assertNotIn("APT_REFRESH", docker + compose)
+        packages = lines("os-packages.lock")
+        self.assertGreater(len(packages), 50)
+        for line in packages:
+            self.assertRegex(line, r"^(amd64|arm64) [a-z0-9][a-z0-9+.-]*(:[a-z0-9]+)?=[0-9A-Za-z.+~:-]+$")
+        self.assertEqual({line.split(" ")[0] for line in packages}, {"amd64", "arm64"})
 
 
 class NpmPinsTests(unittest.TestCase):
-    def test_package_json_exakt(self):
+    def test_package_json_und_sperrdatei_exakt(self):
         deps = json.loads((ROOT / "package.json").read_text(encoding="utf-8"))["dependencies"]
-        self.assertEqual(deps["tailwindcss"], "3.4.17")
-        self.assertEqual(deps["@fortawesome/fontawesome-free"], "6.4.0")
+        self.assertTrue(deps["tailwindcss"].startswith("3."))  # Hauptversion bleibt
+        self.assertTrue(deps["@fortawesome/fontawesome-free"].startswith("6."))
         for name, version in deps.items():
             self.assertRegex(version, r"^\d+\.\d+\.\d+$", name)
+        lock = json.loads((ROOT / "package-lock.json").read_text(encoding="utf-8"))
+        self.assertEqual(lock["packages"][""]["dependencies"], deps)  # npm ci verlangt genau das
+        for path, info in lock["packages"].items():
+            if path:  # auch die indirekten Pakete mit exakter Version und Pruefsumme
+                self.assertRegex(info["version"], r"^\d+\.\d+\.\d+", path)
+                self.assertTrue(info.get("integrity", "").startswith("sha512-"), path)
         docker = (ROOT / "Dockerfile").read_text(encoding="utf-8")
-        self.assertIn("npm ci", docker)
+        self.assertIn("npm ci --no-audit --no-fund --ignore-scripts", docker)
 
 
 class UpdateScriptTests(unittest.TestCase):
@@ -110,14 +127,6 @@ class UpdateScriptTests(unittest.TestCase):
             out = subprocess.run(["dash", str(script), "--help"], capture_output=True, text=True, check=True)
             self.assertIn("--lock", out.stdout)
 
-    def test_npm_sperrdatei_wird_vor_dem_build_abgeglichen(self):
-        text = (ROOT / "update.sh").read_text(encoding="utf-8")
-        self.assertIn("elif ! npm_lock_in_sync; then", text)
-        sync = text[text.index("sync_npm_lock() {") : text.index("lock_python() {")]
-        self.assertIn("npm install --package-lock-only", sync)
-        self.assertNotIn("@5", sync)  # angleichen nimmt genau die Versionen aus package.json, keine neueren
-        self.assertLess(text.index("elif ! npm_lock_in_sync"), text.index("dc build"))
-
     def test_alte_internet_sperre_wird_nach_dem_start_entfernt(self):
         text = (ROOT / "update.sh").read_text(encoding="utf-8")
         # erst wenn die neue Version laeuft: beim Zuruecksetzen braucht die vorherige Version ihre Sperre noch
@@ -128,7 +137,7 @@ class UpdateScriptTests(unittest.TestCase):
             self.assertIn(needed, alt)
         self.assertNotIn("internet-sperre.sh an", text)
         self.assertNotIn("INTERNET_SPERRE", (ROOT / ".env.example").read_text(encoding="utf-8"))
-        self.assertFalse((ROOT / "scripts").exists())
+        self.assertFalse((ROOT / "scripts" / "internet-sperre.sh").exists())
 
     def test_container_ohne_root(self):
         docker = (ROOT / "Dockerfile").read_text(encoding="utf-8")
@@ -204,13 +213,10 @@ class UpdateScriptTests(unittest.TestCase):
         self.assertEqual(calls, [])
 
     def test_fertiges_image_von_github(self):
-        """GitHub baut das Image (fuer Dockhand & Co.) - erst nach bestandenen Tests mit genau diesen Paketen."""
+        """GitHub baut das Image (fuer Dockhand & Co.) - erst nach bestandenen Tests im Image."""
         flow = (ROOT / ".github" / "workflows" / "image.yml").read_text(encoding="utf-8")
-        self.assertLess(flow.index("pytest -q"), flow.index("docker/build-push-action"))
-        self.assertLess(flow.index("pip freeze"), flow.index("pytest -q"))
-        self.assertIn("requirements.in: $(sha256sum requirements.in | cut -c1-16)", flow)  # wie update.sh
+        self.assertLess(flow.index("pins.py test-image"), flow.index("--push"))
         self.assertIn("images.lock", flow)
-        self.assertIn("packages: write", flow)
         compose = (ROOT / "docker-compose.image.yml").read_text(encoding="utf-8")
         self.assertIn("image: ghcr.io/soleil0815/samonboarding:", compose)
         self.assertNotIn("build:", compose)
@@ -221,40 +227,6 @@ class UpdateScriptTests(unittest.TestCase):
         keys = {line.split("=", 1)[0] for line in example.splitlines() if line and not line.startswith("#")}
         for key in keys - {"DOCKER_SUBNET"}:
             self.assertIn(f"      {key}: ${{{key}:", compose)
-
-    def test_trivy_vor_dem_veroeffentlichen(self):
-        """Veroeffentlicht wird erst, wenn Trivy keine behebbare CRITICAL/HIGH-Luecke findet; dazu woechentlich."""
-        flow = (ROOT / ".github" / "workflows" / "image.yml").read_text(encoding="utf-8")
-        scan = flow.index("aquasecurity/trivy-action@")
-        self.assertLess(flow.index("load: true"), scan)
-        self.assertLess(scan, flow.index("Vulnerability report"))
-        # erst pruefen, dann anmelden
-        self.assertLess(flow.index("Vulnerability report"), flow.index("docker/login-action@"))
-        self.assertIn("severity: CRITICAL,HIGH", flow)
-        self.assertIn("ignore-unfixed: true", flow)
-        self.assertIn("trivyignores: .trivyignore", flow)
-        self.assertIn("schedule:", flow)  # montags Neubau mit denselben Pruefungen wie bei einem Push
-        self.assertNotIn("weekly-scan:", flow)
-        self.assertNotIn("github.event_name != 'schedule'", flow)
-        self.assertIn("APT_REFRESH=${{ github.run_id }}", flow)  # Debian-Updates bei jedem Neubau
-        self.assertTrue((ROOT / ".trivyignore").exists())
-        for line in flow.splitlines():
-            if "uses:" in line:  # alle Actions auf einen festen Commit gepinnt
-                self.assertRegex(line, r"@[0-9a-f]{40}\b", line)
-
-    def test_alles_im_image_bleibt_aktuell(self):
-        """Basis-Images, Python-Pakete und pip: nichts Veraltetes im Image; Warnung vor dem Ende der Updates."""
-        flow = (ROOT / ".github" / "workflows" / "image.yml").read_text(encoding="utf-8")
-        self.assertEqual(flow.count("pull: true"), 2)  # beide Builds holen das aktuelle Basis-Image
-        self.assertIn("support:", flow)  # Mail ein halbes Jahr vor Ende der Updates
-        self.assertLess(flow.index("Start check of the running server"), flow.index("aquasecurity/trivy-action@"))
-        for name in ("DEBIAN_13_END", "PYTHON_313_END", "NODE_24_END"):
-            self.assertIn(name, flow)
-        for req in lines("requirements.in"):
-            self.assertNotIn("==", req, req)  # keine festen Versionen - jede Woche die neueste
-        self.assertIn("BUILD_ARGS=(--pull)", (ROOT / "update.sh").read_text(encoding="utf-8"))
-        docker = (ROOT / "Dockerfile").read_text(encoding="utf-8")
-        self.assertIn("python -m pip uninstall -y pip", docker)  # pip mit eigenen, alten Paketkopien entfernt
 
     def test_image_von_github_holen(self):
         """--pull holt das fertige Image von ghcr.io (kein git, kein Bauen) - mit Sicherung und Zuruecksetzen."""

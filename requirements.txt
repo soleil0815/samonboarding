@@ -1,5 +1,6 @@
 # Exact lock list of all Python packages (including dependencies) for reproducible builds.
-# Generated from requirements.in by GitHub Actions for the published image, checked with the test suite.
+# Renewed by scripts/pins.py within the limits (same major version, below 1.0 same minor version) and
+# checked with the test suite in the image. Do not edit by hand.
 # requirements.in: 998fd3f3d9bda33f
 annotated-doc==0.0.5
 annotated-types==0.8.0

@@ -1,17 +1,18 @@
 # ---------------------------------------------------------------------------
 # Stage 1: build CSS and fonts (Tailwind, Manrope, JetBrains Mono, Font Awesome - all local)
 # ---------------------------------------------------------------------------
-# Base images with fixed versions (default from images.lock; update.sh passes them including digest)
-ARG NODE_IMAGE=node:24-trixie-slim
-ARG PYTHON_IMAGE=python:3.13-slim-trixie
+# Base images with fixed version AND digest: always passed from images.lock (update.sh, GitHub workflow,
+# "python3 scripts/pins.py build-args"). There is deliberately no default, so no build uses a changing tag.
+ARG NODE_IMAGE
+ARG PYTHON_IMAGE
 
 FROM ${NODE_IMAGE} AS assets
 WORKDIR /build
 
 # Exact versions from package.json; with package-lock.json all sub-packages too (npm ci = exactly the lock file)
 COPY package.json package-lock.json* ./
-RUN if [ -f package-lock.json ]; then npm ci --no-audit --no-fund; \
-    else echo "NOTE: no package-lock.json - create it with sh update.sh --lock" && npm install --no-audit --no-fund; fi
+RUN test -f package-lock.json || { echo "package-lock.json is missing (python3 scripts/pins.py update)"; exit 1; } \
+ && npm ci --no-audit --no-fund --ignore-scripts
 
 COPY tailwind.config.js tailwind.input.css ./
 COPY samonboarding/web ./samonboarding/web
@@ -40,16 +41,32 @@ RUN npx tailwindcss -c tailwind.config.js -i tailwind.input.css -o dist/app.css 
 # Official, lightweight Python image with a fixed version
 FROM ${PYTHON_IMAGE}
 
-# Security updates of the Debian packages in the base image (OpenSSL, GnuTLS, Kerberos, ...) at build time.
-# APT_REFRESH changes with every build (update.sh: date, GitHub: run number), so the result is never an old cached layer.
+# All Debian packages of the image (including those of the base image) to the state of the Debian snapshot from
+# images.lock: snapshot.debian.org delivers the archive exactly as it was at that time, so the same snapshot always
+# gives exactly the same package versions (os-packages.lock). Only the Debian release of the base image is used
+# (e.g. "trixie" with its security updates) - never a newer release. apt checks the signatures as usual.
 # Time zone for logs, audit log and mails (can be changed with TZ in .env)
-ARG APT_REFRESH=
+ARG DEBIAN_SNAPSHOT
 ENV TZ=Europe/Berlin
-RUN echo "security updates: ${APT_REFRESH:-local}" \
- && apt-get update \
- && apt-get upgrade -y --no-install-recommends \
- && (test -f /usr/share/zoneinfo/Europe/Berlin || apt-get install -y --no-install-recommends tzdata) \
- && rm -rf /var/lib/apt/lists/*
+RUN set -eu; \
+    test -n "${DEBIAN_SNAPSHOT:-}" || { echo "DEBIAN_SNAPSHOT is missing (images.lock)"; exit 1; }; \
+    . /etc/os-release; \
+    key=""; for f in /usr/share/keyrings/debian-archive-keyring.pgp /usr/share/keyrings/debian-archive-keyring.gpg; do \
+      if [ -f "$f" ]; then key="$f"; break; fi; done; \
+    test -n "$key" || { echo "Debian archive keyring missing"; exit 1; }; \
+    rm -f /etc/apt/sources.list /etc/apt/sources.list.d/*; \
+    for archive in debian debian-security; do \
+      if [ "$archive" = debian ]; then suites="$VERSION_CODENAME $VERSION_CODENAME-updates"; \
+      else suites="$VERSION_CODENAME-security"; fi; \
+      printf 'Types: deb\nURIs: http://snapshot.debian.org/archive/%s/%s\nSuites: %s\nComponents: main\nSigned-By: %s\n\n' \
+        "$archive" "$DEBIAN_SNAPSHOT" "$suites" "$key" >> /etc/apt/sources.list.d/snapshot.sources; \
+    done; \
+    apt_opts="-o Acquire::Check-Valid-Until=false -o Acquire::Retries=5 -o Acquire::http::Timeout=60"; \
+    apt-get $apt_opts update; \
+    DEBIAN_FRONTEND=noninteractive apt-get $apt_opts full-upgrade -y --no-install-recommends; \
+    test -f /usr/share/zoneinfo/Europe/Berlin || DEBIAN_FRONTEND=noninteractive apt-get $apt_opts install -y --no-install-recommends tzdata; \
+    apt-get clean; \
+    rm -rf /var/lib/apt/lists/*
 
 # Marker: when cleaning up, update.sh only removes old images with this label
 LABEL de.helfi.samonboarding="1"

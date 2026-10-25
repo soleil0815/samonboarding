@@ -21,3 +21,4 @@ requirements.txt.vorher
 .update-*
 docker-compose.image.yml
 .trivyignore
+scripts/

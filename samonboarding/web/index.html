@@ -2423,9 +2423,14 @@
         let newsData = null, newsLang = null, newsUnread = new Set();
         function newsSeen() { try { return localStorage.getItem(NEWS_KEY) || ''; } catch(e) { return ''; } }
         function setNewsSeen(v) { try { localStorage.setItem(NEWS_KEY, v); } catch(e) {} }
+        function versionParts(v) {  // '1.48.0-s2' -> [1, 48, 0, 2]: Sicherheitsupdate = gleiches Programm, neue Pakete
+            const [base, s] = String(v || '').split('-s');
+            const p = base.split('.').map(n => parseInt(n, 10) || 0);
+            return [p[0] || 0, p[1] || 0, p[2] || 0, parseInt(s, 10) || 0];
+        }
         function versionNewer(a, b) {
-            const x = String(a || '').split('.').map(n => parseInt(n, 10) || 0), y = String(b || '').split('.').map(n => parseInt(n, 10) || 0);
-            for(let i = 0; i < 3; i++) { if((x[i] || 0) !== (y[i] || 0)) return (x[i] || 0) > (y[i] || 0); }
+            const x = versionParts(a), y = versionParts(b);
+            for(let i = 0; i < 4; i++) { if(x[i] !== y[i]) return x[i] > y[i]; }
             return false;
         }
         async function loadNews() {

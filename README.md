@@ -607,7 +607,7 @@ sh update.sh
 
 Das Skript sichert zuerst `data/` nach `backups/` (die letzten 3 Sicherungen bleiben, `KEEP_BACKUPS=5 sh update.sh` behält mehr), baut das Image, startet den Container neu und prüft, ob er „healthy“ wird. Schlägt der Build fehl, läuft der bisherige Container unverändert weiter. **Startet die neue Version nicht sauber, startet das Skript automatisch wieder das vorherige Image.**
 
-**Neue Paketvorgaben:** Ändert eine neue Version `requirements.in` (z. B. eine Mindestversion wegen einer Sicherheitslücke), schreibt `update.sh` die Python-Pakete automatisch neu fest. Dafür installiert es die neuen Pakete in einem Prüf-Container und lässt die Testsuite laufen, einmal mit den bisherigen und einmal mit den neuen Paketen. Nur wenn mit den neuen Paketen kein Test zusätzlich fehlschlägt, gleich viele Tests laufen und ein Rauchtest der echten Anwendung (`tests/smoke_app.py`) besteht, werden die exakten Versionen in `requirements.txt` übernommen. Sonst bleibt alles bei den bisherigen Versionen, mit einem Hinweis; die abgelehnten Vorgaben werden in `.paketpruefung-abgelehnt` vermerkt und erst mit `sudo sh update.sh --lock` erneut versucht. Läuft noch eine Version mit root (vor 1.31) oder ist es die Erstinstallation, richtet das Skript zuerst die neue Version mit den bisherigen Paketen ein und aktualisiert die Pakete dann automatisch in einem zweiten Durchgang – erst dann ist ein Zurücksetzen möglich.
+**Neue Paketvorgaben:** Die festgelegten Versionen kommen mit jeder Version fertig geprüft mit (`requirements.txt`, `images.lock`, `os-packages.lock`, `package-lock.json`). Wurde `requirements.in` von Hand geändert, ohne neu festzulegen, bricht `update.sh` vor dem Bauen ab und nennt den Befehl `sudo sh update.sh --lock`. Damit legt `scripts/pins.py` die Versionen innerhalb der Grenzen neu fest (braucht `python3`); das Image wird gebaut, die Debian-Paketliste geschrieben, und startet es nicht, kommt die vorherige Version zurück.
 
 | Option | Wirkung |
 |---|---|
@@ -622,17 +622,51 @@ Nur Einstellungen in der `.env` geändert: `docker compose up -d` genügt.
 
 ### Reproduzierbare Versionen
 
-Jeder Build verwendet exakt dieselben Versionen:
+Jeder Build verwendet exakt dieselben Versionen. Gleiche Dateien ergeben das gleiche Image:
 
 | Datei | Inhalt |
 |---|---|
-| `images.lock` | Basis-Images: Python 3.13 und Node 24 auf Debian 13 „Trixie“, jeweils die neueste Patch-Version. `sh update.sh --lock` kann den genauen Stand mit Digest (`@sha256:…`) einfrieren |
-| `requirements.txt` | Sperrliste aller Python-Pakete inklusive Abhängigkeiten, jeweils `==Version`. Installiert wird mit `--no-deps`, danach prüft `pip check`, ob alles zusammenpasst |
-| `requirements.in` | Die direkten Python-Pakete (Absicht). Daraus erzeugt `sh update.sh --lock` die Sperrliste |
-| `package.json`, `package-lock.json` | npm-Pakete für CSS, Schriften und Icons, exakt mit allen Unterpaketen (`npm ci`) |
+| `images.lock` | Basis-Images mit fester Version **und** Prüfsumme (`python:3.13.x-slim-trixie@sha256:…`, `node:24.x.y-trixie-slim@sha256:…`) sowie `DEBIAN_SNAPSHOT`: der Stand von snapshot.debian.org, aus dem alle Debian-Pakete des Images installiert werden |
+| `os-packages.lock` | Alle Debian-Pakete im fertigen Image mit Version, je Architektur (amd64, arm64). Jeder Build wird damit verglichen; weicht etwas ab, wird nichts veröffentlicht |
+| `requirements.txt` | Alle Python-Pakete inklusive der indirekten, jeweils `==Version`. Installiert wird mit `--no-deps`, danach prüft `pip check`, ob alles zusammenpasst |
+| `requirements.in` | Die direkten Python-Pakete mit ihren äußeren Grenzen |
+| `package.json`, `package-lock.json` | npm-Pakete für CSS, Schriften und Icons, exakt und mit Prüfsummen aller Unterpakete (`npm ci`). Sie werden nur beim Bauen gebraucht und sind nicht im Image |
 | `requirements-dev.txt` | Test-Werkzeuge (pytest, ruff) mit exakten Versionen |
 
-Aktualisiert wird nur bewusst mit `sh update.sh --lock`. Das Skript zeigt an, welche Python-Pakete sich ändern. Die geänderten Dateien am besten mit ins Git übernehmen.
+Neu festgelegt werden die Versionen mit `python3 scripts/pins.py update` (braucht Docker und Internet). Auf GitHub geschieht das jede Woche automatisch (siehe *Automatische Sicherheitsupdates*), auf einem Server mit `sudo sh update.sh --lock`. Dabei gelten immer dieselben Grenzen:
+
+- gleiche Debian-Version (`trixie`), gleiche Python-Reihe (3.13) und Node-Reihe (24)
+- jedes Paket innerhalb seiner Hauptversion, vor 1.0 innerhalb der Unterversion (`0.54.x` bleibt `0.54`)
+- Kalenderversionen ohne Grenze, z. B. Stammzertifikate (`certifi`) oder Zeitzonen-Daten (`tzdata`)
+
+Ein neuer Unterbau (z. B. Debian 14 oder Python 3.14) wird nie automatisch gewählt. Dafür werden die Tags in `images.lock` bewusst von Hand geändert und anschließend wie gewohnt geprüft.
+
+### Automatische Sicherheitsupdates
+
+Auf GitHub laufen zwei Workflows. Sie veröffentlichen nur vom Branch `main`; auf anderen Branches ist jeder Lauf ein Probelauf.
+
+| Wann | Was passiert |
+|---|---|
+| Push auf `main` (neue Programmversion) | Bau mit genau den festgelegten Versionen, Tests im Image (amd64 und arm64), HTTPS-Startprüfung, Trivy. Danach Veröffentlichung als `:<Version>`, z. B. `:1.48.0`. Eine schon veröffentlichte Version wird nie überschrieben |
+| Montags 05:17 UTC (auch von Hand: *Actions → Image → Run workflow*) | Sicherheitsupdate: Versionen innerhalb der Grenzen erneuern, ohne Zwischenspeicher bauen, dieselben Tests und Trivy. Nur wenn alles bestanden ist: neue Versionen und ein Eintrag im Changelog (mit der Liste der geänderten Pakete) werden committet, das Image erscheint als `:<Version>-s<Zähler>`, z. B. `:1.48.0-s1`, `:1.48.0-s2`. Eine neue Programmversion beginnt wieder bei `-s1`. Hat sich nichts geändert, passiert nichts |
+| Täglich 03:43 UTC | Trivy prüft das veröffentlichte Image `:latest`. So fallen Schwachstellen auf, die erst nach dem Release bekannt werden |
+| Montags 06:29 UTC | Wie lange bekommen Debian, Python und Node noch Sicherheitsupdates (endoflife.date)? Ab 12 Monaten vor dem Ende ein Hinweis am Lauf, ab 6 Monaten ein roter Lauf |
+
+`-s<Zähler>` bedeutet: gleiches Programm, nur neuere Pakete. `:latest` zeigt immer auf die höchste Version. Auf einen Server kommt ein Update erst mit `sudo sh update.sh --pull` (oder über Dockhand & Co.).
+
+Trivy wird nicht als GitHub Action eingebunden (`trivy-action` und `setup-trivy` wurden im März 2026 kompromittiert, CVE-2026-33634). `scripts/install-trivy.sh` lädt eine feste Version und prüft ihre SHA-256-Prüfsumme gegen den eingetragenen Wert und gegen die offizielle Prüfsummen-Datei des Releases. Eine neue Trivy-Version wird nur bewusst übernommen, mit Version und Prüfsumme in dieser Datei.
+
+**Wenn ein Lauf rot ist:** GitHub schickt eine Mail, veröffentlicht wird nichts, und das zuletzt veröffentlichte Image bleibt unverändert. Die Ursache steht kurz am Lauf (*Actions* → Lauf öffnen → oben unter *Annotations*):
+
+| Meldung | Bedeutung | Was tun |
+|---|---|---|
+| *Trivy found … vulnerabilities* | Schwachstelle HOCH/KRITISCH, für die es eine Korrektur gibt | Meist ist die Korrektur noch nicht im Debian- oder Paketstand angekommen: den Lauf in ein bis zwei Tagen von Hand wiederholen. Liegt die Korrektur außerhalb der Grenzen (z. B. nur in einer neuen Hauptversion), ist eine bewusste Programmversion nötig. Ist der Fund geprüft und im Programm nicht ausnutzbar: Eintrag in `.trivyignore` mit Begründung und Ablaufdatum |
+| *Limits violated* | Eine Version würde ihre Reihe verlassen | Nichts wird übernommen. Prüfen, ob der Sprung gewollt ist; wenn ja, bewusst als neue Programmversion |
+| *Tests in the image … failed* / *does not answer on HTTPS* | Ein neues Paket verträgt sich nicht mit dem Programm | Im Log des Schritts steht der fehlgeschlagene Test. Die alten Versionen bleiben in Kraft; Korrektur am Programm oder an `requirements.in` |
+| *not reproducible* | Ein Bau ergibt andere Debian-Pakete als `os-packages.lock` | Meist eine unvollständige Änderung an `images.lock`; das Sicherheitsupdate von Hand starten, es schreibt beide Dateien neu |
+| *Trivy download* | Prüfsumme von Trivy stimmt nicht | Nichts verwenden. Version und Prüfsumme in `scripts/install-trivy.sh` mit dem offiziellen Release vergleichen |
+| *security updates end on …* | Der Unterbau läuft bald aus | Den Wechsel planen: neue Tags in `images.lock` (z. B. nächste Python-Reihe), testen, als neue Programmversion veröffentlichen |
+| *… not reachable* / Zeitüberschreitung | Docker Hub, snapshot.debian.org oder endoflife.date waren nicht erreichbar | Den Lauf später wiederholen (*Re-run jobs*) |
 
 Beim Update bleiben `data/`, `.env` und eine eventuelle `docker-compose.override.yml` erhalten; alle anderen Dateien einfach durch die neue Version ersetzen. Neue Optionen findest du in der `.env.example`. Alle Benutzer sind danach abgemeldet.
 
@@ -688,7 +722,7 @@ Ein Reverse Proxy ist nicht mehr nötig. Wer trotzdem einen verwendet, leitet an
 - **Datenschutz in der Oberfläche:** Der Link *Datenschutz* (Anmeldeseite unten, Seitenleiste unter *Hilfe*) zeigt kurz, was gespeichert wird und die aktuellen Löschfristen. Administratoren können dort die Auskunft nach Art. 15 DSGVO für ein Konto als JSON herunterladen (wird in den Berichten vermerkt)
 - **Datenschutz:** Welche Daten wo liegen, Löschfristen, eingebaute Maßnahmen und eine Vorlage für das Verzeichnis von Verarbeitungstätigkeiten stehen in [DATENSCHUTZ.md](DATENSCHUTZ.md)
 - **Keine Verbindungen ins Internet im Betrieb:** Tailwind-CSS, Schriften (Manrope, JetBrains Mono) und Icons (Font Awesome) werden beim Docker-Build ins Image gepackt und vom eigenen Server ausgeliefert. Es gibt keine CDNs, kein Google Fonts, keine Telemetrie und keine Update-Prüfung. Zusätzlich verbietet ein Content-Security-Policy-Header dem Browser, irgendetwas von fremden Servern zu laden. Internet braucht nur der **Build** (npm, pip, Docker-Basisimages). Verbindungen gehen im Betrieb nur zu deinen eigenen Diensten: Domänencontroller, Dateiserver, SMTP und ggf. Exchange
-- **Schwachstellen-Prüfung (Trivy):** Jedes Image wird vor der Veröffentlichung auf GitHub mit [Trivy](https://trivy.dev) geprüft. Gibt es eine schwere Lücke (CRITICAL/HIGH) mit verfügbarer Korrektur, wird das Image nicht veröffentlicht, und auf der Seite des Laufs unter *Actions* steht die Liste der Funde. Montags baut GitHub das Image automatisch neu und bringt dabei alles darin auf den neuesten Stand: Debian-Pakete, Python (neueste 3.13.x) und alle Python-Pakete samt Unterpaketen. Veröffentlicht wird es nur, wenn Tests und Prüfung bestehen. Ein halbes Jahr bevor Debian 13, Python 3.13 oder Node 24 keine Updates mehr bekommen, schlägt der Teil „support“ des Laufs fehl und GitHub schickt eine Mail. Erst dann wird der Unterbau in `images.lock` angehoben. Auf den Server kommt es erst mit `sh update.sh --pull`. Schlägt der Lauf fehl, kommt eine Mail von GitHub, und es bleibt beim letzten sauberen Image. Beheben lässt sich das meist mit neueren Basis-Images in `images.lock` oder einer Mindestversion in `requirements.in`. Lässt sich ein Fund nicht beheben und betrifft das Programm nachweislich nicht, kommt er mit Begründung und Datum in `.trivyignore`.
+- **Schwachstellen-Prüfung (Trivy):** Jedes Image wird vor der Veröffentlichung mit [Trivy](https://trivy.dev) geprüft, das veröffentlichte Image zusätzlich jeden Tag. Schwachstellen HOCH/KRITISCH mit verfügbarer Korrektur stoppen das Release. Ablauf, Sicherheitsupdates (`-s<Zähler>`) und was bei einem roten Lauf zu tun ist: Abschnitt *Automatische Sicherheitsupdates*.
 - Die Anwendung läuft nur über HTTPS (siehe oben). Am besten ein eigenes Zertifikat hinterlegen und `LDAP_ALLOW_PLAIN` auf `false` lassen (Standard)
 - Operatoren nur die Rechte geben, die sie brauchen (Delegierung auf einzelne OUs)
 - Der Ordner `data/` enthält das **SMTP-Passwort im Klartext** und eventuell feste Template-Passwörter. Rechte einschränken (`chmod 700 data`) und Sicherungen schützen
@@ -780,7 +814,10 @@ pyproject.toml              Konfiguration von ruff und pytest
 requirements-dev.txt        Pakete zum Testen (exakte Versionen)
 requirements.in             direkte Python-Pakete; requirements.txt ist die exakte Sperrliste
 package.json                npm-Pakete für den CSS-Build (exakt), package-lock.json entsteht mit sh update.sh
-images.lock                 Basis-Images (Python 3.13, Node 24, Debian 13)
+images.lock                 Basis-Images mit Version und Digest, Debian-Snapshot
+os-packages.lock            alle Debian-Pakete im Image (je Architektur)
+scripts/pins.py             legt die Versionen fest (auch das wöchentliche Sicherheitsupdate)
+scripts/install-trivy.sh    Trivy mit fester Version und SHA-256-Prüfung
 update.sh                   Sichern, bauen, neu starten, Status prüfen; --lock schreibt die Versionen neu fest
 ```
 

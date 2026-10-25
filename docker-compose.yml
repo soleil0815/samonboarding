@@ -7,10 +7,10 @@ services:
     build:
       context: .
       args:
-        # Base images with fixed versions; update.sh sets them from images.lock (including digest)
-        PYTHON_IMAGE: ${PYTHON_IMAGE:-python:3.13-slim-trixie}
-        NODE_IMAGE: ${NODE_IMAGE:-node:24-trixie-slim}
-        APT_REFRESH: ${APT_REFRESH:-}   # update.sh sets the date: current Debian security updates on every build
+        # Exact base images (version + digest) and Debian snapshot: update.sh sets them from images.lock
+        PYTHON_IMAGE: ${PYTHON_IMAGE:-}
+        NODE_IMAGE: ${NODE_IMAGE:-}
+        DEBIAN_SNAPSHOT: ${DEBIAN_SNAPSHOT:-}
     env_file:
       - .env   # your settings (update.sh creates them from .env.example the first time); simple syntax so that
                # older Docker Compose versions (e.g. on a Synology) can read the file too

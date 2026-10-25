@@ -1,177 +1,173 @@
-# The only workflow: checks the code (ruff, tests), builds the ready-made Docker image on every push to main, scans it
-# for known vulnerabilities (Trivy) and publishes it as ghcr.io/<owner>/samonboarding:latest and :<version>.
-# Published only if the tests pass with exactly the Python packages that go into the image AND Trivy finds no
-# CRITICAL/HIGH vulnerability for which a fixed version exists. Accepted findings: .trivyignore (with reason).
-# Additionally every Monday: the same run again without a code change - rebuilt with the newest packages and Debian
-# security updates, tested, scanned, and published under :latest only if everything passes.
-# Job "support": fails (GitHub sends an e-mail) half a year before Debian, Python or Node stop getting updates -
-# then the base in images.lock has to be raised. It does not stop the image from being published.
+# Release and weekly security update of the image ghcr.io/<owner>/samonboarding.
+#
+# Release (push to main): build exactly the pinned state (images.lock, os-packages.lock, requirements.txt,
+#   package-lock.json), test in the image, scan with Trivy and publish as :<version> - only if this version is not
+#   published yet (published versions are never overwritten).
+# Security update (Mondays 05:17 UTC or by hand): renew the pins within the base (scripts/pins.py update), build
+#   without cache, test in the image, scan with Trivy. Only if everything passed: commit the new pins with a changelog
+#   entry and publish as :<version>-s<counter>. If no package changed: nothing happens.
+# :latest only goes to the highest version. On other branches every run is a dry run: nothing is committed or published.
+# If a step fails nothing is published, GitHub sends an e-mail and the cause is shown on the run page.
 name: Image
 
 on:
   push:
     branches: [main]
   schedule:
-    - cron: "17 5 * * 1"  # Mondays 05:17 UTC: rebuild with current components (same checks as a push)
+    - cron: "17 5 * * 1" # Mondays 05:17 UTC: security update within the base
   workflow_dispatch:
+    inputs:
+      mode:
+        description: "security-update: renew packages within the base - release: build the pinned state"
+        type: choice
+        options: [security-update, release]
+        default: security-update
 
-permissions:
-  contents: read
-  packages: write
+permissions: {}
 
 concurrency:
-  group: image
+  group: image-release # never two releases at the same time
   cancel-in-progress: false
 
 jobs:
   image:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
+    timeout-minutes: 150
+    permissions:
+      contents: write # only for the commit of a security update (main only)
+      packages: write # only for publishing the image (main only)
+    env:
+      IMAGE: ghcr.io/${{ github.repository }}
+      MODE: ${{ github.event_name == 'push' && 'release' || (github.event_name == 'workflow_dispatch' && inputs.mode) || 'security-update' }}
+      PUBLISH: ${{ github.ref == 'refs/heads/main' && 'true' || 'false' }}
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262  # v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
-          persist-credentials: false  # the token must not be readable for the packages installed below
+          persist-credentials: false # no stored git credentials; the one commit below passes the token explicitly
 
-      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065  # v5
-        with:
-          python-version: "3.13"  # same minor version as in the Docker image, newest patch version
+      - name: Install Trivy (fixed version, SHA-256 checked, no GitHub Action)
+        run: sh scripts/install-trivy.sh
 
-      # requirements.txt in the repository is not maintained by hand - pin the newest versions allowed by
-      # requirements.in (like "update.sh --lock" does on a server) and check them with the test suite
-      - name: Pin Python packages and test them
+      - name: Check code (ruff), .trivyignore and interface tests
         run: |
-          python -m venv /tmp/neu
-          /tmp/neu/bin/pip install --quiet --disable-pip-version-check -r requirements.in
-          /tmp/neu/bin/pip check
-          {
-            echo "# Exact lock list of all Python packages (including dependencies) for reproducible builds."
-            echo "# Generated from requirements.in by GitHub Actions for the published image, checked with the test suite."
-            echo "# requirements.in: $(sha256sum requirements.in | cut -c1-16)"
-            /tmp/neu/bin/pip freeze | LC_ALL=C sort -f
-          } > requirements.txt
-          cat requirements.txt
-          # also as an annotation of the run, so the tested lock list can be taken over into the repository
-          echo "::notice title=requirements.txt::$(base64 -w0 requirements.txt)"
-          /tmp/neu/bin/pip install --quiet --disable-pip-version-check pytest "ruff==$(sed -n 's/^ruff==//p' requirements-dev.txt)"
-          /tmp/neu/bin/ruff check .
-          /tmp/neu/bin/ruff format --check .
-          /tmp/neu/bin/python -m pytest -q
-          /tmp/neu/bin/python tests/smoke_app.py
-
-      - name: Version and base images
-        id: meta
-        run: |
-          echo "version=$(sed -n 's/^VERSION = "\(.*\)"/\1/p' samonboarding/config.py)" >> "$GITHUB_OUTPUT"
-          echo "python=$(sed -n 's/^PYTHON_IMAGE=//p' images.lock | tail -n1)" >> "$GITHUB_OUTPUT"
-          echo "node=$(sed -n 's/^NODE_IMAGE=//p' images.lock | tail -n1)" >> "$GITHUB_OUTPUT"
-          echo "image=ghcr.io/$(echo '${{ github.repository }}' | tr '[:upper:]' '[:lower:]')" >> "$GITHUB_OUTPUT"
-
-      - uses: docker/setup-qemu-action@c7c53464625b32c7a7e944ae62b3e17d2b600130  # v3 - also for ARM devices (e.g. some Synology models)
-      - uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f  # v3
-
-      # Build once for the scan (amd64, only locally), scan, publish only afterwards
-      - name: Build image for the vulnerability scan
-        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8  # v6
-        with:
-          context: .
-          platforms: linux/amd64
-          load: true
-          push: false
-          tags: samonboarding:scan
-          build-args: |
-            PYTHON_IMAGE=${{ steps.meta.outputs.python }}
-            NODE_IMAGE=${{ steps.meta.outputs.node }}
-            APT_REFRESH=${{ github.run_id }}
-          pull: true  # always fetch the current base image (newest patch version)
-          cache-from: type=gha
-
-      - name: Start check of the built image (all packages can be imported)
-        run: docker run --rm --entrypoint python samonboarding:scan -c "import samonboarding.main, smbclient, pypsrp.powershell, ldap3; print('import ok')"
-
-      # The packages are updated every week: really start the server (HTTPS) and ask it, as the health check does
-      - name: Start check of the running server (HTTPS answers)
-        run: |
-          docker run -d --name samonb-smoke samonboarding:scan
-          for i in $(seq 1 30); do
-            if docker exec samonb-smoke python -c "import ssl, urllib.request; print(urllib.request.urlopen('https://localhost:9500/api/public-config', timeout=3, context=ssl._create_unverified_context()).read().decode())"; then
-              docker rm -f samonb-smoke >/dev/null
-              exit 0
-            fi
-            sleep 2
+          python3 -m venv /tmp/lint
+          /tmp/lint/bin/pip install --quiet --disable-pip-version-check "ruff==$(sed -n 's/^ruff==//p' requirements-dev.txt)"
+          /tmp/lint/bin/ruff check .
+          /tmp/lint/bin/ruff format --check .
+          python3 scripts/pins.py trivyignore-check
+          for f in tests/ui/*.test.js; do
+            node "$f" > /tmp/ui.log 2>&1 || { cat /tmp/ui.log; echo "::error title=Interface test failed::$f"; exit 1; }
           done
-          docker logs samonb-smoke
-          docker rm -f samonb-smoke >/dev/null
-          echo "::error title=Start check::the server in the image does not answer on HTTPS"
-          exit 1
 
-      - name: Vulnerability scan (Trivy)
-        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25  # v0.36.0
-        with:
-          image-ref: samonboarding:scan
-          severity: CRITICAL,HIGH
-          ignore-unfixed: true  # only findings for which a fixed version exists stop the publication
-          trivyignores: .trivyignore
-          format: json
-          output: trivy.json
+      - name: Renew pins within the base (security update)
+        if: env.MODE == 'security-update'
+        run: python3 scripts/pins.py update
 
-      - name: Vulnerability report
+      - uses: docker/setup-qemu-action@c7c53464625b32c7a7e944ae62b3e17d2b600130 # v3 - for arm64 (e.g. some Synology models)
+      - uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3
+
+      - name: Build without cache (amd64 and arm64)
         run: |
-          found="$(jq -r '[.Results[]?.Vulnerabilities[]?] | unique_by(.VulnerabilityID + .PkgName)
-            | .[] | "\(.Severity) \(.VulnerabilityID) \(.PkgName) \(.InstalledVersion) -> \(.FixedVersion) (\(.PkgPath // .Target // "-"))"' trivy.json)"
-          if [ -n "$found" ]; then
-            printf '%s\n' "$found"
-            # one annotation with the whole list (visible on the run page and via the API)
-            echo "::error title=Trivy::$(printf '%s\n' "$found" | head -n 60 | sed ':a;N;$!ba;s/\n/%0A/g')"
-            exit 1
-          fi
-          echo "Trivy: no CRITICAL/HIGH vulnerabilities with an available fix."
+          args="$(python3 scripts/pins.py build-args)"
+          for arch in amd64 arm64; do
+            python3 scripts/pins.py run "Build $arch" -- docker buildx build --no-cache --pull --platform "linux/$arch" $args \
+              --cache-to "type=local,dest=/tmp/cache-$arch,mode=max" --load -t "samonboarding:probe-$arch" .
+          done
 
-      - uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9  # v3
-        if: github.ref == 'refs/heads/main'  # only main publishes images
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Debian packages (pin on a security update, otherwise compare with os-packages.lock)
+        run: |
+          for arch in amd64 arm64; do
+            if [ "$MODE" = security-update ]; then python3 scripts/pins.py os-lock "samonboarding:probe-$arch" --arch "$arch"; fi
+            python3 scripts/pins.py os-lock "samonboarding:probe-$arch" --arch "$arch" --check
+          done
 
-      - uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8  # v6
-        with:
-          context: .
-          platforms: linux/amd64,linux/arm64
-          push: ${{ github.ref == 'refs/heads/main' }}
-          build-args: |
-            PYTHON_IMAGE=${{ steps.meta.outputs.python }}
-            NODE_IMAGE=${{ steps.meta.outputs.node }}
-            APT_REFRESH=${{ github.run_id }}
-          tags: |
-            ${{ steps.meta.outputs.image }}:latest
-            ${{ steps.meta.outputs.image }}:${{ steps.meta.outputs.version }}
-          labels: |
-            org.opencontainers.image.title=SAMONBOARDING
-            org.opencontainers.image.source=https://github.com/${{ github.repository }}
-            org.opencontainers.image.version=${{ steps.meta.outputs.version }}
-            org.opencontainers.image.revision=${{ github.sha }}
-            org.opencontainers.image.licenses=AGPL-3.0-or-later
-          pull: true
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+      - name: Changes and version limits
+        id: changes
+        if: env.MODE == 'security-update'
+        run: python3 scripts/pins.py changes --base HEAD --out "$RUNNER_TEMP/changes.json"
 
-  support:
-    runs-on: ubuntu-latest
-    steps:
-      - name: End of support of the base (Debian, Python, Node)
+      - name: Plan (version number, publish or not, latest)
+        id: plan
         env:
-          # Ends of the regular security support (Debian: security team, after that only partial LTS)
-          DEBIAN_13_END: "2028-08-09"
-          PYTHON_313_END: "2029-10-31"
-          NODE_24_END: "2028-04-30"
+          GITHUB_TOKEN: ${{ github.token }} # only to read the published tags
+        run: python3 scripts/pins.py plan --mode "$MODE" --changed "${{ steps.changes.outputs.changed || 'false' }}" --image "$IMAGE"
+
+      - name: Changelog entry with the changed packages
+        if: steps.plan.outputs.commit == 'true'
+        run: python3 scripts/pins.py changelog "${{ steps.plan.outputs.tag }}" "$RUNNER_TEMP/changes.json"
+
+      - name: Build the final image (same layers, with version label)
+        if: steps.plan.outputs.action != 'nothing'
+        env:
+          TAG: ${{ steps.plan.outputs.tag }}
         run: |
-          soon="$(date -u -d '+183 days' +%Y-%m-%d)"
-          late=""
-          for entry in "Debian 13 (Trixie)=$DEBIAN_13_END" "Python 3.13=$PYTHON_313_END" "Node 24 (build only)=$NODE_24_END"; do
-            name="${entry%%=*}"; end="${entry##*=}"
-            echo "$name: updates until $end"
-            if [[ "$end" < "$soon" ]]; then late="$late$name ends $end; "; fi
+          args="$(python3 scripts/pins.py build-args)"
+          for arch in amd64 arm64; do
+            python3 scripts/pins.py run "Final build $arch" -- docker buildx build --platform "linux/$arch" $args \
+              --cache-from "type=local,src=/tmp/cache-$arch" \
+              --label org.opencontainers.image.title=SAMONBOARDING \
+              --label "org.opencontainers.image.version=$TAG" \
+              --label "org.opencontainers.image.source=https://github.com/${{ github.repository }}" \
+              --label "org.opencontainers.image.revision=${{ github.sha }}" \
+              --label org.opencontainers.image.licenses=AGPL-3.0-or-later \
+              --load -t "samonboarding:test-$arch" .
           done
-          if [ -n "$late" ]; then
-            echo "::error title=Support ending::${late}raise the base in images.lock"
-            exit 1
-          fi
+
+      - name: Tests in the image (amd64 and arm64)
+        if: steps.plan.outputs.action != 'nothing'
+        run: |
+          python3 scripts/pins.py test-image samonboarding:test-amd64
+          python3 scripts/pins.py test-image samonboarding:test-arm64
+
+      - name: Start check of the server (HTTPS)
+        if: steps.plan.outputs.action != 'nothing'
+        run: |
+          python3 scripts/pins.py smoke samonboarding:test-amd64
+          python3 scripts/pins.py smoke samonboarding:test-arm64
+
+      - name: Vulnerability scan (Trivy, only HIGH/CRITICAL with an available fix stop)
+        if: steps.plan.outputs.action != 'nothing'
+        run: |
+          python3 scripts/pins.py scan samonboarding:test-amd64 --label "${{ steps.plan.outputs.tag }} amd64"
+          python3 scripts/pins.py scan samonboarding:test-arm64 --label "${{ steps.plan.outputs.tag }} arm64"
+
+      - name: Dry run - renewed pins as notices (other branches only)
+        if: env.PUBLISH != 'true' && steps.plan.outputs.action != 'nothing'
+        run: |
+          echo "::notice title=Dry run::Branch ${{ github.ref_name }}: nothing is committed or published"
+          python3 scripts/pins.py bundle
+
+      - name: Commit the new pins and the changelog entry
+        if: env.PUBLISH == 'true' && steps.plan.outputs.commit == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.plan.outputs.tag }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add images.lock os-packages.lock requirements.txt package.json package-lock.json CHANGELOG.md CHANGELOG.en.md
+          git commit -q -m "Sicherheitsupdate $TAG (gleiches Programm, aktualisierte Pakete)"
+          auth="$(printf 'x-access-token:%s' "$GH_TOKEN" | base64 -w0)"
+          git -c "http.extraheader=AUTHORIZATION: basic $auth" push origin HEAD:main
+
+      - name: Publish the image (only main, never overwrites a version)
+        if: env.PUBLISH == 'true' && steps.plan.outputs.action == 'publish'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.plan.outputs.tag }}
+          LATEST: ${{ steps.plan.outputs.latest }}
+        run: |
+          args="$(python3 scripts/pins.py build-args)"
+          tags="--tag $IMAGE:$TAG"
+          if [ "$LATEST" = true ]; then tags="$tags --tag $IMAGE:latest"; fi
+          printf '%s' "$GH_TOKEN" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
+          python3 scripts/pins.py run "Publish" -- docker buildx build --platform linux/amd64,linux/arm64 $args \
+            --cache-from type=local,src=/tmp/cache-amd64 --cache-from type=local,src=/tmp/cache-arm64 \
+            --label org.opencontainers.image.title=SAMONBOARDING \
+            --label "org.opencontainers.image.version=$TAG" \
+            --label "org.opencontainers.image.source=https://github.com/${{ github.repository }}" \
+            --label "org.opencontainers.image.revision=${{ github.sha }}" \
+            --label org.opencontainers.image.licenses=AGPL-3.0-or-later \
+            $tags --push .
+          docker logout ghcr.io
+          echo "::notice title=Published::$IMAGE:$TAG$( [ "$LATEST" = true ] && echo ' and :latest')"

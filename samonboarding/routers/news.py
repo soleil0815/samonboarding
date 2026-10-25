@@ -3,6 +3,9 @@
 Quelle ist das Changelog, das mit dem Programm ausgeliefert wird (CHANGELOG.md bzw. CHANGELOG.en.md im
 Programmordner). Es wird nichts aus dem Internet geladen. Ein Eintrag beginnt optional mit "Sicherheit:" / "Security:"
 oder "Behoben:" / "Fixed:"; alles andere gilt als neue Funktion.
+
+Sicherheitsupdates ohne Programmaenderung haben eine eigene Nummer: <Programmversion>-s<Zaehler>, z. B. 1.48.0-s2
+(gleiches Programm, nur neue Pakete). Sie zaehlen hoeher als die Programmversion und niedriger als die naechste.
 """
 
 import re
@@ -16,16 +19,25 @@ router = APIRouter()
 
 FILES = {"de": "CHANGELOG.md", "en": "CHANGELOG.en.md"}
 MAX_ENTRIES = 12
-_VERSION_RE = re.compile(r"\d+\.\d+\.\d+")
+_VERSION_RE = re.compile(r"\d+\.\d+\.\d+(?:-s\d+)?")
 _DATE_RE = re.compile(r"\d{4}-\d{2}-\d{2}")
 _KIND_RE = re.compile(r"^\*{0,2}(Sicherheit|Security|Behoben|Fixed)\s*:\s*\*{0,2}\s*", re.I)
 _KINDS = {"sicherheit": "security", "security": "security", "behoben": "fix", "fixed": "fix"}
 
 
 def version_key(text):
-    """'1.44.0' -> (1, 44, 0); unbekannt -> (0,)."""
+    """'1.44.0' -> (1, 44, 0, 0); '1.44.0-s2' -> (1, 44, 0, 2); unbekannt -> (0,)."""
     match = _VERSION_RE.search(str(text or ""))
-    return tuple(int(p) for p in match.group(0).split(".")) if match else (0,)
+    if not match:
+        return (0,)
+    base, _, counter = match.group(0).partition("-s")
+    return tuple(int(p) for p in base.split(".")) + (int(counter or 0),)
+
+
+def installed(entries, version=VERSION):
+    """Installierter Stand: die Programmversion oder ihr neuestes Sicherheitsupdate laut Changelog."""
+    own = [e["version"] for e in entries if e["version"].split("-s")[0] == version]
+    return max(own, key=version_key, default=version)
 
 
 def parse(text, limit=MAX_ENTRIES):
@@ -78,4 +90,5 @@ def news(lang: str = "de", user: dict = Depends(get_current_user)):
             text = (BASE_DIR / FILES["de"]).read_text(encoding="utf-8")
         except OSError:
             text = ""
-    return {"version": VERSION, "entries": parse(text)}
+    entries = parse(text)
+    return {"version": installed(entries), "program": VERSION, "entries": entries}

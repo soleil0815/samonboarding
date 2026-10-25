@@ -322,6 +322,10 @@ For administrators with access to the Docker host.
 
 **With Dockhand or Portainer:** instead of building on the server, it can use the ready-made image `ghcr.io/soleil0815/samonboarding` that GitHub builds and tests for every new version (file `docker-compose.image.yml`, instructions in the README under *Alternative: ready-made image from GitHub*). Dockhand then fetches the updates; the automatic backup and return to the previous version of `update.sh` are not available that way.
 
+**Security updates:** every week (Mondays) GitHub checks whether there are newer versions of the packages in the image, but only within the base: same Debian, Python and Node series, every package within its major version. Only when the build, the tests in the image and the vulnerability scan (Trivy) have passed does a new number such as `1.48.0-s1` appear. It means: same program, only newer packages. *News* lists the changed packages. Like every update it reaches the server with `sudo sh update.sh --pull`. In addition the published image is scanned every day, and a year before Debian, Python or Node stop getting security updates a note appears; half a year before, a red run. The base is never changed automatically.
+
+**If a run on GitHub is red:** nothing is published, the previous image stays unchanged, and GitHub sends an e-mail. The cause is shown briefly on the run under *Actions*. Usually a reported fix has not reached the package sources yet; then repeat the run in a day or two (*Actions → Image → Run workflow*). The README describes every message in the section *Automatic security updates*.
+
 **Update as a ZIP:** upload the ZIP of the new version to the project folder (e.g. `/opt/samonboarding`) and run there:
 
 ```bash

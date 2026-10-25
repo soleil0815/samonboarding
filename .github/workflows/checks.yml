@@ -1,0 +1,65 @@
+# Checks that change nothing and publish nothing:
+#  - every day: scan the published image (:latest) with Trivy - reports vulnerabilities that only became known after
+#    the release. Remedy: start the security update by hand (Actions -> Image -> Run workflow).
+#  - every Monday: how long do Debian, Python and Node still get security updates (endoflife.date)?
+#    12 months before the end: a note on the run page; 6 months before: a red run (GitHub sends an e-mail).
+#    Raising the base is never done automatically.
+name: Checks
+
+on:
+  schedule:
+    - cron: "43 3 * * *" # every day 03:43 UTC: scan of the published image
+    - cron: "29 6 * * 1" # Mondays 06:29 UTC: support of the base
+  workflow_dispatch:
+
+permissions: {}
+
+jobs:
+  scan-published:
+    if: github.event_name == 'workflow_dispatch' || github.event.schedule == '43 3 * * *'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      packages: read # pull the published image
+    env:
+      IMAGE: ghcr.io/${{ github.repository }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+
+      - name: Install Trivy (fixed version, SHA-256 checked, no GitHub Action)
+        run: sh scripts/install-trivy.sh
+
+      - name: Pull the published image (amd64 and arm64)
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          printf '%s' "$GH_TOKEN" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
+          for arch in amd64 arm64; do
+            docker pull -q --platform "linux/$arch" "$IMAGE:latest"
+            docker tag "$IMAGE:latest" "published:$arch"
+          done
+          docker logout ghcr.io
+          echo "Version: $(docker image inspect --format '{{index .Config.Labels "org.opencontainers.image.version"}}' published:amd64)"
+
+      - name: Vulnerability scan (Trivy)
+        run: |
+          hint="Remedy: start the security update by hand (Actions -> Image -> Run workflow). If no fix is available yet, wait for the next run."
+          python3 scripts/pins.py scan published:amd64 --label "published :latest amd64" --hint "$hint"
+          python3 scripts/pins.py scan published:arm64 --label "published :latest arm64" --hint "$hint"
+
+  base-support:
+    if: github.event_name == 'workflow_dispatch' || github.event.schedule == '29 6 * * 1'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+
+      - name: Security updates of Debian, Python and Node (endoflife.date)
+        run: python3 scripts/pins.py eol

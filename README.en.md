@@ -607,7 +607,7 @@ sh update.sh
 
 The script first backs up `data/` to `backups/` (the last 3 backups are kept; `KEEP_BACKUPS=5 sh update.sh` keeps more), builds the image, restarts the container and checks that it becomes "healthy". If the build fails, the previous container keeps running unchanged. **If the new version does not start cleanly, the script automatically starts the previous image again.**
 
-**New package requirements:** if a new version changes `requirements.in` (e.g. a minimum version because of a security issue), `update.sh` re-pins the Python packages automatically. It installs the new packages in a check container and runs the test suite, once with the previous and once with the new packages. Only if no additional test fails with the new packages, the same number of tests runs and a smoke test of the real application (`tests/smoke_app.py`) passes are the exact versions written to `requirements.txt`. Otherwise everything stays on the previous versions, with a notice; the rejected requirements are recorded in `.paketpruefung-abgelehnt` and only retried with `sudo sh update.sh --lock`. If a version running as root (before 1.31) is still in place, or on a first install, the script first sets up the new version with the previous packages and then updates the packages automatically in a second pass – only then is a rollback possible.
+**New package requirements:** the pinned versions come ready-checked with every version (`requirements.txt`, `images.lock`, `os-packages.lock`, `package-lock.json`). If `requirements.in` was changed by hand without pinning again, `update.sh` stops before building and names the command `sudo sh update.sh --lock`. With it `scripts/pins.py` renews the versions within the limits (needs `python3`); the image is built, the Debian package list is written, and if it does not start, the previous version comes back.
 
 | Option | Effect |
 |---|---|
@@ -622,17 +622,51 @@ Only settings in `.env` changed: `docker compose up -d` is enough.
 
 ### Reproducible versions
 
-Every build uses exactly the same versions:
+Every build uses exactly the same versions. The same files give the same image:
 
 | File | Content |
 |---|---|
-| `images.lock` | Base images: Python 3.13 and Node 24 on Debian 13 "Trixie", always the newest patch version. `sh update.sh --lock` can freeze the exact state with a digest (`@sha256:…`) |
-| `requirements.txt` | Lock list of all Python packages including dependencies, each `==version`. Installed with `--no-deps`; `pip check` then verifies that everything fits together |
-| `requirements.in` | The direct Python packages (intent). `sh update.sh --lock` creates the lock list from it |
-| `package.json`, `package-lock.json` | npm packages for CSS, fonts and icons, exact including all sub-packages (`npm ci`) |
+| `images.lock` | Base images with a fixed version **and** checksum (`python:3.13.x-slim-trixie@sha256:…`, `node:24.x.y-trixie-slim@sha256:…`) plus `DEBIAN_SNAPSHOT`: the state of snapshot.debian.org from which all Debian packages of the image are installed |
+| `os-packages.lock` | All Debian packages in the finished image with their version, per architecture (amd64, arm64). Every build is compared with it; if anything differs, nothing is published |
+| `requirements.txt` | All Python packages including indirect ones, each `==version`. Installed with `--no-deps`; `pip check` then verifies that everything fits together |
+| `requirements.in` | The direct Python packages with their outer limits |
+| `package.json`, `package-lock.json` | npm packages for CSS, fonts and icons, exact and with checksums of all sub-packages (`npm ci`). Only needed while building, not part of the image |
 | `requirements-dev.txt` | Test tools (pytest, ruff) with exact versions |
 
-Versions only change deliberately with `sh update.sh --lock`. The script shows which Python packages change. Ideally commit the changed files to Git.
+The versions are renewed with `python3 scripts/pins.py update` (needs Docker and internet). On GitHub this happens automatically every week (see *Automatic security updates*), on a server with `sudo sh update.sh --lock`. The same limits always apply:
+
+- same Debian version (`trixie`), same Python series (3.13) and Node series (24)
+- every package within its major version, below 1.0 within its minor version (`0.54.x` stays `0.54`)
+- calendar versions without a limit, e.g. root certificates (`certifi`) or time zone data (`tzdata`)
+
+A new base (e.g. Debian 14 or Python 3.14) is never chosen automatically. For that the tags in `images.lock` are changed deliberately by hand and then checked as usual.
+
+### Automatic security updates
+
+Two workflows run on GitHub. They only publish from the `main` branch; on other branches every run is a dry run.
+
+| When | What happens |
+|---|---|
+| Push to `main` (new program version) | Build with exactly the pinned versions, tests in the image (amd64 and arm64), HTTPS start check, Trivy. Then published as `:<version>`, e.g. `:1.48.0`. A version that is already published is never overwritten |
+| Mondays 05:17 UTC (also by hand: *Actions → Image → Run workflow*) | Security update: renew the versions within the limits, build without cache, the same tests and Trivy. Only if everything passed: the new versions and a changelog entry (with the list of changed packages) are committed, and the image appears as `:<version>-s<counter>`, e.g. `:1.48.0-s1`, `:1.48.0-s2`. A new program version starts again at `-s1`. If nothing changed, nothing happens |
+| Every day 03:43 UTC | Trivy scans the published image `:latest`, so vulnerabilities that only become known after the release are noticed |
+| Mondays 06:29 UTC | How long do Debian, Python and Node still get security updates (endoflife.date)? From 12 months before the end a note on the run, from 6 months a red run |
+
+`-s<counter>` means: same program, only newer packages. `:latest` always points to the highest version. An update only reaches a server with `sudo sh update.sh --pull` (or via Dockhand & co.).
+
+Trivy is not included as a GitHub Action (`trivy-action` and `setup-trivy` were compromised in March 2026, CVE-2026-33634). `scripts/install-trivy.sh` downloads a fixed version and checks its SHA-256 checksum against the stored value and against the official checksums file of the release. A new Trivy version is only taken over deliberately, with version and checksum in that file.
+
+**If a run is red:** GitHub sends an e-mail, nothing is published, and the last published image stays unchanged. The cause is shown briefly on the run (*Actions* → open the run → *Annotations* at the top):
+
+| Message | Meaning | What to do |
+|---|---|---|
+| *Trivy found … vulnerabilities* | HIGH/CRITICAL vulnerability for which a fix exists | Usually the fix has not reached the Debian or package state yet: repeat the run by hand in a day or two. If the fix is outside the limits (e.g. only in a new major version), a deliberate program version is needed. If the finding is checked and cannot be exploited in the program: entry in `.trivyignore` with a reason and an expiry date |
+| *Limits violated* | A version would leave its series | Nothing is taken over. Check whether the jump is wanted; if so, deliberately as a new program version |
+| *Tests in the image … failed* / *does not answer on HTTPS* | A new package does not work with the program | The log of the step shows the failed test. The old versions stay in force; fix the program or `requirements.in` |
+| *not reproducible* | A build gives other Debian packages than `os-packages.lock` | Usually an incomplete change to `images.lock`; start the security update by hand, it writes both files again |
+| *Trivy download* | Trivy checksum does not match | Do not use anything. Compare version and checksum in `scripts/install-trivy.sh` with the official release |
+| *security updates end on …* | The base runs out soon | Plan the change: new tags in `images.lock` (e.g. the next Python series), test, publish as a new program version |
+| *… not reachable* / timeout | Docker Hub, snapshot.debian.org or endoflife.date could not be reached | Repeat the run later (*Re-run jobs*) |
 
 `data/`, `.env` and any `docker-compose.override.yml` are kept during an update; simply replace all other files with the new version. New options are listed in `.env.example`. All users are signed out afterwards.
 
@@ -688,7 +722,7 @@ A reverse proxy is no longer needed. If you use one anyway, forward to `https://
 - **Data protection in the interface:** the *Data protection* link (bottom of the sign-in page, sidebar under *Help*) briefly shows what is stored and the current retention periods. Administrators can download the subject access report (Art. 15 GDPR) for an account as JSON there (recorded in the reports)
 - **Data protection:** which data is kept where, retention periods, built-in measures and a template for the record of processing activities are in [DATA-PROTECTION.en.md](DATA-PROTECTION.en.md)
 - **No internet connections at runtime:** Tailwind CSS, fonts (Manrope, JetBrains Mono) and icons (Font Awesome) are packed into the image during the Docker build and served by the application itself. There are no CDNs, no Google Fonts, no telemetry and no update check. In addition, a Content Security Policy header forbids the browser to load anything from other servers. Only the **build** needs internet (npm, pip, Docker base images). At runtime, connections go only to your own services: domain controller, file server, SMTP and, if configured, Exchange
-- **Vulnerability scan (Trivy):** every image is checked with [Trivy](https://trivy.dev) on GitHub before it is published. If there is a serious vulnerability (CRITICAL/HIGH) with an available fix, the image is not published, and the run page under *Actions* lists the findings. On Mondays GitHub rebuilds the image automatically and brings everything in it up to date: Debian packages, Python (newest 3.13.x) and all Python packages including sub-packages. It is published only if tests and scan pass. Half a year before Debian 13, Python 3.13 or Node 24 stop getting updates, the "support" part of the run fails and GitHub sends an e-mail. Only then is the base in `images.lock` raised. It reaches a server only with `sh update.sh --pull`. If the run fails, GitHub sends an e-mail and the last clean image stays. This can usually be fixed with newer base images in `images.lock` or a minimum version in `requirements.in`. If a finding cannot be fixed and demonstrably does not affect the program, add it to `.trivyignore` with a reason and date.
+- **Vulnerability scan (Trivy):** every image is scanned with [Trivy](https://trivy.dev) before it is published, the published image additionally every day. HIGH/CRITICAL vulnerabilities with an available fix stop the release. Process, security updates (`-s<counter>`) and what to do when a run is red: section *Automatic security updates*.
 - The application runs over HTTPS only (see above). Ideally install your own certificate and leave `LDAP_ALLOW_PLAIN` at `false` (default)
 - Give operators only the rights they need (delegation on individual OUs)
 - The `data/` folder contains the **SMTP password in plain text** and possibly fixed template passwords. Restrict permissions (`chmod 700 data`) and protect backups
@@ -780,7 +814,10 @@ pyproject.toml              ruff and pytest configuration
 requirements-dev.txt        packages for testing (exact versions)
 requirements.in             direct Python packages; requirements.txt is the exact lock list
 package.json                npm packages for the CSS build (exact); package-lock.json is created by sh update.sh
-images.lock                 base images (Python 3.13, Node 24, Debian 13)
+images.lock                 base images with version and digest, Debian snapshot
+os-packages.lock            all Debian packages in the image (per architecture)
+scripts/pins.py             pins the versions (also the weekly security update)
+scripts/install-trivy.sh    Trivy with fixed version and SHA-256 check
 update.sh                   back up, build, restart, check status; --lock re-pins the versions
 ```
 

@@ -10,7 +10,7 @@
 #   sudo sh update.sh --pull  GET THE NEWEST IMAGE FROM GITHUB (ghcr.io) instead of building here: back up data/,
 #                             docker pull, restart, check - the previous image comes back if the start fails.
 #   sudo sh update.sh         Back up data/, build the image here, restart the container, check the status
-#   sudo sh update.sh --lock  additionally pin all versions again (Python, npm, base images)
+#   sudo sh update.sh --lock  pin all versions again within the base (scripts/pins.py, needs python3)
 #                             and build afterwards - e.g. for security updates of the packages
 #   ... --no-cache            build without the Docker build cache (everything from scratch)
 #   ... --no-backup           do not back up data/
@@ -121,7 +121,7 @@ dc_ohne_compose() {
         config) echo "$PLAIN_IMAGE" ;;  # only "config --images" is needed
         build)
             docker build "$@" --build-arg PYTHON_IMAGE="$PYTHON_IMAGE" --build-arg NODE_IMAGE="$NODE_IMAGE" \
-                --build-arg APT_REFRESH="${APT_REFRESH:-}" -t "$PLAIN_IMAGE" . ;;
+                --build-arg DEBIAN_SNAPSHOT="${DEBIAN_SNAPSHOT:-}" -t "$PLAIN_IMAGE" . ;;
         ps)
             local all=()
             [ "${1:-}" = "-a" ] && all=(-a)
@@ -458,9 +458,8 @@ load_images() {
     PYTHON_IMAGE="$(sed -n 's/^PYTHON_IMAGE=//p' images.lock | tail -n1)"
     NODE_IMAGE="$(sed -n 's/^NODE_IMAGE=//p' images.lock | tail -n1)"
     [ -n "$PYTHON_IMAGE" ] && [ -n "$NODE_IMAGE" ] || fail "images.lock is incomplete."
-    export PYTHON_IMAGE NODE_IMAGE
-    APT_REFRESH="$(date '+%Y%m%d')"  # Debian security updates are fetched again every day a build runs
-    export APT_REFRESH
+    DEBIAN_SNAPSHOT="$(sed -n 's/^DEBIAN_SNAPSHOT=//p' images.lock | tail -n1)"  # only needed for building here
+    export PYTHON_IMAGE NODE_IMAGE DEBIAN_SNAPSHOT
 }
 load_images
 SAMONBOARDING_IMAGE="$(env_value SAMONBOARDING_IMAGE)"
@@ -517,62 +516,10 @@ if [ "$DO_PULL" = 1 ] && [ "$IMAGE_GEHOLT" = 0 ]; then
 fi
 
 # -----------------------------------------------------------------------------
-# Pin versions (--lock or if package-lock.json is missing)
+# Pin versions: the same script as the weekly security update on GitHub (scripts/pins.py), only within the base
+# (same Debian release, same Python and Node series, every package within its major version, below 1.0 within its
+# minor version). Normally GitHub does this every week - then simply: sudo sh update.sh --pull
 # -----------------------------------------------------------------------------
-run_as_me=(--user "$(id -u):$(id -g)" -e HOME=/tmp)
-
-lock_images() {
-    step "Pinning base images (digest)"
-    local py_tag="${PYTHON_IMAGE%@*}" node_tag="${NODE_IMAGE%@*}" py_digest node_digest
-    docker pull -q "$py_tag" >/dev/null
-    docker pull -q "$node_tag" >/dev/null
-    py_digest="$(docker image inspect --format '{{index .RepoDigests 0}}' "$py_tag")"
-    node_digest="$(docker image inspect --format '{{index .RepoDigests 0}}' "$node_tag")"
-    {
-        echo "# Base images for the build, frozen with \"sh update.sh --lock\" on $(date '+%Y-%m-%d') (digest sha256)."
-        echo "# Without the digest every build fetches the newest patch version of the tag."
-        echo "PYTHON_IMAGE=${py_tag}@${py_digest#*@}"
-        echo "NODE_IMAGE=${node_tag}@${node_digest#*@}"
-    } > images.lock
-    load_images
-    ok "$PYTHON_IMAGE"
-    ok "$NODE_IMAGE"
-}
-
-lock_npm() {
-    step "Pinning npm packages (package.json + package-lock.json)"
-    docker run --rm "${run_as_me[@]}" -v "$PWD":/w -w /tmp "$NODE_IMAGE" sh -ec '
-        mkdir -p /tmp/lock && cd /tmp/lock
-        cp /w/package.json .
-        rm -f package-lock.json
-        # Tailwind 3 and Font Awesome 6.4.0 stay fixed on purpose; the fonts move to the current 5.x version
-        npm install --save-exact --package-lock-only --no-audit --no-fund \
-            tailwindcss@3.4.17 @fortawesome/fontawesome-free@6.4.0 @fontsource/manrope@5 @fontsource/jetbrains-mono@5
-        cp package.json package-lock.json /w/'
-    ok "package.json and package-lock.json updated"
-}
-
-npm_lock_in_sync() {
-    # Does package-lock.json match package.json? (npm ci requires exactly that)
-    [ -f package-lock.json ] || return 1
-    docker run --rm -v "$PWD":/w:ro "$NODE_IMAGE" node -e '
-        const want = require("/w/package.json").dependencies || {};
-        const root = (require("/w/package-lock.json").packages || {})[""] || {};
-        const norm = (o) => JSON.stringify(Object.entries(o).sort());
-        process.exit(norm(want) === norm(root.dependencies || {}) ? 0 : 1);' >/dev/null 2>&1
-}
-
-sync_npm_lock() {
-    # Create the lock file to match package.json - exactly the versions from package.json, nothing newer
-    step "Aligning the npm lock file with package.json"
-    docker run --rm "${run_as_me[@]}" -v "$PWD":/w -w /tmp "$NODE_IMAGE" sh -ec '
-        mkdir -p /tmp/lock && cd /tmp/lock
-        cp /w/package.json .
-        npm install --package-lock-only --no-audit --no-fund
-        cp package-lock.json /w/'
-    ok "package-lock.json matches package.json"
-}
-
 in_hash() { sha256_16 requirements.in; }
 
 # Does requirements.txt still match requirements.in? (marker in the header line)
@@ -580,83 +527,25 @@ python_lock_in_sync() {
     grep -q "^# requirements.in: $(in_hash)\$" requirements.txt 2>/dev/null
 }
 
-lock_python() {
-    step "Pinning and checking Python packages (requirements.in -> requirements.txt)"
-    echo "  New versions are installed and checked with the test suite - compared with the current ones."
-    echo "  This takes one or two minutes."
-    local tmp log
-    tmp="$(mktemp)"
-    log="$(mktemp)"
-    # Two separate environments: current lock list and new resolution. Only tests that NEWLY fail with the new
-    # packages count (the tests otherwise run with stub modules, not with real FastAPI).
-    if ! mit_zeitlimit 1200 docker run --rm "${run_as_me[@]}" -e PYTHONDONTWRITEBYTECODE=1 -v "$PWD":/w:ro "$PYTHON_IMAGE" sh -ec '
-        pruefen() {
-            (cd /w && "$1"/bin/python -m unittest discover -s tests > "/tmp/$2.log" 2>&1) || true
-            grep -E "^(FAIL|ERROR): " "/tmp/$2.log" | sort -u > "/tmp/$2.txt" || true
-            sed -n "s/^Ran \([0-9]*\) test.*/\1/p" "/tmp/$2.log" > "/tmp/$2.ran"
-        }
-        python -m venv /tmp/alt >/dev/null && python -m venv /tmp/neu >/dev/null
-        /tmp/alt/bin/pip install --quiet --no-cache-dir --disable-pip-version-check --no-deps -r /w/requirements.txt >&2
-        /tmp/neu/bin/pip install --quiet --no-cache-dir --disable-pip-version-check -r /w/requirements.in >&2
-        /tmp/neu/bin/pip check >&2
-        pruefen /tmp/alt alt
-        pruefen /tmp/neu neu
-        if [ ! -s /tmp/neu.ran ] || [ "$(cat /tmp/neu.ran)" != "$(cat /tmp/alt.ran)" ]; then
-            echo "The test run with the new packages is incomplete ($(cat /tmp/neu.ran) instead of $(cat /tmp/alt.ran) tests):" >&2
-            tail -n 20 /tmp/neu.log >&2
-            exit 3
-        fi
-        if comm -13 /tmp/alt.txt /tmp/neu.txt | grep -q .; then
-            echo "These tests fail with the new packages:" >&2
-            comm -13 /tmp/alt.txt /tmp/neu.txt >&2
-            exit 3
-        fi
-        # Smoke test: start the real application with the new packages and send requests
-        (cd /w && /tmp/neu/bin/python tests/smoke_app.py) >&2 || exit 4
-        /tmp/neu/bin/pip freeze' > "$tmp" 2> "$log"; then
-        sed 's/^/  /' "$log" | tail -n 30
-        rm -f "$tmp" "$log"
-        return 1
-    fi
-    rm -f "$log"
-    [ -s "$tmp" ] || { rm -f "$tmp"; warn "The lock list is empty."; return 1; }
-    {
-        echo "# Exact lock list of all Python packages (including dependencies) for reproducible builds."
-        echo "# The Docker image installs exactly these versions (pip install --no-deps) and checks them with \"pip check\"."
-        echo "# Generated from requirements.in with $PYTHON_IMAGE on $(date '+%Y-%m-%d'), checked with the test suite."
-        echo "# Regenerate:  sh update.sh --lock"
-        echo "# requirements.in: $(in_hash)"
-        LC_ALL=C sort -f "$tmp"
-    } > requirements.txt.new
-    rm -f "$tmp"
-    # Compare without comment lines (via temporary files - works in every bash)
-    grep -v '^#' requirements.txt > requirements.txt.alt-ohne || true
-    grep -v '^#' requirements.txt.new > requirements.txt.neu-ohne || true
-    if gleich requirements.txt.alt-ohne requirements.txt.neu-ohne; then
-        ok "No change to the Python packages"
-    else
-        echo "Changes:"
-        diff requirements.txt.alt-ohne requirements.txt.neu-ohne | sed -n 's/^\([<>]\)/  \1/p' || true
-    fi
-    rm -f requirements.txt.alt-ohne requirements.txt.neu-ohne
-    cp requirements.txt requirements.txt.vorher  # for the rollback, in case the new container does not start
-    mv requirements.txt.new requirements.txt
-    ok "requirements.txt pinned (tests passed)"
+pins() {
+    command -v python3 >/dev/null 2>&1 \
+        || fail "python3 is needed for pinning (scripts/pins.py). Or take the image pinned on GitHub: sudo sh update.sh --pull"
+    [ -f scripts/pins.py ] || fail "scripts/pins.py is missing - this version is incomplete."
+    python3 scripts/pins.py "$@"
 }
 
+LOCK_OS_AFTER=0
 if [ "$IMAGE_GEHOLT" = 1 ]; then
     :  # ready-made image from GitHub - nothing to pin or build here
 elif [ "$DO_LOCK" = 1 ]; then
-    lock_images
-    lock_npm
+    step "Pinning all versions again (within the base)"
+    cp requirements.txt requirements.txt.vorher 2>/dev/null || true  # for the rollback if the new container fails
     rm -f "$REJECTED_FILE"
-    lock_python || fail "Python packages not pinned - requirements.txt stays unchanged."
-elif [ ! -f package-lock.json ]; then
-    warn "package-lock.json is missing - it is created once (after that the CSS build is pinned exactly as well)."
-    sync_npm_lock
-elif ! npm_lock_in_sync; then
-    warn "package-lock.json does not match the package.json of the new version - aligning it."
-    sync_npm_lock
+    pins update || fail "Versions not pinned (see the message above) - nothing changed."
+    load_images
+    LOCK_OS_AFTER=1
+elif [ ! -f package-lock.json ] || [ ! -f os-packages.lock ]; then
+    fail "package-lock.json or os-packages.lock is missing - this version is incomplete."
 fi
 
 # -----------------------------------------------------------------------------
@@ -679,35 +568,18 @@ fi
 # Running a newer image from GitHub (--pull) than the files here? Then building here would install OLD code.
 if [ "$IMAGE_GEHOLT" = 0 ] && [ -n "$OLD_IMAGE" ] && [ "$DO_PULL" = 0 ]; then
     LAUFENDE_VERSION="$(docker image inspect --format '{{index .Config.Labels "org.opencontainers.image.version"}}' "$OLD_IMAGE" 2>/dev/null || true)"
+    LAUFENDE_VERSION="${LAUFENDE_VERSION%%-s*}"  # 1.48.0-s2 = program 1.48.0 with newer packages
     if printf '%s' "$LAUFENDE_VERSION" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+$' && [ "$LAUFENDE_VERSION" != "$VERSION" ] \
         && [ "$(printf '%s\n%s\n' "$VERSION" "$LAUFENDE_VERSION" | neueste_zip)" = "$LAUFENDE_VERSION" ]; then
         fail "SAMONBOARDING $LAUFENDE_VERSION from GitHub is running, the files here are $VERSION - building here would install the older version. Use: sudo sh update.sh --pull"
     fi
 fi
 
-# New requirements in requirements.in (e.g. a security update)? Then pin and check automatically - but only if a
-# failed start can be rolled back. Otherwise first set up this version with the current packages and update the
-# packages in a second pass.
+# requirements.in changed by hand without pinning again? Then the lock list does not fit - better stop than build
+# something untested.
 RELOCK_AFTER=0
 if [ "$IMAGE_GEHOLT" = 0 ] && [ "$DO_LOCK" = 0 ] && ! python_lock_in_sync; then
-    if [ -f "$REJECTED_FILE" ] && [ "$(cat "$REJECTED_FILE")" = "$(in_hash)" ]; then
-        warn "The new Python packages were rejected last time - keeping the current ones."
-        warn "To try again (e.g. after a new version): sudo sh update.sh --lock"
-    elif [ "$ROLLBACK_OK" = 1 ]; then
-        warn "requirements.in has changed (new minimum versions) - pinning the Python packages again."
-        if ! lock_python; then
-            in_hash > "$REJECTED_FILE"
-            warn "The new packages were NOT applied (see the error above). Building with the current requirements.txt."
-            warn "Try again later: sudo sh update.sh --lock"
-        fi
-    elif [ "${SAMONB_ZWEITER_DURCHGANG:-0}" = 1 ]; then
-        warn "New Python packages are not applied automatically when a rollback is not possible."
-        warn "Manually (checked by the tests): sudo sh update.sh --lock"
-    else
-        warn "New Python package requirements: this version is set up with the current packages first,"
-        warn "then a second pass for the packages follows automatically (with rollback if the start fails)."
-        RELOCK_AFTER=1
-    fi
+    fail "requirements.in was changed, but requirements.txt was not pinned again. Run: sudo sh update.sh --lock"
 fi
 
 # -----------------------------------------------------------------------------
@@ -748,11 +620,15 @@ elif step "Building the image (SAMONBOARDING $VERSION)" && echo "  Python: $PYTH
     printf '\n'
     warn "The build failed. Common causes:"
     warn " - no internet connection while building (npm, pip, Docker Hub)"
-    warn " - a pinned package version is not available (any more) -> sh update.sh --lock"
+    warn " - snapshot.debian.org or Docker Hub not reachable, or a pinned version is not available any more"
     programm_zurueck
     fail "Build failed - the running container was NOT changed."
 else
     ok "Image built"
+    if [ "$LOCK_OS_AFTER" = 1 ]; then
+        arch="$(docker image inspect --format '{{.Architecture}}' "$IMAGE_NAME")"
+        pins os-lock "$IMAGE_NAME" --arch "$arch" || fail "os-packages.lock could not be written."
+    fi
 fi
 
 # -----------------------------------------------------------------------------

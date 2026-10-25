@@ -5,6 +5,19 @@ Update auf dem Server: `sudo sh update.sh --pull`.
 
 Einträge, die mit „Sicherheit:“ oder „Behoben:“ beginnen, werden in der Oberfläche entsprechend markiert.
 
+## 1.48.0 – 2026-10-25
+- Sicherheit: Reproduzierbarer Bau. Basis-Images sind mit fester Version und Prüfsumme (Digest) festgelegt, die Debian-Pakete über einen festen Stand von snapshot.debian.org (`os-packages.lock`), alle Python- und npm-Pakete einschließlich der indirekten mit exakter Version. Das Skript `scripts/pins.py` legt die Versionen neu fest.
+- Sicherheit: Wöchentliches Sicherheitsupdate auf GitHub (montags, auch von Hand startbar). Es bringt Basis-Image, alle Debian-Pakete und alle Abhängigkeiten auf den neuesten Stand, aber nur innerhalb des Unterbaus:
+  - gleiche Debian-Version („trixie“), gleiche Python- (3.13) und Node-Reihe (24)
+  - jedes Paket innerhalb seiner Hauptversion, vor 1.0 innerhalb der Unterversion; Kalenderversionen wie Stammzertifikate ohne Grenze
+  - Bau ohne Zwischenspeicher, Tests im Image (amd64 und arm64), HTTPS-Startprüfung und Trivy
+  - veröffentlicht nur, wenn alles bestanden ist, als `<Version>-s<Zähler>` (z. B. `1.48.0-s1`), mit einem Eintrag hier samt Liste der geänderten Pakete. Hat sich nichts geändert, passiert nichts.
+- Sicherheit: Trivy läuft nicht mehr als GitHub Action, sondern als feste Version, deren Prüfsumme (SHA-256) vor der Nutzung kontrolliert wird. Hingenommene Funde stehen mit Begründung und Ablaufdatum in `.trivyignore`.
+- Sicherheit: Das veröffentlichte Image wird täglich mit Trivy geprüft. So fallen Schwachstellen auf, die erst nach dem Release bekannt werden.
+- Wöchentliche Prüfung, wie lange Debian, Python und Node noch Sicherheitsupdates bekommen (endoflife.date): ab 12 Monaten vorher ein Hinweis, ab 6 Monaten ein roter Lauf. Der Unterbau wird nie automatisch angehoben.
+- Veröffentlichte Versionen werden nie überschrieben, `latest` zeigt immer auf die höchste Version. Jeder Job bekommt nur die Rechte, die er braucht.
+- Neuigkeiten in der Oberfläche zeigen Sicherheitsupdates (`-s1`, `-s2` …) als eigene Einträge.
+
 ## 1.47.1 – 2026-10-25
 - Zum Bauen der Oberfläche wird jetzt Node 24 verwendet (Updates bis April 2028) statt Node 22, das im April 2027 ausläuft. Node ist nur beim Bauen dabei, nicht im fertigen Image; die erzeugte Oberfläche ist unverändert.
 

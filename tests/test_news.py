@@ -50,6 +50,21 @@ class ParseTests(unittest.TestCase):
     def test_versionsvergleich_numerisch(self):
         self.assertGreater(news.version_key("1.10.0"), news.version_key("1.9.9"))
 
+    def test_sicherheitsupdates_mit_eigener_nummer(self):
+        """1.48.0-s2 = gleiches Programm wie 1.48.0 mit neueren Paketen: hoeher als -s1, niedriger als 1.48.1."""
+        key = news.version_key
+        self.assertTrue(key("1.48.0") < key("1.48.0-s1") < key("1.48.0-s2") < key("1.48.0-s10") < key("1.48.1"))
+        text = (
+            "## 1.48.0-s1 – 2026-11-02\n- Sicherheit: neue Pakete\n  - openssl `1` → `2`\n\n"
+            "## 1.48.0 – 2026-10-26\n- x\n"
+        )
+        entries = news.parse(text)
+        self.assertEqual([e["version"] for e in entries], ["1.48.0-s1", "1.48.0"])
+        self.assertEqual(entries[0]["items"][0]["kind"], "security")
+        self.assertEqual(entries[0]["items"][0]["sub"], ["openssl `1` → `2`"])
+        self.assertEqual(news.installed(entries, "1.48.0"), "1.48.0-s1")  # installierter Stand fuer den Hinweis
+        self.assertEqual(news.installed(entries, "1.49.0"), "1.49.0")
+
     def test_begrenzt(self):
         text = "\n".join(f"## 1.0.{n}\n- x" for n in range(30))
         self.assertEqual(len(news.parse(text)), news.MAX_ENTRIES)
@@ -60,7 +75,8 @@ class ChangelogTests(unittest.TestCase):
         """Jede neue Version braucht einen Eintrag im Changelog (deutsch und englisch)."""
         for name in news.FILES.values():
             entries = news.parse((ROOT / name).read_text(encoding="utf-8"))
-            self.assertEqual(entries[0]["version"], config.VERSION, name)
+            # oben steht die Programmversion oder ein Sicherheitsupdate dazu (<Version>-s<Zaehler>)
+            self.assertEqual(entries[0]["version"].split("-s")[0], config.VERSION, name)
             self.assertTrue(entries[0]["items"], name)
 
     def test_beide_sprachen_gleiche_versionen(self):

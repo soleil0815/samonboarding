@@ -1,9 +1,12 @@
-# Trivy: bewusst hingenommene Funde (Accepted findings)
+# Trivy: checked findings that are deliberately accepted
 #
-# Der Build auf GitHub wird rot, wenn Trivy im Image eine Schwachstelle der Stufe CRITICAL oder HIGH findet, für die
-# es schon eine korrigierte Version gibt. Lässt sie sich (noch) nicht beheben und betrifft SAMONBOARDING nachweislich
-# nicht, kommt sie hier hinein - immer mit Begründung und Datum, damit sie später erneut geprüft wird:
+# The release stops when Trivy finds a vulnerability of the level HIGH or CRITICAL for which a fixed version exists.
+# If it cannot be fixed (yet) and demonstrably cannot be exploited in SAMONBOARDING, it is entered here - always with
+# the reason in the comment line directly above and an expiry date (at most one year). After the expiry date Trivy
+# reports the finding again, so it is checked again. Checked by "python3 scripts/pins.py trivyignore-check".
 #
-#   CVE-2026-12345   # libfoo: nur für den Druckdienst, der im Container nie läuft - geprüft 2026-10-24, erneut prüfen 2027-01
+# Example:
+#   # libfoo: only used by the print service, which never runs in the container - checked 2026-10-25
+#   CVE-2026-12345 exp:2027-01-31
 #
-# Leer = nichts wird ignoriert.
+# Empty = nothing is ignored.

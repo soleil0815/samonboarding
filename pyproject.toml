@@ -16,6 +16,8 @@ select = ["E", "F", "I", "W"]
 # HTML templates in strings have long lines
 "samonboarding/mailer.py" = ["E501"]
 "samonboarding/routers/ui.py" = ["E501"]
+# test data (version lists, Trivy reports) is easier to read on one line
+"tests/test_pins.py" = ["E501"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
