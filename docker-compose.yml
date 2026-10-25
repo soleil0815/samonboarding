@@ -9,7 +9,7 @@ services:
       args:
         # Base images with fixed versions; update.sh sets them from images.lock (including digest)
         PYTHON_IMAGE: ${PYTHON_IMAGE:-python:3.13-slim-trixie}
-        NODE_IMAGE: ${NODE_IMAGE:-node:22-trixie-slim}
+        NODE_IMAGE: ${NODE_IMAGE:-node:24-trixie-slim}
         APT_REFRESH: ${APT_REFRESH:-}   # update.sh sets the date: current Debian security updates on every build
     env_file:
       - .env   # your settings (update.sh creates them from .env.example the first time); simple syntax so that

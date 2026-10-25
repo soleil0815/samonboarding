@@ -1,5 +1,5 @@
-# Base images for the build: Python 3.13 and Node 22 on Debian 13 "Trixie", always the newest patch version of it
+# Base images for the build: Python 3.13 and Node 24 on Debian 13 "Trixie", always the newest patch version of it
 # (every build fetches the current image). "sh update.sh --lock" can freeze the exact state with the digest (sha256).
 # Raise these lines only when the support ends - the GitHub workflow warns half a year before (job "support").
 PYTHON_IMAGE=python:3.13-slim-trixie
-NODE_IMAGE=node:22-trixie-slim
+NODE_IMAGE=node:24-trixie-slim

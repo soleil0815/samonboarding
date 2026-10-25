@@ -162,11 +162,11 @@ jobs:
           # Ends of the regular security support (Debian: security team, after that only partial LTS)
           DEBIAN_13_END: "2028-08-09"
           PYTHON_313_END: "2029-10-31"
-          NODE_22_END: "2027-04-30"
+          NODE_24_END: "2028-04-30"
         run: |
           soon="$(date -u -d '+183 days' +%Y-%m-%d)"
           late=""
-          for entry in "Debian 13 (Trixie)=$DEBIAN_13_END" "Python 3.13=$PYTHON_313_END" "Node 22 (build only)=$NODE_22_END"; do
+          for entry in "Debian 13 (Trixie)=$DEBIAN_13_END" "Python 3.13=$PYTHON_313_END" "Node 24 (build only)=$NODE_24_END"; do
             name="${entry%%=*}"; end="${entry##*=}"
             echo "$name: updates until $end"
             if [[ "$end" < "$soon" ]]; then late="$late$name ends $end; "; fi

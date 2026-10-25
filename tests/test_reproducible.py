@@ -248,7 +248,7 @@ class UpdateScriptTests(unittest.TestCase):
         self.assertEqual(flow.count("pull: true"), 2)  # beide Builds holen das aktuelle Basis-Image
         self.assertIn("support:", flow)  # Mail ein halbes Jahr vor Ende der Updates
         self.assertLess(flow.index("Start check of the running server"), flow.index("aquasecurity/trivy-action@"))
-        for name in ("DEBIAN_13_END", "PYTHON_313_END", "NODE_22_END"):
+        for name in ("DEBIAN_13_END", "PYTHON_313_END", "NODE_24_END"):
             self.assertIn(name, flow)
         for req in lines("requirements.in"):
             self.assertNotIn("==", req, req)  # keine festen Versionen - jede Woche die neueste

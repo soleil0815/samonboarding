@@ -5,6 +5,9 @@ Update on the server: `sudo sh update.sh --pull`.
 
 Entries starting with "Security:" or "Fixed:" are marked accordingly in the interface.
 
+## 1.47.1 – 2026-10-25
+- The interface is now built with Node 24 (updates until April 2028) instead of Node 22, which ends in April 2027. Node is only used while building, not in the finished image; the generated interface is unchanged.
+
 ## 1.47.0 – 2026-10-24
 - Security: the image is now based on Debian 13 "Trixie" with Python 3.13 (previously Debian 12 with Python 3.11). It therefore receives security updates for much longer, Python 3.13 until 2029. The weekly rebuild installs them automatically. Usage and settings stay the same.
 - Security: everything in the image stays current. The weekly rebuild now also fetches the newest Python 3.13 version and the newest versions of all Python packages. Previously fixed versions (uvicorn, ldap3, smbprotocol, pypsrp) are released; only jumps to a new major version remain excluded. Everything is tested and scanned before it is published.

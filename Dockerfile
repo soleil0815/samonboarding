@@ -2,7 +2,7 @@
 # Stage 1: build CSS and fonts (Tailwind, Manrope, JetBrains Mono, Font Awesome - all local)
 # ---------------------------------------------------------------------------
 # Base images with fixed versions (default from images.lock; update.sh passes them including digest)
-ARG NODE_IMAGE=node:22-trixie-slim
+ARG NODE_IMAGE=node:24-trixie-slim
 ARG PYTHON_IMAGE=python:3.13-slim-trixie
 
 FROM ${NODE_IMAGE} AS assets

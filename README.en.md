@@ -626,7 +626,7 @@ Every build uses exactly the same versions:
 
 | File | Content |
 |---|---|
-| `images.lock` | Base images: Python 3.13 and Node 22 on Debian 13 "Trixie", always the newest patch version. `sh update.sh --lock` can freeze the exact state with a digest (`@sha256:…`) |
+| `images.lock` | Base images: Python 3.13 and Node 24 on Debian 13 "Trixie", always the newest patch version. `sh update.sh --lock` can freeze the exact state with a digest (`@sha256:…`) |
 | `requirements.txt` | Lock list of all Python packages including dependencies, each `==version`. Installed with `--no-deps`; `pip check` then verifies that everything fits together |
 | `requirements.in` | The direct Python packages (intent). `sh update.sh --lock` creates the lock list from it |
 | `package.json`, `package-lock.json` | npm packages for CSS, fonts and icons, exact including all sub-packages (`npm ci`) |
@@ -688,7 +688,7 @@ A reverse proxy is no longer needed. If you use one anyway, forward to `https://
 - **Data protection in the interface:** the *Data protection* link (bottom of the sign-in page, sidebar under *Help*) briefly shows what is stored and the current retention periods. Administrators can download the subject access report (Art. 15 GDPR) for an account as JSON there (recorded in the reports)
 - **Data protection:** which data is kept where, retention periods, built-in measures and a template for the record of processing activities are in [DATA-PROTECTION.en.md](DATA-PROTECTION.en.md)
 - **No internet connections at runtime:** Tailwind CSS, fonts (Manrope, JetBrains Mono) and icons (Font Awesome) are packed into the image during the Docker build and served by the application itself. There are no CDNs, no Google Fonts, no telemetry and no update check. In addition, a Content Security Policy header forbids the browser to load anything from other servers. Only the **build** needs internet (npm, pip, Docker base images). At runtime, connections go only to your own services: domain controller, file server, SMTP and, if configured, Exchange
-- **Vulnerability scan (Trivy):** every image is checked with [Trivy](https://trivy.dev) on GitHub before it is published. If there is a serious vulnerability (CRITICAL/HIGH) with an available fix, the image is not published, and the run page under *Actions* lists the findings. On Mondays GitHub rebuilds the image automatically and brings everything in it up to date: Debian packages, Python (newest 3.13.x) and all Python packages including sub-packages. It is published only if tests and scan pass. Half a year before Debian 13, Python 3.13 or Node 22 stop getting updates, the "support" part of the run fails and GitHub sends an e-mail. Only then is the base in `images.lock` raised. It reaches a server only with `sh update.sh --pull`. If the run fails, GitHub sends an e-mail and the last clean image stays. This can usually be fixed with newer base images in `images.lock` or a minimum version in `requirements.in`. If a finding cannot be fixed and demonstrably does not affect the program, add it to `.trivyignore` with a reason and date.
+- **Vulnerability scan (Trivy):** every image is checked with [Trivy](https://trivy.dev) on GitHub before it is published. If there is a serious vulnerability (CRITICAL/HIGH) with an available fix, the image is not published, and the run page under *Actions* lists the findings. On Mondays GitHub rebuilds the image automatically and brings everything in it up to date: Debian packages, Python (newest 3.13.x) and all Python packages including sub-packages. It is published only if tests and scan pass. Half a year before Debian 13, Python 3.13 or Node 24 stop getting updates, the "support" part of the run fails and GitHub sends an e-mail. Only then is the base in `images.lock` raised. It reaches a server only with `sh update.sh --pull`. If the run fails, GitHub sends an e-mail and the last clean image stays. This can usually be fixed with newer base images in `images.lock` or a minimum version in `requirements.in`. If a finding cannot be fixed and demonstrably does not affect the program, add it to `.trivyignore` with a reason and date.
 - The application runs over HTTPS only (see above). Ideally install your own certificate and leave `LDAP_ALLOW_PLAIN` at `false` (default)
 - Give operators only the rights they need (delegation on individual OUs)
 - The `data/` folder contains the **SMTP password in plain text** and possibly fixed template passwords. Restrict permissions (`chmod 700 data`) and protect backups
@@ -780,7 +780,7 @@ pyproject.toml              ruff and pytest configuration
 requirements-dev.txt        packages for testing (exact versions)
 requirements.in             direct Python packages; requirements.txt is the exact lock list
 package.json                npm packages for the CSS build (exact); package-lock.json is created by sh update.sh
-images.lock                 base images (Python 3.13, Node 22, Debian 13)
+images.lock                 base images (Python 3.13, Node 24, Debian 13)
 update.sh                   back up, build, restart, check status; --lock re-pins the versions
 ```
 
