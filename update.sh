@@ -50,7 +50,7 @@ DO_LOCK=0
 DO_BACKUP=1
 DO_PRUNE=0
 DO_PULL=0
-BUILD_ARGS=()
+BUILD_ARGS=(--pull)  # always the current base images (newest patch version, security updates)
 PASS_ARGS=()
 for arg in "$@"; do
     case "$arg" in
@@ -529,8 +529,8 @@ lock_images() {
     py_digest="$(docker image inspect --format '{{index .RepoDigests 0}}' "$py_tag")"
     node_digest="$(docker image inspect --format '{{index .RepoDigests 0}}' "$node_tag")"
     {
-        echo "# Base images for the build. Fixed patch versions; \"sh update.sh --lock\" adds the exact digest (sha256),"
-        echo "# so that a newly published image with the same tag changes nothing."
+        echo "# Base images for the build, frozen with \"sh update.sh --lock\" on $(date '+%Y-%m-%d') (digest sha256)."
+        echo "# Without the digest every build fetches the newest patch version of the tag."
         echo "PYTHON_IMAGE=${py_tag}@${py_digest#*@}"
         echo "NODE_IMAGE=${node_tag}@${node_digest#*@}"
     } > images.lock

@@ -2,8 +2,8 @@
 # Stage 1: build CSS and fonts (Tailwind, Manrope, JetBrains Mono, Font Awesome - all local)
 # ---------------------------------------------------------------------------
 # Base images with fixed versions (default from images.lock; update.sh passes them including digest)
-ARG NODE_IMAGE=node:22.17.0-bookworm-slim
-ARG PYTHON_IMAGE=python:3.11.13-slim-bookworm
+ARG NODE_IMAGE=node:22-trixie-slim
+ARG PYTHON_IMAGE=python:3.13-slim-trixie
 
 FROM ${NODE_IMAGE} AS assets
 WORKDIR /build
@@ -61,9 +61,14 @@ WORKDIR /app
 # pip check verifies that everything fits together
 ENV PIP_DISABLE_PIP_VERSION_CHECK=1 PYTHONDONTWRITEBYTECODE=1
 COPY requirements.txt .
-# setuptools and wheel come with the base image but are not needed at runtime (and often have known vulnerabilities)
+# pip, setuptools and wheel are only needed for installing, not at runtime. pip brings its own copies of urllib3,
+# certifi and msgpack, which are often outdated (Trivy findings) - so all of it is removed after the check,
+# including the copy of pip in ensurepip.
 RUN pip install --no-cache-dir --no-deps -r requirements.txt && pip check \
- && (pip uninstall -y setuptools wheel >/dev/null 2>&1 || true) && pip check
+ && (pip uninstall -y setuptools wheel >/dev/null 2>&1 || true) && pip check \
+ && python -m pip uninstall -y pip \
+ && rm -rf /usr/local/lib/python3*/ensurepip/_bundled \
+ && ! python -c "import pip" 2>/dev/null
 
 # Copy the rest of the source code into the container
 COPY . .

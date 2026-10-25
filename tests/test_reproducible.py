@@ -70,8 +70,8 @@ class ImagePinsTests(unittest.TestCase):
             for line in (ROOT / "images.lock").read_text(encoding="utf-8").splitlines()
             if line and not line.startswith("#")
         )
-        self.assertRegex(lock["PYTHON_IMAGE"], r"^python:3\.11\.\d+-slim-bookworm(@sha256:[0-9a-f]+)?$")
-        self.assertRegex(lock["NODE_IMAGE"], r"^node:\d+\.\d+\.\d+-bookworm-slim(@sha256:[0-9a-f]+)?$")
+        self.assertRegex(lock["PYTHON_IMAGE"], r"^python:3\.13(\.\d+)?-slim-trixie(@sha256:[0-9a-f]+)?$")
+        self.assertRegex(lock["NODE_IMAGE"], r"^node:\d+(\.\d+\.\d+)?-trixie-slim(@sha256:[0-9a-f]+)?$")
         docker = (ROOT / "Dockerfile").read_text(encoding="utf-8")
         compose = (ROOT / "docker-compose.yml").read_text(encoding="utf-8")
         for key in ("PYTHON_IMAGE", "NODE_IMAGE"):
@@ -241,6 +241,20 @@ class UpdateScriptTests(unittest.TestCase):
         for line in flow.splitlines():
             if "uses:" in line:  # alle Actions auf einen festen Commit gepinnt
                 self.assertRegex(line, r"@[0-9a-f]{40}\b", line)
+
+    def test_alles_im_image_bleibt_aktuell(self):
+        """Basis-Images, Python-Pakete und pip: nichts Veraltetes im Image; Warnung vor dem Ende der Updates."""
+        flow = (ROOT / ".github" / "workflows" / "image.yml").read_text(encoding="utf-8")
+        self.assertEqual(flow.count("pull: true"), 2)  # beide Builds holen das aktuelle Basis-Image
+        self.assertIn("support:", flow)  # Mail ein halbes Jahr vor Ende der Updates
+        self.assertLess(flow.index("Start check of the running server"), flow.index("aquasecurity/trivy-action@"))
+        for name in ("DEBIAN_13_END", "PYTHON_313_END", "NODE_22_END"):
+            self.assertIn(name, flow)
+        for req in lines("requirements.in"):
+            self.assertNotIn("==", req, req)  # keine festen Versionen - jede Woche die neueste
+        self.assertIn("BUILD_ARGS=(--pull)", (ROOT / "update.sh").read_text(encoding="utf-8"))
+        docker = (ROOT / "Dockerfile").read_text(encoding="utf-8")
+        self.assertIn("python -m pip uninstall -y pip", docker)  # pip mit eigenen, alten Paketkopien entfernt
 
     def test_image_von_github_holen(self):
         """--pull holt das fertige Image von ghcr.io (kein git, kein Bauen) - mit Sicherung und Zuruecksetzen."""

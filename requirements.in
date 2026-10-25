@@ -8,9 +8,10 @@
 fastapi>=0.129,<1
 starlette>=1.3.1,<2
 pydantic>=2.11,<3
-# Proven versions stay fixed (no unnecessary jumps)
-uvicorn==0.34.2
+# Always the newest version (also of all sub-packages): GitHub pins them every week and tests them before the image
+# is published. The upper limits only stop major version jumps that could change the behaviour.
+uvicorn>=0.34.2,<1
 h11>=0.16
-ldap3==2.9.1
-smbprotocol==1.14.0
-pypsrp==0.8.1
+ldap3>=2.9.1,<3
+smbprotocol>=1.14.0,<2
+pypsrp>=0.8.1,<1

@@ -5,7 +5,7 @@
 # Settings: as variables of the stack (in Dockhand: environment / stack variables) or in a .env file next to this
 # file - the same names as in .env.example. AD_DOMAIN and AD_DC_IP are required.
 # Data (settings, templates, reports, certificate) lives in the Docker volume "samonboarding-data".
-# A specific version instead of the newest one: SAMONBOARDING_VERSION=1.41.0
+# A specific version instead of the newest one: SAMONBOARDING_VERSION=1.47.0
 services:
   samonboarding:
     image: ghcr.io/soleil0815/samonboarding:${SAMONBOARDING_VERSION:-latest}

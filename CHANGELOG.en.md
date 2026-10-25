@@ -5,6 +5,13 @@ Update on the server: `sudo sh update.sh --pull`.
 
 Entries starting with "Security:" or "Fixed:" are marked accordingly in the interface.
 
+## 1.47.0 – 2026-10-24
+- Security: the image is now based on Debian 13 "Trixie" with Python 3.13 (previously Debian 12 with Python 3.11). It therefore receives security updates for much longer, Python 3.13 until 2029. The weekly rebuild installs them automatically. Usage and settings stay the same.
+- Security: everything in the image stays current. The weekly rebuild now also fetches the newest Python 3.13 version and the newest versions of all Python packages. Previously fixed versions (uvicorn, ldap3, smbprotocol, pypsrp) are released; only jumps to a new major version remain excluded. Everything is tested and scanned before it is published.
+- Half a year before Debian 13, Python 3.13 or Node 22 stop getting updates, GitHub reports it by e-mail. Only then is the base raised.
+- README: notes before use (no warranty, test first, tested with Samba AD, fixed version for production). New: `SECURITY.md` for reporting security vulnerabilities confidentially.
+- Security: the package tool `pip` is only needed while building and has been removed from the finished image. It brought its own outdated copies of urllib3, certifi and msgpack, which Trivy had reported as vulnerabilities.
+
 ## 1.46.1 – 2026-10-24
 - Security: every image is checked for known vulnerabilities with Trivy on GitHub before it is published. If Trivy finds a serious vulnerability (CRITICAL/HIGH) for which a fix exists, the image is not published. In addition, GitHub rebuilds the image every Monday with the newest packages and Debian security updates. It goes through the same tests and the same scan and is published under `latest` only if everything passes. It reaches a server only with `sh update.sh --pull`.
 - Security: the current Debian security updates are now installed at build time (among others OpenSSL, GnuTLS, Kerberos, PAM, Perl). The packages `setuptools` and `wheel`, which are not needed, are removed from the image. The first Trivy scan had found several serious vulnerabilities here.

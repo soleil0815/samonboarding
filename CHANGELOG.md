@@ -5,6 +5,13 @@ Update auf dem Server: `sudo sh update.sh --pull`.
 
 Einträge, die mit „Sicherheit:“ oder „Behoben:“ beginnen, werden in der Oberfläche entsprechend markiert.
 
+## 1.47.0 – 2026-10-24
+- Sicherheit: Das Image basiert jetzt auf Debian 13 „Trixie“ mit Python 3.13 (vorher Debian 12 mit Python 3.11). Damit bekommt es deutlich länger Sicherheitsupdates, Python 3.13 bis 2029. Der wöchentliche Neubau spielt sie automatisch ein. Bedienung und Einstellungen bleiben gleich.
+- Sicherheit: Alles im Image bleibt aktuell. Der wöchentliche Neubau holt jetzt auch die neueste Python-3.13-Version und die neuesten Versionen aller Python-Pakete. Bisher festgeschriebene Versionen (uvicorn, ldap3, smbprotocol, pypsrp) sind freigegeben, nur Sprünge auf eine neue Hauptversion bleiben ausgeschlossen. Alles wird vor der Veröffentlichung getestet und geprüft.
+- Ein halbes Jahr bevor Debian 13, Python 3.13 oder Node 22 keine Updates mehr bekommen, meldet GitHub das per Mail. Erst dann wird der Unterbau angehoben.
+- README: Hinweise vor dem Einsatz (ohne Gewähr, zuerst testen, getestet mit Samba AD, feste Version für den Betrieb). Neu: `SECURITY.md` für die vertrauliche Meldung von Sicherheitslücken.
+- Sicherheit: Das Paketprogramm `pip` wird nur noch beim Bauen gebraucht und ist aus dem fertigen Image entfernt. Es brachte eigene, veraltete Kopien von urllib3, certifi und msgpack mit, die Trivy als Lücken gemeldet hatte.
+
 ## 1.46.1 – 2026-10-24
 - Sicherheit: Jedes Image wird vor der Veröffentlichung auf GitHub mit Trivy auf bekannte Schwachstellen geprüft. Findet Trivy eine schwere Lücke (CRITICAL/HIGH), für die es schon eine Korrektur gibt, wird das Image nicht veröffentlicht. Zusätzlich baut GitHub das Image jeden Montag mit den neuesten Paketen und Debian-Sicherheitsupdates neu. Es durchläuft dieselben Tests und dieselbe Prüfung und wird nur bei Erfolg unter `latest` veröffentlicht. Auf den Server kommt es erst mit `sh update.sh --pull`.
 - Sicherheit: Beim Bauen werden jetzt die aktuellen Debian-Sicherheitsupdates eingespielt (unter anderem OpenSSL, GnuTLS, Kerberos, PAM, Perl). Die nicht benötigten Pakete `setuptools` und `wheel` sind aus dem Image entfernt. Die erste Trivy-Prüfung hatte hier mehrere schwere Lücken gefunden.

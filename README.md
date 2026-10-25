@@ -16,6 +16,14 @@ Webanwendung für die tägliche Benutzerverwaltung im Active Directory (**Samba 
 
 Die Anwendung läuft als Docker-Container (FastAPI + ldap3), die Oberfläche ist komplett eingebaut und braucht kein Internet.
 
+> **Bitte vor dem Einsatz lesen**
+>
+> - **Freizeitprojekt, ohne Gewähr.** SAMONBOARDING ist für den eigenen Bedarf entstanden und wird in der Freizeit gepflegt. Es gibt keine Gewährleistung und keine Haftung (Abschnitte 15 und 16 der [Lizenz](LICENSE)).
+> - **Das Programm hat weitreichende Rechte.** Es legt Konten an, setzt Passwörter zurück und löscht Konten und Ordner. Probiere es zuerst in einer **Testumgebung** aus und lege vor dem ersten Einsatz im echten AD eine Sicherung an.
+> - **Getestet mit Samba AD.** Windows Server AD wird unterstützt, ist aber weniger erprobt (zum Beispiel mehrere DCs, Exchange, große Strukturen). Rückmeldungen dazu sind willkommen.
+> - **Feste Version für den Betrieb.** `latest` wird jede Woche automatisch neu gebaut, getestet und geprüft, aber nicht gegen ein echtes AD. Wer Änderungen erst selbst prüfen möchte, trägt eine feste Version ein, zum Beispiel `SAMONBOARDING_IMAGE=ghcr.io/soleil0815/samonboarding:1.47.0` in der `.env`.
+> - **Kein Support.** Fragen und Fehlerberichte werden gelesen, beantwortet aber nur nach verfügbarer Zeit. **Sicherheitslücken** bitte nicht öffentlich melden, sondern wie in [SECURITY.md](SECURITY.md) beschrieben.
+
 ---
 
 ## Inhalt
@@ -167,7 +175,7 @@ Bei jedem Push auf `main` baut GitHub das Image selbst (`.github/workflows/image
 2. **Einstellungen** als Variablen des Stacks eintragen, dieselben Namen wie in `.env.example`. Pflicht sind `AD_DOMAIN` und `AD_DC_IP`, meist auch `CUSTOM_OPERATOR_GROUP` und `TLS_HOSTNAMES`.
 3. **Zugang zur Registry:** Ist das Repository privat, ist auch das Image privat. Dann in Dockhand die Registry `ghcr.io` mit Benutzer `soleil0815` und einem Token mit dem Recht *read:packages* hinterlegen (GitHub → Settings → Developer settings → Personal access tokens → Tokens (classic)). Alternativ das Paket auf GitHub unter *Packages → samonboarding → Package settings* öffentlich machen.
 4. **Starten.** Die Daten liegen im Docker-Volume `samonboarding-data`; es bekommt beim ersten Start automatisch den richtigen Besitzer.
-5. **Updates:** neue Version auf GitHub → Image wird gebaut → in Dockhand das Image neu ziehen bzw. die automatische Aktualisierung einschalten. Eine bestimmte Version festhalten: Variable `SAMONBOARDING_VERSION=1.41.0`.
+5. **Updates:** neue Version auf GitHub → Image wird gebaut → in Dockhand das Image neu ziehen bzw. die automatische Aktualisierung einschalten. Eine bestimmte Version festhalten (für den Betrieb empfohlen): Variable `SAMONBOARDING_VERSION=1.47.0`.
 
 Was dabei **nicht** automatisch passiert (das macht nur `update.sh`): Sicherung von `data/` vor dem Update und Rückkehr zur vorherigen Version bei einem Fehlstart. Zurück geht es von Hand über `SAMONBOARDING_VERSION`. Sicherung des Volumes:
 
@@ -618,7 +626,7 @@ Jeder Build verwendet exakt dieselben Versionen:
 
 | Datei | Inhalt |
 |---|---|
-| `images.lock` | Basis-Images mit fester Version (Python `3.11.13`, Node `22.17.0`); nach `sh update.sh --lock` zusätzlich mit Digest (`@sha256:…`) |
+| `images.lock` | Basis-Images: Python 3.13 und Node 22 auf Debian 13 „Trixie“, jeweils die neueste Patch-Version. `sh update.sh --lock` kann den genauen Stand mit Digest (`@sha256:…`) einfrieren |
 | `requirements.txt` | Sperrliste aller Python-Pakete inklusive Abhängigkeiten, jeweils `==Version`. Installiert wird mit `--no-deps`, danach prüft `pip check`, ob alles zusammenpasst |
 | `requirements.in` | Die direkten Python-Pakete (Absicht). Daraus erzeugt `sh update.sh --lock` die Sperrliste |
 | `package.json`, `package-lock.json` | npm-Pakete für CSS, Schriften und Icons, exakt mit allen Unterpaketen (`npm ci`) |
@@ -680,7 +688,7 @@ Ein Reverse Proxy ist nicht mehr nötig. Wer trotzdem einen verwendet, leitet an
 - **Datenschutz in der Oberfläche:** Der Link *Datenschutz* (Anmeldeseite unten, Seitenleiste unter *Hilfe*) zeigt kurz, was gespeichert wird und die aktuellen Löschfristen. Administratoren können dort die Auskunft nach Art. 15 DSGVO für ein Konto als JSON herunterladen (wird in den Berichten vermerkt)
 - **Datenschutz:** Welche Daten wo liegen, Löschfristen, eingebaute Maßnahmen und eine Vorlage für das Verzeichnis von Verarbeitungstätigkeiten stehen in [DATENSCHUTZ.md](DATENSCHUTZ.md)
 - **Keine Verbindungen ins Internet im Betrieb:** Tailwind-CSS, Schriften (Manrope, JetBrains Mono) und Icons (Font Awesome) werden beim Docker-Build ins Image gepackt und vom eigenen Server ausgeliefert. Es gibt keine CDNs, kein Google Fonts, keine Telemetrie und keine Update-Prüfung. Zusätzlich verbietet ein Content-Security-Policy-Header dem Browser, irgendetwas von fremden Servern zu laden. Internet braucht nur der **Build** (npm, pip, Docker-Basisimages). Verbindungen gehen im Betrieb nur zu deinen eigenen Diensten: Domänencontroller, Dateiserver, SMTP und ggf. Exchange
-- **Schwachstellen-Prüfung (Trivy):** Jedes Image wird vor der Veröffentlichung auf GitHub mit [Trivy](https://trivy.dev) geprüft. Gibt es eine schwere Lücke (CRITICAL/HIGH) mit verfügbarer Korrektur, wird das Image nicht veröffentlicht, und auf der Seite des Laufs unter *Actions* steht die Liste der Funde. Montags baut GitHub das Image automatisch neu, mit den neuesten Python-Paketen und Debian-Sicherheitsupdates, und veröffentlicht es nur, wenn Tests und Prüfung bestehen. Auf den Server kommt es erst mit `sh update.sh --pull`. Schlägt der Lauf fehl, kommt eine Mail von GitHub, und es bleibt beim letzten sauberen Image. Beheben lässt sich das meist mit neueren Basis-Images in `images.lock` oder einer Mindestversion in `requirements.in`. Lässt sich ein Fund nicht beheben und betrifft das Programm nachweislich nicht, kommt er mit Begründung und Datum in `.trivyignore`.
+- **Schwachstellen-Prüfung (Trivy):** Jedes Image wird vor der Veröffentlichung auf GitHub mit [Trivy](https://trivy.dev) geprüft. Gibt es eine schwere Lücke (CRITICAL/HIGH) mit verfügbarer Korrektur, wird das Image nicht veröffentlicht, und auf der Seite des Laufs unter *Actions* steht die Liste der Funde. Montags baut GitHub das Image automatisch neu und bringt dabei alles darin auf den neuesten Stand: Debian-Pakete, Python (neueste 3.13.x) und alle Python-Pakete samt Unterpaketen. Veröffentlicht wird es nur, wenn Tests und Prüfung bestehen. Ein halbes Jahr bevor Debian 13, Python 3.13 oder Node 22 keine Updates mehr bekommen, schlägt der Teil „support“ des Laufs fehl und GitHub schickt eine Mail. Erst dann wird der Unterbau in `images.lock` angehoben. Auf den Server kommt es erst mit `sh update.sh --pull`. Schlägt der Lauf fehl, kommt eine Mail von GitHub, und es bleibt beim letzten sauberen Image. Beheben lässt sich das meist mit neueren Basis-Images in `images.lock` oder einer Mindestversion in `requirements.in`. Lässt sich ein Fund nicht beheben und betrifft das Programm nachweislich nicht, kommt er mit Begründung und Datum in `.trivyignore`.
 - Die Anwendung läuft nur über HTTPS (siehe oben). Am besten ein eigenes Zertifikat hinterlegen und `LDAP_ALLOW_PLAIN` auf `false` lassen (Standard)
 - Operatoren nur die Rechte geben, die sie brauchen (Delegierung auf einzelne OUs)
 - Der Ordner `data/` enthält das **SMTP-Passwort im Klartext** und eventuell feste Template-Passwörter. Rechte einschränken (`chmod 700 data`) und Sicherungen schützen
@@ -772,7 +780,7 @@ pyproject.toml              Konfiguration von ruff und pytest
 requirements-dev.txt        Pakete zum Testen (exakte Versionen)
 requirements.in             direkte Python-Pakete; requirements.txt ist die exakte Sperrliste
 package.json                npm-Pakete für den CSS-Build (exakt), package-lock.json entsteht mit sh update.sh
-images.lock                 Basis-Images (Python, Node) mit fester Version bzw. Digest
+images.lock                 Basis-Images (Python 3.13, Node 22, Debian 13)
 update.sh                   Sichern, bauen, neu starten, Status prüfen; --lock schreibt die Versionen neu fest
 ```
 
