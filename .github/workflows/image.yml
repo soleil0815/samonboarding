@@ -135,6 +135,7 @@ jobs:
         if: env.PUBLISH != 'true' && steps.plan.outputs.action != 'nothing'
         run: |
           echo "::notice title=Dry run::Branch ${{ github.ref_name }}: nothing is committed or published"
+          python3 scripts/pins.py release-notes "${{ steps.plan.outputs.tag }}" --image "$IMAGE" >> "$GITHUB_STEP_SUMMARY"
           python3 scripts/pins.py bundle
 
       - name: Commit the new pins and the changelog entry
@@ -171,3 +172,28 @@ jobs:
             $tags --push .
           docker logout ghcr.io
           echo "::notice title=Published::$IMAGE:$TAG$( [ "$LATEST" = true ] && echo ' and :latest')"
+
+      # A release page per published version: tag v<version>, changelog entry as text. Created once, never changed;
+      # if it is missing (e.g. the step failed last time) it is created on the next run.
+      - name: GitHub release (only main)
+        if: env.PUBLISH == 'true' && steps.plan.outputs.tag != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GITHUB_TOKEN: ${{ github.token }} # read the published tags
+          TAG: ${{ steps.plan.outputs.tag }}
+          LATEST: ${{ steps.plan.outputs.latest }}
+          REPO: ${{ github.repository }}
+        run: |
+          if [ "${{ steps.plan.outputs.action }}" != publish ] \
+            && ! python3 scripts/pins.py registry-tags "$IMAGE" | grep -qx "$TAG"; then
+            echo "Image $TAG is not published - no release"; exit 0
+          fi
+          if gh release view "v$TAG" --repo "$REPO" > /dev/null 2>&1; then
+            echo "Release v$TAG exists - left unchanged"; exit 0
+          fi
+          python3 scripts/pins.py release-notes "$TAG" --image "$IMAGE" --out "$RUNNER_TEMP/notes.md"
+          latest=false
+          if [ "$LATEST" = true ]; then latest=true; fi
+          gh release create "v$TAG" --repo "$REPO" --target "$(git rev-parse HEAD)" \
+            --title "SAMONBOARDING $TAG" --notes-file "$RUNNER_TEMP/notes.md" --latest="$latest"
+          echo "::notice title=Release::v$TAG created"

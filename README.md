@@ -652,7 +652,7 @@ Auf GitHub laufen zwei Workflows. Sie veröffentlichen nur vom Branch `main`; au
 | Täglich 03:43 UTC | Trivy prüft das veröffentlichte Image `:latest`. So fallen Schwachstellen auf, die erst nach dem Release bekannt werden |
 | Montags 06:29 UTC | Wie lange bekommen Debian, Python und Node noch Sicherheitsupdates (endoflife.date)? Ab 12 Monaten vor dem Ende ein Hinweis am Lauf, ab 6 Monaten ein roter Lauf |
 
-`-s<Zähler>` bedeutet: gleiches Programm, nur neuere Pakete. `:latest` zeigt immer auf die höchste Version. Auf einen Server kommt ein Update erst mit `sudo sh update.sh --pull` (oder über Dockhand & Co.).
+Zu jeder veröffentlichten Version entsteht auf GitHub eine Release-Seite `v<Version>` mit dem Changelog-Eintrag (bei Sicherheitsupdates mit der Liste der geänderten Pakete). `-s<Zähler>` bedeutet: gleiches Programm, nur neuere Pakete. `:latest` zeigt immer auf die höchste Version. Auf einen Server kommt ein Update erst mit `sudo sh update.sh --pull` (oder über Dockhand & Co.).
 
 Trivy wird nicht als GitHub Action eingebunden (`trivy-action` und `setup-trivy` wurden im März 2026 kompromittiert, CVE-2026-33634). `scripts/install-trivy.sh` lädt eine feste Version und prüft ihre SHA-256-Prüfsumme gegen den eingetragenen Wert und gegen die offizielle Prüfsummen-Datei des Releases. Eine neue Trivy-Version wird nur bewusst übernommen, mit Version und Prüfsumme in dieser Datei.
 

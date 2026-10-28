@@ -216,6 +216,27 @@ class TagTests(unittest.TestCase):
         self.assertEqual(result["action"], "publish")
         self.assertFalse(result["latest"])
 
+    def test_release_text_aus_dem_changelog(self):
+        changes = {"images": [], "debian": {"changed": [["openssl", "3.5.1-1", "3.5.4-1"]], "added": [], "removed": []},
+                   "python": {"changed": [], "added": [], "removed": []}, "npm": {"changed": [], "added": [], "removed": []}}  # fmt: skip
+        for lang, name in pins.CHANGELOGS.items():
+            path = self.root / name
+            text = (
+                path.read_text(encoding="utf-8") if path.exists() else "# Changelog\n\n## 1.48.0 – 2026-10-26\n- New\n"
+            )
+            path.write_text(pins.insert_changelog(text, pins.changelog_entry("1.48.0-s1", changes, lang, "2026-11-02")))
+        notes = pins.release_notes("1.48.0-s1", "ghcr.io/x/y", self.root)
+        self.assertTrue(notes.startswith("Sicherheitsupdate: gleiches Programm"))
+        self.assertIn("openssl `3.5.1-1` → `3.5.4-1`", notes)
+        self.assertIn("**English**", notes)
+        self.assertIn("Security: security update without program changes", notes)
+        self.assertIn("`ghcr.io/x/y:1.48.0-s1`", notes)
+        self.assertNotIn("## 1.48.0 ", notes)  # nur der eigene Eintrag
+        self.assertIn("Neue Programmversion", pins.release_notes("1.48.0", "ghcr.io/x/y", self.root))
+        with self.assertRaises(pins.PinError):
+            pins.release_notes("1.48.0-s2", "ghcr.io/x/y", self.root)
+        self.assertEqual(pins.changelog_section("## 1.4.10 – x\n- a\n## 1.4.1 – y\n- b\n", "1.4.1"), "- b")
+
     def test_changelog_eintrag_wird_als_sicherheitsupdate_angezeigt(self):
         changes = {"images": [], "debian": {"changed": [["openssl", "3.5.1-1", "3.5.4-1"]], "added": [], "removed": []},
                    "python": {"changed": [], "added": [], "removed": []}, "npm": {"changed": [], "added": [], "removed": []}}  # fmt: skip

@@ -29,6 +29,7 @@ Commands (the GitHub workflows use them, they can also be run by hand):
   scan IMAGE             vulnerability scan with trivy (from PATH), stops on HIGH/CRITICAL with a fix
   plan --mode M --changed C --image I   decide: publish / skip / nothing, tag, :latest, commit
   bundle                 dry run: renewed pin files as notices on the run page
+  release-notes TAG --image I [--out F]   text of the GitHub release (changelog entry DE/EN)
   run TITLE -- COMMAND   run a step; on failure show the decisive lines (network problems: one retry)
   trivyignore-check      every entry in .trivyignore needs a reason and an expiry date
   eol                    how long Debian, Python and Node still get security updates (endoflife.date)
@@ -687,6 +688,44 @@ def cmd_changelog(args):
     print(f"Changelog entry {args.tag} added.")
 
 
+def changelog_section(text, tag):
+    """Body of the changelog entry '## <tag> – <date>' (without the heading); '' if there is none."""
+    lines, inside = [], False
+    for line in text.splitlines():
+        if line.startswith("## "):
+            if inside:
+                break
+            inside = re.match(rf"^## {re.escape(tag)}(\s|$)", line) is not None
+            continue
+        if inside:
+            lines.append(line)
+    return "\n".join(lines).strip()
+
+
+def release_notes(tag, image, root=ROOT):
+    """Text of the GitHub release: changelog entry in German and English, plus how to get the update."""
+    de = changelog_section(read_text(CHANGELOGS["de"], root), tag)
+    en = changelog_section(read_text(CHANGELOGS["en"], root), tag)
+    if not de or not en:
+        raise PinError(f"No changelog entry for {tag} (CHANGELOG.md / CHANGELOG.en.md)")
+    kind = (
+        "Sicherheitsupdate: gleiches Programm, aktualisierte Pakete. / Security update: same program, updated packages."
+        if "-s" in tag
+        else "Neue Programmversion. / New program version."
+    )
+    return (
+        f"{kind}\n\n{de}\n\n---\n\n**English**\n\n{en}\n\n---\n\n"
+        f"Image: `{image}:{tag}`\n\nUpdate auf dem Server / on the server: `sudo sh update.sh --pull`\n"
+    )
+
+
+def cmd_release_notes(args):
+    text = release_notes(args.tag, args.image)
+    if args.out:
+        Path(args.out).write_text(text, encoding="utf-8")
+    print(text)
+
+
 def ghcr_token(repo):
     token = os.environ.get("GITHUB_TOKEN", "")
     headers = {}
@@ -1084,6 +1123,11 @@ def main(argv=None):
     p.add_argument("--image", required=True)
     p.set_defaults(fn=cmd_plan)
     sub.add_parser("bundle").set_defaults(fn=cmd_bundle)
+    p = sub.add_parser("release-notes")
+    p.add_argument("tag")
+    p.add_argument("--image", required=True)
+    p.add_argument("--out")
+    p.set_defaults(fn=cmd_release_notes)
     p = sub.add_parser("run")
     p.add_argument("title")
     p.add_argument("command", nargs=argparse.REMAINDER)

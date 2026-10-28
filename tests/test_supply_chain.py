@@ -117,6 +117,7 @@ class OrderTests(unittest.TestCase):
             "Dry run",
             "Commit the new pins",
             "Publish the image",
+            "GitHub release (only main)",
         ]
         positions = [step_index(flow, name) for name in order]
         self.assertEqual(positions, sorted(positions))
@@ -146,6 +147,17 @@ class OrderTests(unittest.TestCase):
         self.assertIn('if [ "$LATEST" = true ]; then tags="$tags --tag $IMAGE:latest"; fi', flow)
         commit = flow[step_index(flow, "Commit the new pins") :][:300]
         self.assertIn("steps.plan.outputs.commit == 'true'", commit)
+
+    def test_github_release(self):
+        """Je veroeffentlichter Version eine Release-Seite v<Version> mit dem Changelog-Eintrag - nie geaendert."""
+        flow = text("image.yml")
+        block = flow[step_index(flow, "GitHub release (only main)") :]
+        self.assertIn("if: env.PUBLISH == 'true'", block[:200])
+        self.assertLess(block.index('gh release view "v$TAG"'), block.index('gh release create "v$TAG"'))
+        self.assertIn("left unchanged", block)
+        self.assertIn('--notes-file "$RUNNER_TEMP/notes.md" --latest="$latest"', block)
+        self.assertIn('grep -qx "$TAG"', block)  # kein Release ohne veroeffentlichtes Image
+        self.assertEqual(flow.count("gh release create"), 1)
 
     def test_nach_dem_veroeffentlichen_abmelden(self):
         flow = text("image.yml")

@@ -5,6 +5,9 @@ Update on the server: `sudo sh update.sh --pull`.
 
 Entries starting with "Security:" or "Fixed:" are marked accordingly in the interface.
 
+## 1.48.1 – 2026-10-28
+- For every published version GitHub now also creates a release page (`v<version>`, e.g. `v1.48.1` or `v1.48.1-s1`) with the changelog entry in German and English, for security updates including the list of changed packages. A release page is created once and never changed afterwards.
+
 ## 1.48.0 – 2026-10-25
 - Security: reproducible build. Base images are pinned with a fixed version and checksum (digest), the Debian packages via a fixed state of snapshot.debian.org (`os-packages.lock`), all Python and npm packages including indirect ones with an exact version. The script `scripts/pins.py` renews the versions.
 - Security: weekly security update on GitHub (Mondays, can also be started by hand). It brings the base image, all Debian packages and all dependencies up to date, but only within the base:

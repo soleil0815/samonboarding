@@ -652,7 +652,7 @@ Two workflows run on GitHub. They only publish from the `main` branch; on other 
 | Every day 03:43 UTC | Trivy scans the published image `:latest`, so vulnerabilities that only become known after the release are noticed |
 | Mondays 06:29 UTC | How long do Debian, Python and Node still get security updates (endoflife.date)? From 12 months before the end a note on the run, from 6 months a red run |
 
-`-s<counter>` means: same program, only newer packages. `:latest` always points to the highest version. An update only reaches a server with `sudo sh update.sh --pull` (or via Dockhand & co.).
+For every published version a release page `v<version>` with the changelog entry is created on GitHub (for security updates with the list of changed packages). `-s<counter>` means: same program, only newer packages. `:latest` always points to the highest version. An update only reaches a server with `sudo sh update.sh --pull` (or via Dockhand & co.).
 
 Trivy is not included as a GitHub Action (`trivy-action` and `setup-trivy` were compromised in March 2026, CVE-2026-33634). `scripts/install-trivy.sh` downloads a fixed version and checks its SHA-256 checksum against the stored value and against the official checksums file of the release. A new Trivy version is only taken over deliberately, with version and checksum in that file.
 
