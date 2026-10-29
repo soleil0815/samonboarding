@@ -909,14 +909,15 @@ def cmd_test_image(args):
 
 def cmd_smoke(args):
     """Start the server in the image and query it via HTTPS. With --as-root like the docker-compose.yml: started as
-    root with only CHOWN/SETUID/SETGID and a fresh data folder of another owner - the start script must hand the
-    folder over and then run the program as user 10001 without any rights."""
+    root with only DAC_READ_SEARCH/CHOWN/SETUID/SETGID and a closed data folder (0700) of another owner - the start
+    script must hand the folder over and then run the program as user 10001 without any rights."""
     name = "samonb-smoke-" + re.sub(r"[^a-z0-9]", "", args.image.lower())[-20:] + ("-root" if args.as_root else "")
     docker("rm", "-f", name, check=False)
     options = []
     if args.as_root:
         data = tempfile.mkdtemp(prefix="samonb-data-", dir=os.environ.get("RUNNER_TEMP") or None)
-        options = ["--user", "0:0", "--cap-drop", "ALL", "--cap-add", "CHOWN", "--cap-add", "SETUID"]
+        options = ["--user", "0:0", "--cap-drop", "ALL", "--cap-add", "DAC_READ_SEARCH", "--cap-add", "CHOWN"]
+        options += ["--cap-add", "SETUID"]
         options += ["--cap-add", "SETGID", "--security-opt", "no-new-privileges:true", "-v", f"{data}:/app/data"]
     docker("run", "-d", "--name", name, *options, args.image)
     probe = (

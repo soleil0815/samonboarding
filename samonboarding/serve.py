@@ -18,6 +18,10 @@ def data_writable():
     stellt das Startskript (docker-entrypoint.sh) das selbst ein."""
     probe = os.path.join(str(config.DATA_DIR), ".schreibtest")
     try:
+        os.chmod(str(config.DATA_DIR), 0o700)  # nur fuer den Programmbenutzer (er ist der Besitzer)
+    except OSError:
+        pass
+    try:
         with open(probe, "w") as f:
             f.write("ok")
         os.remove(probe)

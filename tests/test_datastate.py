@@ -134,7 +134,11 @@ class ComposeVersionTests(unittest.TestCase):
         self.assertFalse((ROOT / "docker-compose.image.yml").exists())
         # nur die drei Rechte zum Uebergeben von ./data, sonst nichts
         caps = text[text.index("cap_add:") : text.index("security_opt:")]
-        self.assertEqual(re.findall(r"- (\w+)", caps), ["CHOWN", "SETUID", "SETGID"])
+        self.assertEqual(re.findall(r"- (\w+)", caps), ["DAC_READ_SEARCH", "CHOWN", "SETUID", "SETGID"])
+        # die Rechte der Ordner setzt das Programm als Besitzer - root hat dafuer kein FOWNER (frueherer Fehler)
+        entry = (ROOT / "docker-entrypoint.sh").read_text(encoding="utf-8")
+        self.assertNotIn("chmod", entry)
+        self.assertIn("os.chmod(str(config.DATA_DIR), 0o700)", (ROOT / "samonboarding" / "serve.py").read_text())
         self.assertIn("no-new-privileges:true", text)
         self.assertIn('user: "0:0"', text)
 

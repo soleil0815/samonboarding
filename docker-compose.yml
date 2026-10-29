@@ -14,11 +14,13 @@ services:
     # "2.0.0" = exactly this version (security updates of it are then 2.0.0-s1, 2.0.0-s2, ...)
     image: ghcr.io/soleil0815/samonboarding:${SAMONBOARDING_VERSION:-latest}
     # Started as root only to hand ./data over to the application user (10001), then it switches to that user for
-    # good (docker-entrypoint.sh in the image). Only these three rights, nothing else:
+    # good and all rights are gone (docker-entrypoint.sh in the image). Only these rights, only for that moment:
+    # read a folder of another owner, change the owner, switch the user.
     user: "0:0"
     cap_drop:
       - ALL
     cap_add:
+      - DAC_READ_SEARCH
       - CHOWN
       - SETUID
       - SETGID
