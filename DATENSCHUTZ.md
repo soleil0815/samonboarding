@@ -62,7 +62,7 @@ Dieses Dokument beschreibt, welche personenbezogenen Daten SAMONBOARDING verarbe
   ```bash
   docker compose exec samonboarding python -m samonboarding.privacy bereinigen
   ```
-- **Backups:** Wenn `data/` gesichert wird, gelten die Fristen auch für die Sicherungen. Plant die Aufbewahrung der Backups passend. `update.sh` legt vor jedem Update eine Sicherung in `backups/` an (nur für den Eigentümer lesbar) und behält nur die letzten 3 (`KEEP_BACKUPS`).
+- **Backups:** Wenn `data/` gesichert wird, gelten die Fristen auch für die Sicherungen. Plant die Aufbewahrung der Backups passend. Das Programm legt vor jedem Versionswechsel selbst eine Sicherung in `data/backups/` an (nur für den Programmbenutzer lesbar) und behält nur die letzten 10. Ältere Sicherungen in `backups/` neben der `docker-compose.yml` stammen von `update.sh` bis Version 1.48 und können nach Prüfung gelöscht werden.
 
 ---
 

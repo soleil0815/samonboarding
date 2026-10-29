@@ -316,27 +316,35 @@ Details für das Verzeichnis der Verarbeitungstätigkeiten stehen in `DATENSCHUT
 
 Für Administratoren mit Zugriff auf den Docker-Host.
 
-**Update von GitHub:** im Projektordner `sudo sh update.sh --pull` eingeben. Das Skript holt das fertige Image von GitHub, sichert vorher `data/`, startet neu und nimmt bei einem Fehlstart automatisch das vorherige Image wieder in Betrieb. Ist das Image privat, vorher einmal `sudo docker login ghcr.io -u soleil0815` (Passwort: Token mit *read:packages*).
+Auf dem Server liegen nur die `docker-compose.yml`, die `.env` mit den Einstellungen und der Ordner `data/` mit allen Daten. Das Programm steckt komplett im Image.
 
-**Mit Dockhand oder Portainer:** Statt selbst zu bauen, kann der Server das fertige Image `ghcr.io/soleil0815/samonboarding` verwenden, das GitHub bei jeder neuen Version baut und testet (Datei `docker-compose.image.yml`, Anleitung in der README unter *Alternative: fertiges Image von GitHub*). Updates holt dann Dockhand; die automatische Sicherung und Rückkehr zur vorherigen Version von `update.sh` gibt es dabei nicht.
+**Update mit einer Container-Verwaltung** (Dockhand, Watchtower, Tugtainer, Portainer …): automatische Aktualisierung einschalten, am besten nachts.
 
-**Sicherheitsupdates:** GitHub prüft jede Woche (montags), ob es für die Pakete im Image neuere Versionen gibt, aber nur innerhalb des Unterbaus: gleiche Debian-, Python- und Node-Reihe, jedes Paket innerhalb seiner Hauptversion. Erst wenn Bau, Tests im Image und die Schwachstellen-Prüfung (Trivy) bestanden sind, erscheint eine neue Nummer wie `1.48.0-s1`. Sie bedeutet: gleiches Programm, nur neuere Pakete. Unter *Neuigkeiten* steht dazu die Liste der geänderten Pakete. Auf den Server kommt sie wie jedes Update mit `sudo sh update.sh --pull`. Zusätzlich wird das veröffentlichte Image jeden Tag geprüft, und ein Jahr bevor Debian, Python oder Node keine Sicherheitsupdates mehr bekommen, erscheint ein Hinweis; ein halbes Jahr vorher ein roter Lauf. Der Unterbau wird nie automatisch gewechselt.
+**Update von Hand** im Ordner der `docker-compose.yml`:
+
+```bash
+sudo docker compose pull && sudo docker compose up -d
+```
+
+Oder mit dem Hilfsskript `sudo sh update.sh`: Es merkt sich die laufende Version, holt die neue, startet sie und wartet auf den Gesundheitscheck. Startet die neue Version nicht, startet es nach Rückfrage wieder die vorherige (mit `-y` ohne Rückfrage). Ist das Image privat, vorher einmal `sudo docker login ghcr.io` (Passwort: Token mit *read:packages*).
+
+**Sicherung vor einem Versionswechsel:** Startet eine neue Programmversion, sichert das Programm zuerst selbst den Datenordner nach `data/backups/vor-<Version>-<Datum>.tar.gz` (die letzten 10 bleiben). Startet eine ältere Version auf Daten einer neueren, bricht sie mit einer Meldung ab, die die passende Sicherung nennt.
+
+**Version festlegen und zurückgehen:** In der `.env` steht `SAMONBOARDING_VERSION`. Leer = immer die neueste Version, `2.0` = die neueste 2.0.x samt Sicherheitsupdates, `2.0.1` = genau diese Version. Zurück auf eine ältere Version, deren Datenstand älter ist: `sudo sh update.sh --restore data/backups/vor-<neuere Version>-<Datum>.tar.gz --version <ältere Version>`.
+
+**Ohne Internet:** Die Image-Datei aus dem Release (`samonboarding-<Version>-amd64.tar.gz` bzw. `-arm64`) auf den Server kopieren und `sudo sh update.sh --offline <Datei>` ausführen.
+
+**Hinweis auf eine veraltete docker-compose.yml:** Erscheint er in der Oberfläche, `sudo sh update.sh` ausführen (ersetzt die Datei und behält die alte als `docker-compose.yml.alt`) oder die Datei aus dem aktuellen Release holen und `sudo docker compose up -d`.
+
+**Umstieg von Version 1.x:** einmal `sudo sh update.sh --pull`, prüfen, dann `sudo sh update.sh --cleanup`. Das entfernt nach Rückfrage die alten Programmdateien und nie Daten, Sicherungen, `.env` oder `docker-compose.yml`. Schritt für Schritt in der README.
+
+**Sicherheitsupdates:** GitHub prüft jede Woche (montags), ob es für die Pakete im Image neuere Versionen gibt, aber nur innerhalb des Unterbaus: gleiche Debian-, Python- und Node-Reihe, jedes Paket innerhalb seiner Hauptversion. Erst wenn Bau, Tests im Image und die Schwachstellen-Prüfung (Trivy) bestanden sind, erscheint eine neue Nummer wie `2.0.0-s1`. Sie bedeutet: gleiches Programm, nur neuere Pakete. Unter *Neuigkeiten* steht dazu die Liste der geänderten Pakete. Zusätzlich wird das veröffentlichte Image jeden Tag geprüft, und ein Jahr bevor Debian, Python oder Node keine Sicherheitsupdates mehr bekommen, erscheint ein Hinweis; ein halbes Jahr vorher ein roter Lauf. Der Unterbau wird nie automatisch gewechselt.
 
 **Wenn auf GitHub ein Lauf rot ist:** Es wird nichts veröffentlicht, das bisherige Image bleibt unverändert, und GitHub schickt eine Mail. Die Ursache steht kurz am Lauf unter *Actions*. Meist ist eine gemeldete Korrektur noch nicht in den Paketquellen angekommen; dann den Lauf in ein bis zwei Tagen wiederholen (*Actions → Image → Run workflow*). Die README beschreibt jede Meldung im Abschnitt *Automatische Sicherheitsupdates*.
 
-**Update als ZIP:** die ZIP der neuen Version in den Projektordner laden (z. B. `/opt/samonboarding`) und dort eingeben:
+**Einstellungen** wie Domäne, DC, Port und Fristen stehen in der Datei `.env`. Nach einer Änderung `sudo docker compose up -d` ausführen. Alle Benutzer sind danach abgemeldet.
 
-```bash
-sudo sh update.sh samonboarding-*.zip
-```
-
-Das Skript zeigt installierte und neue Version und was sich ändert, fragt einmal nach (`y` eingeben, `j` geht auch) und erledigt dann alles: Sicherung von Programm und `data/`, Dateien tauschen, alte Dateien entfernen, bauen, starten, prüfen. Eine von älteren Versionen eingerichtete Internet-Sperre wird danach automatisch entfernt. Zum Schluss werden ZIP, Zwischendateien und alte Images entfernt. Startet die neue Version nicht, kommt die vorherige zurück. `.env`, `data/` und `backups/` werden nie angefasst. Alle Benutzer sind danach abgemeldet.
-
-Ohne neue Version, nur neu bauen und starten: `sudo sh update.sh`.
-
-**Einstellungen** wie Domäne, DC, Port und Fristen stehen in der Datei `.env`. Nach einer Änderung `sudo sh update.sh` ausführen.
-
-**Sichern:** den Ordner `data/` und die Datei `.env`. Dort liegt alles, was die Anwendung dauerhaft speichert.
+**Sichern:** den Ordner `data/` und die Datei `.env`. Dort liegt alles, was die Anwendung dauerhaft speichert, auch die Sicherungen vor Versionswechseln.
 
 **Container-Ausgabe ansehen:**
 
@@ -366,4 +374,4 @@ docker compose logs -f
 | Löschen: *Seit der Simulation hat sich etwas geändert* | Nichts wurde gelöscht. Simulation wiederholen |
 | Löschen: *Datei ist in Benutzung* | Benutzer noch angemeldet oder Virenscanner. Später neu simulieren |
 | Löschen: *Kein Zugriff* | Dir fehlen auf dem Dateiserver Rechte auf dem Ordner. Rechte prüfen oder *Besitz übernehmen* aktivieren |
-| Uhrzeiten in den Berichten stimmen nicht | `TZ` in der `.env` setzen (z. B. `Europe/Berlin`) und `sudo sh update.sh` |
+| Uhrzeiten in den Berichten stimmen nicht | `TZ` in der `.env` setzen (z. B. `Europe/Berlin`) und `sudo docker compose up -d` |

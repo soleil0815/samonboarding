@@ -211,6 +211,13 @@ class TagTests(unittest.TestCase):
         result = pins.plan("security-update", False, ["1.48.0"], self.root)
         self.assertEqual((result["action"], result["tag"], result["commit"]), ("publish", "1.48.0-s1", False))
 
+    def test_tag_x_y_fuer_die_neueste_der_reihe(self):
+        result = pins.plan("security-update", True, ["1.48.0"], self.root)
+        self.assertEqual((result["minor"], result["minor_latest"]), ("1.48", True))
+        # ein Sicherheitsupdate fuer eine aeltere Reihe bekommt "1.47" - aber nur, wenn es dort das neueste ist
+        self.assertTrue(pins.plan("release", False, ["1.49.0", "1.47.1"], self.root)["minor_latest"])
+        self.assertFalse(pins.plan("release", False, ["1.48.0"], self.root)["minor_latest"])  # skip: nichts
+
     def test_latest_nur_fuer_die_hoechste_version(self):
         result = pins.plan("security-update", True, ["1.48.0", "1.49.0"], self.root)
         self.assertEqual(result["action"], "publish")

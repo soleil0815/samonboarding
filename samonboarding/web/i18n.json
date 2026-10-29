@@ -864,7 +864,11 @@
   "älter als 180 Tage": "older than 180 days",
   "älter als 30 Tage": "older than 30 days",
   "älter als 90 Tage": "older than 90 days",
-  "– würde gelöscht": "– would be deleted"
+  "– würde gelöscht": "– would be deleted",
+  "Die docker-compose.yml auf dem Server ist veraltet.": "The docker-compose.yml on the server is out of date.",
+  "Stand der Datei:": "File version:",
+  "benötigt:": "required:",
+  "Abhilfe: im Ordner der docker-compose.yml „sh update.sh“ ausführen – oder die docker-compose.yml aus dem aktuellen Release herunterladen und „docker compose up -d“ ausführen. Die .env und die Daten bleiben unverändert.": "Remedy: run “sh update.sh” in the folder of the docker-compose.yml – or download the docker-compose.yml from the current release and run “docker compose up -d”. The .env and the data stay unchanged."
  },
  "patterns": [
   [

@@ -318,27 +318,35 @@ Details for the record of processing activities are in `DATA-PROTECTION.en.md`.
 
 For administrators with access to the Docker host.
 
-**Update from GitHub:** run `sudo sh update.sh --pull` in the project folder. The script fetches the ready-made image from GitHub, backs up `data/` first, restarts and puts the previous image back into service automatically if the start fails. If the image is private, log in once first: `sudo docker login ghcr.io -u soleil0815` (password: token with *read:packages*).
+Only the `docker-compose.yml`, the `.env` with the settings and the folder `data/` with all data are on the server. The program is completely in the image.
 
-**With Dockhand or Portainer:** instead of building on the server, it can use the ready-made image `ghcr.io/soleil0815/samonboarding` that GitHub builds and tests for every new version (file `docker-compose.image.yml`, instructions in the README under *Alternative: ready-made image from GitHub*). Dockhand then fetches the updates; the automatic backup and return to the previous version of `update.sh` are not available that way.
+**Update with a container manager** (Dockhand, Watchtower, Tugtainer, Portainer …): enable automatic updates, preferably at night.
 
-**Security updates:** every week (Mondays) GitHub checks whether there are newer versions of the packages in the image, but only within the base: same Debian, Python and Node series, every package within its major version. Only when the build, the tests in the image and the vulnerability scan (Trivy) have passed does a new number such as `1.48.0-s1` appear. It means: same program, only newer packages. *News* lists the changed packages. Like every update it reaches the server with `sudo sh update.sh --pull`. In addition the published image is scanned every day, and a year before Debian, Python or Node stop getting security updates a note appears; half a year before, a red run. The base is never changed automatically.
+**Update by hand** in the folder of the `docker-compose.yml`:
+
+```bash
+sudo docker compose pull && sudo docker compose up -d
+```
+
+Or with the helper script `sudo sh update.sh`: it remembers the running version, fetches the new one, starts it and waits for the health check. If the new version does not start, it starts the previous one again after asking (with `-y` without asking). If the image is private, log in once first: `sudo docker login ghcr.io` (password: token with *read:packages*).
+
+**Backup before a version change:** when a new program version starts, the program first backs up the data folder itself to `data/backups/vor-<version>-<date>.tar.gz` (the last 10 are kept). If an older version starts on data of a newer one, it stops with a message that names the matching backup.
+
+**Fixing a version and going back:** `.env` contains `SAMONBOARDING_VERSION`. Empty = always the newest version, `2.0` = the newest 2.0.x including security updates, `2.0.1` = exactly this version. Back to an older version whose data state is older: `sudo sh update.sh --restore data/backups/vor-<newer version>-<date>.tar.gz --version <older version>`.
+
+**Without internet:** copy the image file from the release (`samonboarding-<version>-amd64.tar.gz` or `-arm64`) to the server and run `sudo sh update.sh --offline <file>`.
+
+**Note about an out-of-date docker-compose.yml:** if it appears in the interface, run `sudo sh update.sh` (replaces the file and keeps the old one as `docker-compose.yml.alt`) or get the file of the current release and run `sudo docker compose up -d`.
+
+**Moving from version 1.x:** run `sudo sh update.sh --pull` once, check, then `sudo sh update.sh --cleanup`. After asking, it removes the old program files and never data, backups, `.env` or `docker-compose.yml`. Step by step in the README.
+
+**Security updates:** every week (Mondays) GitHub checks whether there are newer versions of the packages in the image, but only within the base: same Debian, Python and Node series, every package within its major version. Only when the build, the tests in the image and the vulnerability scan (Trivy) have passed does a new number such as `2.0.0-s1` appear. It means: same program, only newer packages. *News* lists the changed packages. In addition the published image is scanned every day, and a year before Debian, Python or Node stop getting security updates a note appears; half a year before, a red run. The base is never changed automatically.
 
 **If a run on GitHub is red:** nothing is published, the previous image stays unchanged, and GitHub sends an e-mail. The cause is shown briefly on the run under *Actions*. Usually a reported fix has not reached the package sources yet; then repeat the run in a day or two (*Actions → Image → Run workflow*). The README describes every message in the section *Automatic security updates*.
 
-**Update as a ZIP:** upload the ZIP of the new version to the project folder (e.g. `/opt/samonboarding`) and run there:
+**Settings** such as domain, DC, port and retention periods are in the `.env` file. After a change run `sudo docker compose up -d`. All users are signed out afterwards.
 
-```bash
-sudo sh update.sh samonboarding-*.zip
-```
-
-The script shows the installed and the new version and what changes, asks once (type `y`) and then does everything: backup of the program and `data/`, swapping files, removing old files, build, start, check. An internet block installed by an older version is removed automatically afterwards. Finally the ZIP, temporary files and old images are removed. If the new version does not start, the previous one comes back. `.env`, `data/` and `backups/` are never touched. All users are signed out afterwards.
-
-Without a new version, just rebuild and start: `sudo sh update.sh`.
-
-**Settings** such as domain, DC, port and retention periods are in the `.env` file. After a change run `sudo sh update.sh`.
-
-**Backup:** the `data/` folder and the `.env` file. Everything the application stores permanently is there.
+**Backup:** the `data/` folder and the `.env` file. Everything the application stores permanently is there, including the backups made before version changes.
 
 **View the container output:**
 
@@ -370,4 +378,4 @@ The application's messages come from the server; in the English interface they a
 | Delete: *something has changed since the simulation* | Nothing was deleted. Run the simulation again |
 | Delete: *file is in use* | User still signed in or virus scanner. Simulate again later |
 | Delete: *no access* | You lack rights on the folder on the file server. Check the rights or enable *take ownership* |
-| Times in the reports are wrong | Set `TZ` in `.env` (e.g. `Europe/Berlin`) and run `sudo sh update.sh` |
+| Times in the reports are wrong | Set `TZ` in `.env` (e.g. `Europe/Berlin`) and run `sudo docker compose up -d` |

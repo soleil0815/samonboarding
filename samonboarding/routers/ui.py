@@ -68,7 +68,7 @@ def i18n_json():
 @router.get("/", response_class=HTMLResponse)
 def serve_gui():
     cfg = load_json(CONFIG_FILE, default_config)
-    domain = html.escape(str(cfg.get("domain", "yourdomain.local")))
+    domain = html.escape(str(cfg.get("domain", "firma.local")))
     return (
         load_index_html()
         .replace("__ASSET_HEAD__", asset_head())

@@ -5,6 +5,17 @@ Update on the server: `sudo sh update.sh --pull`.
 
 Entries starting with "Security:" or "Fixed:" are marked accordingly in the interface.
 
+## 2.0.0 – 2026-10-29
+- **Moved to the Docker standard:** the program is completely in the image. Only `docker-compose.yml`, `.env` and the folder `data/` remain on the server. Installation: get the files from the release, fill in `.env`, `docker compose up -d`. Updates with a container manager (Dockhand, Watchtower, Tugtainer …) or with `docker compose pull && docker compose up -d`.
+- Security: before every version change the program itself backs up the data folder when it starts (`data/backups/vor-<version>-<date>.tar.gz`, the last 10 are kept) and then brings the data to the new state. If an older version starts on data of a newer one, it stops with a clear message naming the backup instead of running on with follow-up errors.
+- Security: the container starts only briefly as root (with the rights DAC_READ_SEARCH, CHOWN, SETUID, SETGID), hands `data/` over to the program user 10001 and then runs permanently without special rights. A fresh data folder therefore works without manual steps.
+- The `docker-compose.yml` stays stable: no build settings any more, defaults are in the program. It has a version (`SAMONBOARDING_COMPOSE`); if it is out of date, the interface shows administrators a note. The image carries the current file. `docker-compose.image.yml` is gone.
+- Fix a version with `SAMONBOARDING_VERSION` in `.env`: empty = newest, `2.0` = newest 2.0.x including security updates, `2.0.0` = exactly this one.
+- New `update.sh` for the manual way (runs with `/bin/sh`, also on a NAS): remembers the running version, fetches the new one, starts it and goes back if the start fails. Plus `--version`, `--offline` (image file from the release, without internet), `--restore` (put a backup back) and `--cleanup` (remove old program files, never data). ZIP, building on the server and `--lock` are gone.
+- Every release now has `docker-compose.yml`, `env.example` and the image files for amd64 and arm64 attached.
+- New versions only come via a pull request; a merge only checks, publishing is done by hand. In addition there is the tag `<major>.<minor>` (e.g. `2.0`).
+- Example values in the docs and templates are neutral (`firma.local`, `10.0.10.x`).
+
 ## 1.48.1 – 2026-10-28
 - For every published version GitHub now also creates a release page (`v<version>`, e.g. `v1.48.1` or `v1.48.1-s1`) with the changelog entry in German and English, for security updates including the list of changed packages. A release page is created once and never changed afterwards.
 

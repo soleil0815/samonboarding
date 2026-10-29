@@ -85,29 +85,29 @@ HTTPS_PORT = _env_int("HTTPS_PORT", 9500)
 TLS_DIR = DATA_DIR / "tls"
 TLS_CERT_FILE = os.environ.get("TLS_CERT_FILE", "").strip() or str(TLS_DIR / "cert.pem")
 TLS_KEY_FILE = os.environ.get("TLS_KEY_FILE", "").strip() or str(TLS_DIR / "key.pem")
-# Namen/IPs fuer das selbstsignierte Zertifikat (Komma-getrennt), z. B. samonboarding.firma.local,192.168.1.20
+# Namen/IPs fuer das selbstsignierte Zertifikat (Komma-getrennt), z. B. samonboarding.firma.local,10.0.10.20
 TLS_HOSTNAMES = [h.strip() for h in os.environ.get("TLS_HOSTNAMES", "").split(",") if h.strip()]
 
 LOGIN_MAX_ATTEMPTS = max(1, _env_int("LOGIN_MAX_ATTEMPTS", 5))
 
 LOGIN_LOCK_SECONDS = max(1, _env_int("LOGIN_LOCK_MINUTES", 5)) * 60
 
-VERSION = "1.48.1"
+VERSION = "2.0.0"
 
 default_config = {
-    "domain": os.environ.get("AD_DOMAIN", "").strip() or "yourdomain.local",
-    "dc_ip": os.environ.get("AD_DC_IP", "").strip() or "192.168.1.10",
+    "domain": os.environ.get("AD_DOMAIN", "").strip() or "firma.local",
+    "dc_ip": os.environ.get("AD_DC_IP", "").strip() or "10.0.10.5",
     "backend": os.environ.get("AD_BACKEND", "auto"),  # nur noch ein Hinweis: Samba/Windows wird automatisch erkannt
 }
 
 default_smtp_config = {
     "enabled": False,
     "displayName": "SAMONBOARDING NOTIFY",
-    "host": "mail.yourdomain.local",
+    "host": "mail.firma.local",
     "port": 587,
     "username": "",
     "password": "",
-    "fromEmail": "noreply@yourdomain.local",
+    "fromEmail": "noreply@firma.local",
     "ccRecipients": "",
     "tlsMode": "Auto",
     "notifyOffboarding": False,

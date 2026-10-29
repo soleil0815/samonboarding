@@ -11,6 +11,7 @@ pyproject.toml
 requirements-dev.txt
 .env
 .env.*
+!.env.example
 backups/
 docker-compose.override.yml
 node_modules/
@@ -19,6 +20,5 @@ requirements.txt.vorher
 *.zip
 .dateiliste
 .update-*
-docker-compose.image.yml
 .trivyignore
 scripts/

@@ -226,16 +226,16 @@ class InstallTests(unittest.TestCase):
         self.assertEqual(tls.current_info()["subject"], "samonboarding.firma.local")
 
     def test_zurueck_zu_selbstsigniert(self):
-        names, live = tls.install_self_signed(["neu.firma.local", "192.168.1.20", "neu.firma.local"])
-        self.assertEqual(names, ["neu.firma.local", "192.168.1.20"])
+        names, live = tls.install_self_signed(["neu.firma.local", "10.0.10.20", "neu.firma.local"])
+        self.assertEqual(names, ["neu.firma.local", "10.0.10.20"])
         info = tls.current_info()
         self.assertTrue(info["selfSigned"])
-        self.assertEqual(info["names"], ["neu.firma.local", "192.168.1.20"])
+        self.assertEqual(info["names"], ["neu.firma.local", "10.0.10.20"])
         for bad in (["mit leerzeichen"], ["ümlaut.local"], ["a" * 64 + ".local"], ["-x.local"]):
             with self.assertRaises(tls.CertError):
                 tls.install_self_signed(bad)
             # das bisherige Zertifikat bleibt in Betrieb
-            self.assertEqual(tls.current_info()["names"], ["neu.firma.local", "192.168.1.20"])
+            self.assertEqual(tls.current_info()["names"], ["neu.firma.local", "10.0.10.20"])
         names, _ = tls.install_self_signed(["*.firma.local"])
         self.assertEqual(names, ["*.firma.local"])
 

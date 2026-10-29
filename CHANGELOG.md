@@ -5,6 +5,17 @@ Update auf dem Server: `sudo sh update.sh --pull`.
 
 Einträge, die mit „Sicherheit:“ oder „Behoben:“ beginnen, werden in der Oberfläche entsprechend markiert.
 
+## 2.0.0 – 2026-10-29
+- **Umstellung auf den Docker-Standard:** Das Programm steckt komplett im Image. Auf dem Server liegen nur noch `docker-compose.yml`, `.env` und der Ordner `data/`. Installation: Dateien aus dem Release holen, `.env` ausfüllen, `docker compose up -d`. Updates mit einer Container-Verwaltung (Dockhand, Watchtower, Tugtainer …) oder mit `docker compose pull && docker compose up -d`.
+- Sicherheit: Vor jedem Versionswechsel sichert das Programm beim Start selbst den Datenordner (`data/backups/vor-<Version>-<Datum>.tar.gz`, die letzten 10 bleiben) und bringt die Daten danach auf den neuen Stand. Startet eine ältere Version auf Daten einer neueren, bricht sie mit einer klaren Meldung ab und nennt die Sicherung, statt mit Folgefehlern weiterzulaufen.
+- Sicherheit: Der Container startet nur kurz als root (mit den Rechten DAC_READ_SEARCH, CHOWN, SETUID, SETGID), übergibt `data/` an den Programmbenutzer 10001 und läuft danach dauerhaft ohne Sonderrechte. Ein frischer Datenordner funktioniert damit ohne Handarbeit.
+- Die `docker-compose.yml` bleibt stabil: keine Bau-Angaben mehr, Vorgaben stehen im Programm. Sie hat eine Kennung (`SAMONBOARDING_COMPOSE`); ist sie veraltet, zeigt die Oberfläche Administratoren einen Hinweis. Das Image bringt die aktuelle Datei mit. `docker-compose.image.yml` entfällt.
+- Version festlegen mit `SAMONBOARDING_VERSION` in der `.env`: leer = neueste, `2.0` = neueste 2.0.x samt Sicherheitsupdates, `2.0.0` = genau diese.
+- Neues `update.sh` für den Weg von Hand (läuft mit `/bin/sh`, auch auf einem NAS): merkt sich die laufende Version, holt die neue, startet sie und kehrt bei einem Fehlstart zurück. Dazu `--version`, `--offline` (Image-Datei aus dem Release, ohne Internet), `--restore` (Sicherung zurückspielen) und `--cleanup` (alte Programmdateien entfernen, nie Daten). ZIP, Bauen auf dem Server und `--lock` entfallen.
+- Jedes Release hat jetzt `docker-compose.yml`, `env.example` und die Image-Dateien für amd64 und arm64 als Anhang.
+- Neue Versionen kommen nur noch über einen Pull Request; ein Merge prüft nur, veröffentlicht wird von Hand. Zusätzlich gibt es den Tag `<Haupt>.<Unterversion>` (z. B. `2.0`).
+- Beispielwerte in Doku und Vorlagen neutral (`firma.local`, `10.0.10.x`).
+
 ## 1.48.1 – 2026-10-28
 - Zu jeder veröffentlichten Version legt GitHub jetzt auch eine Release-Seite an (`v<Version>`, z. B. `v1.48.1` oder `v1.48.1-s1`), mit dem Changelog-Eintrag auf Deutsch und Englisch, bei Sicherheitsupdates samt Liste der geänderten Pakete. Eine Release-Seite wird einmal angelegt und danach nicht mehr verändert.
 
