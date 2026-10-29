@@ -715,7 +715,11 @@ def release_notes(tag, image, root=ROOT):
     )
     return (
         f"{kind}\n\n{de}\n\n---\n\n**English**\n\n{en}\n\n---\n\n"
-        f"Image: `{image}:{tag}`\n\nUpdate auf dem Server / on the server: `sudo sh update.sh --pull`\n"
+        f"Image: `{image}:{tag}`\n\n"
+        "Update: Container-Verwaltung (Dockhand, Watchtower, …) oder / or "
+        "`docker compose pull && docker compose up -d` oder / or `sudo sh update.sh`.\n"
+        "Ohne Internet / without internet: `samonboarding-<Version>-<amd64|arm64>.tar.gz` → "
+        "`sudo sh update.sh --offline <Datei>`\n"
     )
 
 
@@ -775,6 +779,16 @@ def plan(mode, changed, published, root=ROOT):
     release:          the program version, unless it is already published (never overwritten)
     security-update:  changed -> next <version>-s<counter>; unchanged -> nothing, unless the current state is
                       missing in the registry (e.g. the previous push failed) - then it is published now"""
+    result = _plan(mode, changed, published, root)
+    tag = result["tag"]
+    minor = ".".join(tag.split("-s")[0].split(".")[:2])
+    same_minor = [t for t in published if tag_key(t) is not None and t.split("-s")[0].startswith(minor + ".")]
+    result["minor"] = minor  # e.g. 2.0: the newest 2.0.x including its security updates
+    result["minor_latest"] = result["action"] == "publish" and is_highest(tag, same_minor)
+    return result
+
+
+def _plan(mode, changed, published, root):
     version = program_version(root)
     published = [t for t in published if tag_key(t) is not None]
     if mode == "release":
@@ -818,7 +832,7 @@ def plan(mode, changed, published, root=ROOT):
 
 def cmd_plan(args):
     result = plan(args.mode, args.changed == "true", registry_tags(args.image))
-    for key in ("action", "tag", "latest", "commit"):
+    for key in ("action", "tag", "latest", "commit", "minor", "minor_latest"):
         value = result[key]
         set_output(key, str(value).lower() if isinstance(value, bool) else value)
     annotate("notice", f"Plan: {result['action']} {result['tag']}", result["reason"])
@@ -894,9 +908,17 @@ def cmd_test_image(args):
 
 
 def cmd_smoke(args):
-    name = "samonb-smoke-" + re.sub(r"[^a-z0-9]", "", args.image.lower())[-20:]
+    """Start the server in the image and query it via HTTPS. With --as-root like the docker-compose.yml: started as
+    root with only CHOWN/SETUID/SETGID and a fresh data folder of another owner - the start script must hand the
+    folder over and then run the program as user 10001 without any rights."""
+    name = "samonb-smoke-" + re.sub(r"[^a-z0-9]", "", args.image.lower())[-20:] + ("-root" if args.as_root else "")
     docker("rm", "-f", name, check=False)
-    docker("run", "-d", "--name", name, args.image)
+    options = []
+    if args.as_root:
+        data = tempfile.mkdtemp(prefix="samonb-data-", dir=os.environ.get("RUNNER_TEMP") or None)
+        options = ["--user", "0:0", "--cap-drop", "ALL", "--cap-add", "CHOWN", "--cap-add", "SETUID"]
+        options += ["--cap-add", "SETGID", "--security-opt", "no-new-privileges:true", "-v", f"{data}:/app/data"]
+    docker("run", "-d", "--name", name, *options, args.image)
     probe = (
         "import ssl, urllib.request; print(urllib.request.urlopen('https://localhost:9500/api/public-config', "
         "timeout=3, context=ssl._create_unverified_context()).read().decode())"
@@ -904,11 +926,25 @@ def cmd_smoke(args):
     try:
         for _ in range(45):
             if docker("exec", name, "python", "-c", probe, check=False).returncode == 0:
-                print(f"Server in {args.image} answers on HTTPS.")
-                return
+                break
             subprocess.run(["sleep", "2"], check=False)
-        logs = docker("logs", name, check=False)
-        raise PinError(f"The server in {args.image} does not answer on HTTPS:\n{(logs.stdout + logs.stderr)[-2000:]}")
+        else:
+            logs = docker("logs", name, check=False)
+            raise PinError(
+                f"The server in {args.image} does not answer on HTTPS:\n{(logs.stdout + logs.stderr)[-2000:]}"
+            )
+        if args.as_root:
+            status = docker("exec", name, "cat", "/proc/1/status").stdout
+            uid = re.search(r"^Uid:\s+(\d+)\s+(\d+)", status, re.M)
+            caps = re.search(r"^CapEff:\s+([0-9a-f]+)", status, re.M)
+            owner = docker("exec", name, "stat", "-c", "%u", "/app/data").stdout.strip()
+            state = docker("exec", name, "test", "-f", "/app/data/datenstand.json", check=False).returncode
+            if not uid or uid.groups() != ("10001", "10001") or not caps or int(caps.group(1), 16) != 0:
+                raise PinError(f"The program does not run as user 10001 without rights:\n{status[:600]}")
+            if owner != "10001" or state != 0:
+                raise PinError(f"The data folder was not handed over (owner {owner}, datenstand.json: {state == 0})")
+            print(f"Started as root: data folder handed over, program runs as 10001 without rights ({args.image}).")
+        print(f"Server in {args.image} answers on HTTPS.")
     finally:
         docker("rm", "-f", name, check=False)
 
@@ -1108,10 +1144,13 @@ def main(argv=None):
     p = sub.add_parser("registry-tags")
     p.add_argument("image")
     p.set_defaults(fn=cmd_registry_tags)
-    for name, fn in (("test-image", cmd_test_image), ("smoke", cmd_smoke)):
-        p = sub.add_parser(name)
-        p.add_argument("image")
-        p.set_defaults(fn=fn)
+    p = sub.add_parser("test-image")
+    p.add_argument("image")
+    p.set_defaults(fn=cmd_test_image)
+    p = sub.add_parser("smoke")
+    p.add_argument("image")
+    p.add_argument("--as-root", action="store_true")
+    p.set_defaults(fn=cmd_smoke)
     p = sub.add_parser("scan")
     p.add_argument("image")
     p.add_argument("--label")

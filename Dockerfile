@@ -93,12 +93,16 @@ COPY . .
 # Local CSS, fonts and icons from stage 1 (served by the application under /static)
 COPY --from=assets /build/dist /app/static
 
-# Own user without privileges: the application does NOT run as root. data/ belongs to it (update.sh sets this on
-# the host too, because data/ is mounted from there). Port 9500 needs no special privileges.
+# Own user without privileges: the application does NOT run as root. Port 9500 needs no special privileges.
+# data/ belongs to this user: docker-entrypoint.sh hands a mounted ./data over to it if needed (only when the container
+# is started as root, as the docker-compose.yml does), then switches to this user for good.
+# The image default stays this user, so an older docker-compose.yml keeps working as before.
 ARG APP_UID=10001
 RUN groupadd --gid ${APP_UID} samonboarding \
  && useradd --uid ${APP_UID} --gid ${APP_UID} --no-create-home --home-dir /app --shell /usr/sbin/nologin samonboarding \
  && chmod -R a+rX /app \
+ && chmod 755 /app/docker-entrypoint.sh /app/update.sh \
+ && test -x /usr/bin/setpriv \
  && mkdir -p /app/data && chown ${APP_UID}:${APP_UID} /app/data && chmod 700 /app/data
 USER ${APP_UID}:${APP_UID}
 
@@ -109,5 +113,8 @@ EXPOSE 9500
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
   CMD ["python", "-c", "import os, ssl, urllib.request; urllib.request.urlopen('https://localhost:%s/api/public-config' % os.environ.get('HTTPS_PORT', '9500'), timeout=3, context=ssl._create_unverified_context())"]
 
-# Start command of the container (uvicorn with TLS, see samonboarding/serve.py)
+# Start of the container (docker-entrypoint.sh), then the application (uvicorn with TLS, see samonboarding/serve.py).
+# The image also carries the current docker-compose.yml, .env.example and update.sh (/app) - update.sh takes them from
+# there.
+ENTRYPOINT ["/app/docker-entrypoint.sh"]
 CMD ["python", "-m", "samonboarding.serve"]

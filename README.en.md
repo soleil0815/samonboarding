@@ -21,7 +21,7 @@ The application runs as a Docker container (FastAPI + ldap3). The web interface 
 > - **Spare-time project, no warranty.** SAMONBOARDING was built for my own needs and is maintained in my spare time. There is no warranty and no liability (sections 15 and 16 of the [license](LICENSE)).
 > - **The program has far-reaching rights.** It creates accounts, resets passwords and deletes accounts and folders. Try it in a **test environment** first and make a backup before using it in a real AD for the first time.
 > - **Tested with Samba AD.** Windows Server AD is supported but less proven (for example several DCs, Exchange, large structures). Feedback on this is welcome.
-> - **Fixed version for production.** `latest` is rebuilt, tested and scanned automatically every week, but not against a real AD. If you want to check changes yourself first, set a fixed version, for example `SAMONBOARDING_IMAGE=ghcr.io/soleil0815/samonboarding:1.47.0` in `.env`.
+> - **Fixed version for production.** `latest` is rebuilt, tested and scanned automatically every week, but not against a real AD. If you want to check changes yourself first, set a fixed version, for example `SAMONBOARDING_VERSION=2.0` in `.env` (see [Fixing a version and going back](#fixing-a-version-and-going-back)).
 > - **No support.** Questions and bug reports are read but answered only as time allows. Please do not report **security vulnerabilities** publicly; see [SECURITY.md](SECURITY.md).
 
 ---
@@ -71,125 +71,123 @@ The navigation follows the life cycle of an account: **joining** (*Onboarding*),
 
 **Language:** the interface is available in **German and English**. Switch with *DE / EN* at the bottom of the sidebar or in the top right corner of the sign-in page. The browser remembers the choice; on the first visit the browser language is used. Server messages and notification mails use the chosen language. Names, OUs, groups and paths from AD are never translated. The English texts are in `samonboarding/web/i18n.json` (German text → English text, with placeholders `{0}` for values).
 
-Colours and fonts are defined in `samonboarding/web/theme.json`. After changing them, rebuild the image (`docker compose up -d --build`).
+Colours and fonts are defined in `samonboarding/web/theme.json`. After changing them a new image is built (see [section 11](#11-development)).
 
 ---
 
 ## 2. Requirements
 
-- A Linux server (or VM) with **Docker Engine**. **Docker Compose is not required:** if it is available (`docker compose` or `docker-compose`, any version, e.g. on a **Synology**), `update.sh` uses it. Otherwise `update.sh` starts the container directly with `docker` and the same settings (network, port, `data/`, permissions, restart, health check); only a `docker-compose.override.yml` is then not applied.
+- A Linux server, a VM or a NAS (e.g. **Synology** with *Container Manager*) with **Docker** and **Docker Compose** (`docker compose` or `docker-compose`)
 - The server reaches the domain controller on **TCP 636** (LDAPS) and can resolve its name
 - A **domain controller** with LDAPS enabled (see [section 5](#5-preparing-active-directory))
 - Optional: an SMTP server for notifications
+
+The program is completely in the image. Only three things live on the server:
+
+```
+/opt/samonboarding/          (any folder)
+├── docker-compose.yml       ← from the release, do not edit
+├── .env                     ← your settings
+└── data/                    ← everything the program stores (Docker creates it on the first start)
+    └── backups/             ← backups before every version change (created by the program)
+```
 
 ---
 
 ## 3. Installation
 
-### Step 1: Provide the files
+### Step 1: Get the files
 
-**From GitHub:**
+The files `docker-compose.yml` and `env.example` are attached to every release on GitHub (*Releases* → newest version → *Assets*). On the server:
 
 ```bash
-sudo apt install git          # if not installed yet
-sudo git clone https://github.com/soleil0815/samonboarding.git /opt/samonboarding
-cd /opt/samonboarding
+sudo mkdir -p /opt/samonboarding && cd /opt/samonboarding
+# put docker-compose.yml and env.example of the newest release here, then:
+sudo cp env.example .env
 ```
 
-Nothing has to be built on the server: GitHub builds the ready-made image (`ghcr.io/soleil0815/samonboarding`) for every new version, and `sudo sh update.sh --pull` fetches and starts it (step 3).
-
-**Alternatively as a ZIP:** unpack the ZIP of a version into a folder such as `/opt/samonboarding`. These files and folders must sit directly next to each other:
-
-```
-/opt/samonboarding/
-├── app.py
-├── Dockerfile
-├── docker-compose.yml      ← replaced with every version, do not edit
-├── .env.example            ← template for your settings
-├── .env                    ← your settings (created in step 2, kept on updates)
-├── requirements.txt
-├── tailwind.config.js
-├── tailwind.input.css
-├── .dockerignore
-└── samonboarding/          ← complete folder with all modules and web/index.html
-```
-
-Check: `ls samonboarding/web` must show `index.html`. If the `samonboarding/` folder is missing, the build stops with `"/samonboarding/web": not found`.
+If the repository is private, the image is private too. Then log in once (user = GitHub account, password = token with the right *read:packages*): `sudo docker login ghcr.io`.
 
 ### Step 2: Enter your settings in `.env`
 
-Your settings live in the file **`.env`**, not in `docker-compose.yml`. The `.env` belongs to you: new versions only ship an updated `.env.example`, your `.env` is never overwritten.
+Your settings are in the file **`.env`**, not in `docker-compose.yml`. The `.env` belongs to you and is never overwritten.
 
 ```bash
-cp .env.example .env
-nano .env
+sudo nano .env
 ```
 
 Adjust at least these values:
 
 ```ini
-AD_DOMAIN=company.local
-AD_DC_IP=192.168.1.10
+AD_DOMAIN=firma.local
+AD_DC_IP=10.0.10.5
 CUSTOM_OPERATOR_GROUP=CO-ADMIN
 ```
 
-All other settings (port, time zone, certificate, retention …) are listed with comments in `.env.example`; their meaning is in [section 4](#4-configuration). Put comments on their own lines only (starting with `#`), never after a value.
+All other settings (version, port, time zone, certificate, retention …) are listed with comments in `.env`; their meaning is in [section 4](#4-configuration). Please write comments only on their own lines (starting with `#`), never after a value. A CA file for the DC (`LDAP_CA_FILE`) must be in the data folder, e.g. `data/ca.pem` (`/app/data/ca.pem` in the container).
 
-If you need something that cannot be set in `.env` (e.g. a custom DNS server for the container), create a **`docker-compose.override.yml`**. Docker reads it automatically in addition, and it is not replaced on updates either.
+If you need something that cannot be set in `.env` (e.g. your own DNS server for the container), create a **`docker-compose.override.yml`**. Docker reads it automatically in addition; it is never replaced.
 
 ### Step 3: Start
 
 ```bash
-sudo sh update.sh --pull     # fetch and start the ready-made image from GitHub (recommended)
-# or: sudo sh update.sh      # build the image here on the server
+sudo docker compose up -d
 ```
 
-With `--pull` nothing is built; the start only takes as long as the download. Without `--pull`, `update.sh` checks the requirements, creates the npm lock file the first time, builds the image with the pinned versions, starts the container and waits until it is "healthy". At the end it shows the address. The first build takes a few minutes. Without the script, `sudo chown -R 10001:10001 data` and `docker compose up -d --build` work too (the container runs as user 10001, not as root, and needs write access to `data/`).
+Docker fetches the image and starts the container. On the first start it creates `data/`; the program hands the folder over to its own user (10001) and then runs without special rights. Nothing is built on the server.
 
 ### Step 4: Check
 
 ```bash
-docker compose ps          # status should be "running" or "healthy"
-docker compose logs -f     # follow the logs (Ctrl+C stops the output)
+sudo docker compose ps          # status should be "healthy"
+sudo docker compose logs -f     # follow the logs (Ctrl+C stops the display)
 ```
 
-**No internet at runtime:** the application does not open any internet connections by itself, only to the DC, file servers, SMTP and Exchange if used (see [section 9](#9-security-notes)). If you want to shield the container further, restrict the outgoing traffic of the Docker network `samonboarding` (subnet `DOCKER_SUBNET`) in the firewall of the host, router or Synology.
+**No internet in operation:** the application does not open any connections to the internet by itself, only to the DC, file server, SMTP and, if used, Exchange (see [section 9](#9-security-notes)). To isolate the container further, restrict the outgoing traffic of the Docker network `samonboarding` (subnet `DOCKER_SUBNET`) in the firewall of the host, router or NAS. For updates without internet see [Without internet](#without-internet).
 
 ### Step 5: Sign in
 
-Open `https://<server>:9500` in a browser and sign in with an AD account that is an administrator. On first start the application creates a **self-signed certificate**, so the browser shows a warning once. Afterwards you can upload your own certificate in the interface under **Certificate** (see [HTTPS](#https)). These formats are accepted:
+Open `https://<server>:9500` in the browser and sign in with an AD account that is an administrator. On the first start the application creates a **self-signed certificate**, so the browser shows a warning once. Upload your own certificate afterwards in the interface under **Certificate** (see [HTTPS](#https)). These spellings are allowed:
 
 - `username`
-- `username@company.local`
-- `COMPANY\username`
+- `username@firma.local`
+- `FIRMA\username`
 
 Continue with the [first-time setup](#6-first-time-setup-in-the-interface).
 
----
+### With a container manager (Dockhand, Portainer & co.)
 
-### Alternative: ready-made image from GitHub (Dockhand, Portainer & co.)
+Create a stack with the content of `docker-compose.yml` and enter the settings from `env.example` as `.env` or as variables of the stack. The data folder `./data` is then in the folder of the stack. For a private image, add the registry `ghcr.io` with a token with *read:packages*.
 
-On every push to `main`, GitHub builds the image itself (`.github/workflows/image.yml`) and publishes it as `ghcr.io/soleil0815/samonboarding:latest` and `ghcr.io/soleil0815/samonboarding:<version>`. Before that, GitHub pins the Python packages and runs all tests with exactly these packages; if anything fails, no image is published. Nothing is built on the server, and `update.sh` is not needed.
+### Moving from version 1.x
 
-1. **Create a stack** with the content of `docker-compose.image.yml` (in Dockhand: new stack, paste the file or take it from the repository).
-2. **Settings** as stack variables, with the same names as in `.env.example`. `AD_DOMAIN` and `AD_DC_IP` are required, usually also `CUSTOM_OPERATOR_GROUP` and `TLS_HOSTNAMES`.
-3. **Registry access:** if the repository is private, the image is private too. Then add the registry `ghcr.io` in Dockhand with user `soleil0815` and a token with the *read:packages* permission (GitHub → Settings → Developer settings → Personal access tokens → Tokens (classic)). Alternatively make the package public on GitHub under *Packages → samonboarding → Package settings*.
-4. **Start.** The data lives in the Docker volume `samonboarding-data`; it gets the right owner automatically on the first start.
-5. **Updates:** new version on GitHub → image is built → pull the image again in Dockhand or enable automatic updates. To stay on a specific version (recommended for production): variable `SAMONBOARDING_VERSION=1.47.0`.
+Up to 1.48 the whole program was in the folder on the server (ZIP or `git clone`, partly built there). The move, step by step:
 
-What does **not** happen automatically (only `update.sh` does that): backing up `data/` before the update and going back to the previous version if the start fails. Going back works by hand via `SAMONBOARDING_VERSION`. Backing up the volume:
+1. **Run the previous update script once:**
+   ```bash
+   cd /opt/samonboarding
+   sudo sh update.sh --pull
+   ```
+   It fetches the new version, takes the new `update.sh` and the new `docker-compose.yml` from the image and starts the container. If it does not start, the previous version comes back. `.env` and `data/` stay as they are. A `SAMONBOARDING_IMAGE=…` in `.env` is taken over into `SAMONBOARDING_VERSION`.
+2. **Check** that everything runs (`sudo docker compose ps`, sign in to the interface).
+3. **Remove the old program files:**
+   ```bash
+   sudo sh update.sh --cleanup
+   ```
+   The script shows the list of files that are no longer needed (program folders, old ZIPs, version folders, temporary files, remains of the former internet block), asks and deletes only those. It **never** touches `data/`, `backups/`, `.env`, `docker-compose.yml` (also `.alt` and `docker-compose.override.yml`), `update.sh` and folders mounted by a container – not via links either.
+
+Afterwards only `docker-compose.yml`, `.env`, `data/` (and the old backups in `backups/`) are left in the folder.
+
+**Data so far in the Docker volume `samonboarding-data`** (Dockhand with the former `docker-compose.image.yml`): copy it once into the folder `data` next to the new `docker-compose.yml`, with the old stack stopped:
 
 ```bash
-docker run --rm --user 0 -v samonboarding-data:/app/data:ro -v "$PWD":/backup --entrypoint tar \
-  ghcr.io/soleil0815/samonboarding:latest czf /backup/samonboarding-data-$(date +%F).tar.gz -C /app data
+cd /opt/samonboarding     # folder with the new docker-compose.yml
+sudo docker run --rm --user 0 --entrypoint sh -v samonboarding-data:/von:ro -v "$PWD/data":/nach \
+  ghcr.io/soleil0815/samonboarding:latest -c 'cp -a /von/. /nach/'
+sudo docker compose up -d
 ```
 
-Moving an existing installation (`/opt/samonboarding/data`) into the volume, once, with the old container stopped:
-
-```bash
-docker run --rm --user 0 -v /opt/samonboarding/data:/von:ro -v samonboarding-data:/app/data --entrypoint sh \
-  ghcr.io/soleil0815/samonboarding:latest -c 'cp -a /von/. /app/data/ && chown -R 10001:10001 /app/data'
-```
+Once everything runs, the old volume can be deleted with `sudo docker volume rm samonboarding-data`.
 
 ## 4. Configuration
 
@@ -199,15 +197,15 @@ All settings are in the file **`.env`** (template: `.env.example`). After a chan
 
 | Variable | Default | Meaning |
 |---|---|---|
-| `AD_DOMAIN` | `yourdomain.local` | DNS name of the domain (not the NetBIOS name). The search base is derived from it: `company.local` → `DC=company,DC=local` |
-| `AD_DC_IP` | `192.168.1.10` | IP address or name of the domain controller |
+| `AD_DOMAIN` | `firma.local` | DNS name of the domain (not the NetBIOS name). The search base is derived from it: `firma.local` → `DC=company,DC=local` |
+| `AD_DC_IP` | `10.0.10.5` | IP address or name of the domain controller |
 | `CUSTOM_OPERATOR_GROUP` | empty | sAMAccountName of an additional group whose members are operators. The built-in *Account Operators* group always applies, recognised by its SID |
 | `LDAP_CA_FILE` | empty | Path (inside the container) to a CA file in PEM format. If set, the DC certificate is verified |
 | `LDAP_ALLOW_PLAIN` | `false` | `true` = fall back to unencrypted LDAP (port 389) if 636 is unreachable. Passwords then travel in plain text – emergencies only |
 | `SESSION_IDLE_MINUTES` | `30` | Sign-out after this many minutes of inactivity |
 | `SESSION_MAX_HOURS` | `12` | Maximum session length, even with continuous activity. Then sign in again (the role is determined again) |
 | `HTTPS_PORT` | `9500` | HTTPS port in the container. There is no HTTP port |
-| `TLS_HOSTNAMES` | empty | Names and IPs for the self-signed certificate, comma-separated (e.g. `samonboarding.company.local,192.168.1.20`) |
+| `TLS_HOSTNAMES` | empty | Names and IPs for the self-signed certificate, comma-separated (e.g. `samonboarding.firma.local,10.0.10.20`) |
 | `TLS_CERT_FILE`, `TLS_KEY_FILE` | `data/tls/cert.pem`, `data/tls/key.pem` | Your own certificate and key (PEM) |
 | `LOGIN_MAX_ATTEMPTS` | `5` | Failed attempts per user and IP before a temporary lock |
 | `LOGIN_LOCK_MINUTES` | `5` | Duration of the lock in minutes |
@@ -227,7 +225,7 @@ Notes:
   services:
     samonboarding:
       dns:
-        - 192.168.1.10
+        - 10.0.10.5
   ```
 - If a file `data/config.json` exists, **it takes precedence** over the environment variables `AD_DOMAIN` and `AD_DC_IP`. The application does not create this file itself.
 
@@ -244,7 +242,7 @@ Preparation always consists of the same three things:
 Test whether LDAPS is reachable (from the Docker host):
 
 ```bash
-openssl s_client -connect 192.168.1.10:636 -showcerts </dev/null
+openssl s_client -connect 10.0.10.5:636 -showcerts </dev/null
 ```
 
 If a certificate is shown, LDAPS is active. `connection refused` or a timeout means port 636 is closed or blocked.
@@ -278,7 +276,7 @@ samba-tool domain passwordsettings show
 **Enable certificate validation (optional):**
 
 1. Copy `ca.pem` from the DC to `./data/ca.pem`
-2. In `.env`: `LDAP_CA_FILE=/app/data/ca.pem` and set `AD_DC_IP` to the DNS name of the DC (for example `dc1.company.local`)
+2. In `.env`: `LDAP_CA_FILE=/app/data/ca.pem` and set `AD_DC_IP` to the DNS name of the DC (for example `dc1.firma.local`)
 3. `openssl x509 -in cert.pem -noout -subject -ext subjectAltName` shows which name the certificate contains
 
 ### 5.2 Windows Server AD
@@ -288,7 +286,7 @@ samba-tool domain passwordsettings show
 Test on the DC or a domain member server:
 
 ```powershell
-Test-NetConnection dc1.company.local -Port 636
+Test-NetConnection dc1.firma.local -Port 636
 ```
 
 Or with `ldp.exe`: *Connection → Connect…*, port `636`, tick *SSL*.
@@ -317,7 +315,7 @@ Important:
 **Enable certificate validation (optional):**
 
 1. Export the CA root certificate (format *Base-64 encoded X.509*) and save it as `./data/ca.pem`
-2. In `.env`: `LDAP_CA_FILE=/app/data/ca.pem` and set `AD_DC_IP` to the **fully qualified DNS name** of the DC (for example `dc1.company.local`) as contained in the certificate
+2. In `.env`: `LDAP_CA_FILE=/app/data/ca.pem` and set `AD_DC_IP` to the **fully qualified DNS name** of the DC (for example `dc1.firma.local`) as contained in the certificate
 3. The Docker host must be able to resolve this name (see the note on `dns:` in [section 4](#4-configuration))
 
 ---
@@ -379,7 +377,7 @@ Text fields may contain the placeholder `%username%`. It is replaced by the new 
 ### Onboarding
 
 1. Choose a template, enter first and last name and (depending on the template) the e-mail address
-2. The account is created in the template's target OU (name: *First Last*, UPN: `username@company.local`)
+2. The account is created in the template's target OU (name: *First Last*, UPN: `username@firma.local`)
 3. The account is first created **disabled**, then the password is set, then it is enabled. If setting the password fails, the half-finished account is deleted again
 4. The template's groups are assigned. If this fails for individual groups, a warning is shown
 5. The credentials appear in the result window (copy or print as PDF). If SMTP is active, a mail goes to the employee who performed the action
@@ -410,7 +408,7 @@ For templates set to *On-premises Exchange*, the application runs `Enable-Mailbo
 | Field | Meaning |
 |---|---|
 | Enable Exchange integration | Switch, **off** by default. While it is off, a template with *On-premises Exchange* only gets a warning and no mailbox is created |
-| Exchange server | Server name without `https://` (e.g. `exchange01.company.local`), reachable from the container |
+| Exchange server | Server name without `https://` (e.g. `exchange01.firma.local`), reachable from the container |
 | Port, HTTPS, verify certificate | Default `443`, HTTPS on, verification on. Only turn verification off if the certificate cannot be trusted otherwise |
 | Authentication | *Automatic (negotiate)*; if there are problems try *NTLM* or *Kerberos* |
 | Mailbox database | empty = Exchange chooses |
@@ -572,53 +570,79 @@ docker compose exec samonboarding python -m samonboarding.privacy auskunft jdoe
 
 ### Update
 
-From version 1.39.0 the installation files (`update.sh` with all its output, `.env.example`, `Dockerfile`, `docker-compose.yml`) are in English. The setting names in `.env` are unchanged, so an existing `.env` keeps working.
+**With a container manager** (Dockhand, Watchtower, Tugtainer, Portainer …): simply enable automatic updates. Recommendation: **at night**, e.g. at 3 am. Before a version change the program backs up `data/` itself when it starts (see below); if a version does not start, it stays "unhealthy" and the container manager reports it.
 
-**Ready-made image from GitHub (recommended):**
+**By hand:**
 
 ```bash
 cd /opt/samonboarding
-sudo sh update.sh --pull
+sudo docker compose pull && sudo docker compose up -d
 ```
 
-The script fetches the newest image from `ghcr.io/soleil0815/samonboarding` (`docker pull`) – GitHub built and tested it, nothing is built on the server. Before that it backs up `data/`, afterwards it restarts the container and checks that it becomes "healthy". `update.sh` and `docker-compose.yml` are brought to the state of the image as well. **If the new version does not start, the script automatically puts the previous image back into service.** `.env`, `data/` and `backups/` stay unchanged. `git` is not needed for this, so a `git clone` never has to be updated. A specific image instead of the newest one: `SAMONBOARDING_IMAGE=ghcr.io/soleil0815/samonboarding:1.43.0` in `.env`.
-
-If the repository is private, the image is private too. Then log in once as root (user `soleil0815`, password = a token with the *read:packages* permission):
+**With the helper script** (remembers the running version and goes back if the start fails):
 
 ```bash
-sudo docker login ghcr.io -u soleil0815
+sudo sh update.sh
 ```
 
-**As a ZIP:** upload the ZIP of the new version to the project folder (e.g. `/opt/samonboarding`) and run there:
+`update.sh` is in the image and arrives in the folder automatically when moving from 1.x; to get it again: `sudo docker run --rm --entrypoint cat ghcr.io/soleil0815/samonboarding:latest /app/update.sh > update.sh`. It runs with `/bin/sh` (also dash and on a NAS) and only does this:
 
-```bash
-sudo sh update.sh samonboarding-*.zip
-```
+1. remember the running version as the image `samonboarding:previous`
+2. fetch the wanted version (default: the one in `.env`, empty = `latest`)
+3. `docker compose up -d` and wait for the health check
+4. if the new version does not start: ask and start the previous one again (with `-y` without asking)
 
-The script checks the ZIP (a single top folder, no invalid paths or links, really SAMONBOARDING), shows the installed and the new version and how many files change, are added and are dropped, and asks **once** (type `y`). It then backs up the current program files to `backups/programm-<version>-<date>.tar.gz`, swaps the files, removes files that no longer exist in the new version and continues with the new version's script (backup of `data/`, build, start, check). Finally it cleans up: the ZIP, temporary files and old SAMONBOARDING images are removed. If the build fails or the new version does not start, the previous program files come back and the ZIP stays.
+If the image brings a newer `docker-compose.yml`, the script puts it in place and keeps the old one as `docker-compose.yml.alt`. It does not unpack ZIPs, does not place program files and builds nothing.
 
-`.env`, `data/`, `backups/` and a `docker-compose.override.yml` are never touched. Package versions pinned on the server (`requirements.txt`, `images.lock`, `package-lock.json`) are kept as long as they match the new version. Without the question (e.g. for scripts): `sudo sh update.sh samonboarding-*.zip --yes`. Unpacking uses `unzip`, otherwise `python3` or the Docker image – nothing needs to be installed.
-
-Manually still works: unpack the new version (replace all files except `data/`, `.env`, `backups/` and any `docker-compose.override.yml`), then:
-
-```bash
-sh update.sh
-```
-
-The script first backs up `data/` to `backups/` (the last 3 backups are kept; `KEEP_BACKUPS=5 sh update.sh` keeps more), builds the image, restarts the container and checks that it becomes "healthy". If the build fails, the previous container keeps running unchanged. **If the new version does not start cleanly, the script automatically starts the previous image again.**
-
-**New package requirements:** the pinned versions come ready-checked with every version (`requirements.txt`, `images.lock`, `os-packages.lock`, `package-lock.json`). If `requirements.in` was changed by hand without pinning again, `update.sh` stops before building and names the command `sudo sh update.sh --lock`. With it `scripts/pins.py` renews the versions within the limits (needs `python3`); the image is built, the Debian package list is written, and if it does not start, the previous version comes back.
-
-| Option | Effect |
+| Call | Effect |
 |---|---|
-| `--lock` | Re-pin all versions (Python packages, npm packages, base images with digest) and build afterwards, e.g. for security updates |
-| `--no-cache` | Build without the Docker build cache |
-| `--no-backup` | No backup of `data/` |
-| `--prune` | Remove unused images afterwards |
-| `--pull` | Fetch and start the ready-made image of the newest version from GitHub (nothing is built) |
-| `--yes` | No question (when installing a ZIP) |
+| `sudo sh update.sh` | Update to the version in `.env` (empty = `latest`) |
+| `sudo sh update.sh --version 2.0` | Set a version (written to `.env`) and fetch it |
+| `sudo sh update.sh --latest` | Back to the newest version (entry in `.env` emptied) |
+| `sudo sh update.sh --offline <file>` | Load an image file from the release and start (without internet) |
+| `sudo sh update.sh --restore data/backups/<file>` | Put a backup of `data/` back (the current state is saved first) |
+| `sudo sh update.sh --cleanup` | Remove files of older installations that are no longer needed |
+| `-y` | Answer questions with yes |
 
-Only settings in `.env` changed: `docker compose up -d` is enough.
+Only settings in `.env` changed: `sudo docker compose up -d` is enough. All users are signed out after a restart.
+
+**If the `docker-compose.yml` is too old**, the interface shows administrators a note. Remedy: `sudo sh update.sh` (replaces it automatically) or get the `docker-compose.yml` of the current release and run `sudo docker compose up -d`.
+
+### What happens on a version change
+
+When a different program version starts than last time, the program **first** backs up the data folder to `data/backups/vor-<version>-<date>.tar.gz` (the last 10 are kept) and then brings the data to the state of the new version (`data/datenstand.json`). Security updates (`-s1`, `-s2` …) are the same program and need no backup.
+
+If an **older** version starts on data that a newer version has already converted, it stops with a clear message (in `docker compose logs`) instead of running on with follow-up errors. The message names the matching backup.
+
+### Fixing a version and going back
+
+In `.env`:
+
+| `SAMONBOARDING_VERSION=` | Meaning |
+|---|---|
+| *(empty)* | always the newest version (`latest`) |
+| `2.0` | the newest 2.0.x including security updates, no jump to 2.1 or 3.0 |
+| `2.0.1` | exactly this version (its security updates are `2.0.1-s1`, `2.0.1-s2` …) |
+
+Then `sudo docker compose pull && sudo docker compose up -d` (or `sudo sh update.sh --version 2.0`).
+
+**Back to an older version:** if the newer version did not change the data format, it is enough to enter the older version and restart. If it did, the older one does not start and names the backup. Then:
+
+```bash
+sudo sh update.sh --restore data/backups/vor-2.1.0-20261102-030000.tar.gz --version 2.0.1
+```
+
+The script stops the container, saves the current state (`vor-wiederherstellen-<date>.tar.gz`), puts the backup back, sets the version and starts. Whatever was changed since that backup (settings, reports) is missing afterwards.
+
+### Without internet
+
+Every release has the image files `samonboarding-<version>-amd64.tar.gz` and `…-arm64.tar.gz` attached. Copy the matching file to the server (Intel/AMD: `amd64`, ARM NAS: `arm64`), then:
+
+```bash
+sudo sh update.sh --offline samonboarding-2.0.1-amd64.tar.gz
+```
+
+Without the script: `sudo docker load -i samonboarding-2.0.1-amd64.tar.gz`, `SAMONBOARDING_VERSION=2.0.1` in `.env`, `sudo docker compose up -d`.
 
 ### Reproducible versions
 
@@ -633,7 +657,7 @@ Every build uses exactly the same versions. The same files give the same image:
 | `package.json`, `package-lock.json` | npm packages for CSS, fonts and icons, exact and with checksums of all sub-packages (`npm ci`). Only needed while building, not part of the image |
 | `requirements-dev.txt` | Test tools (pytest, ruff) with exact versions |
 
-The versions are renewed with `python3 scripts/pins.py update` (needs Docker and internet). On GitHub this happens automatically every week (see *Automatic security updates*), on a server with `sudo sh update.sh --lock`. The same limits always apply:
+The versions are renewed with `python3 scripts/pins.py update` (needs Docker and internet). On GitHub this happens automatically every week (see *Automatic security updates*). Nothing is ever pinned or built on a server. The same limits always apply:
 
 - same Debian version (`trixie`), same Python series (3.13) and Node series (24)
 - every package within its major version, below 1.0 within its minor version (`0.54.x` stays `0.54`)
@@ -643,16 +667,17 @@ A new base (e.g. Debian 14 or Python 3.14) is never chosen automatically. For th
 
 ### Automatic security updates
 
-Two workflows run on GitHub. They only publish from the `main` branch; on other branches every run is a dry run.
+Two workflows run on GitHub. A new program version only comes via a pull request; a pull request or a merge only checks, publishing is done by hand.
 
 | When | What happens |
 |---|---|
-| Push to `main` (new program version) | Build with exactly the pinned versions, tests in the image (amd64 and arm64), HTTPS start check, Trivy. Then published as `:<version>`, e.g. `:1.48.0`. A version that is already published is never overwritten |
-| Mondays 05:17 UTC (also by hand: *Actions → Image → Run workflow*) | Security update: renew the versions within the limits, build without cache, the same tests and Trivy. Only if everything passed: the new versions and a changelog entry (with the list of changed packages) are committed, and the image appears as `:<version>-s<counter>`, e.g. `:1.48.0-s1`, `:1.48.0-s2`. A new program version starts again at `-s1`. If nothing changed, nothing happens |
+| Pull request, push to `main` | Build with exactly the pinned versions, tests in the image (amd64 and arm64), HTTPS start check (also started as with the `docker-compose.yml`), Trivy. Nothing is published |
+| By hand: *Actions → Image → Run workflow → release* (on `main`) | The same checks, then published as `:<version>`, e.g. `:2.0.0`, plus `:2.0` and `:latest` if it is the highest in each case. A version that is already published is never overwritten. Release page with `docker-compose.yml`, `env.example` and the image files for servers without internet |
+| Mondays 05:17 UTC (also by hand: *Actions → Image → Run workflow*) | Security update: renew the versions within the limits, build without cache, the same tests and Trivy. Only if everything passed: the new versions and a changelog entry (with the list of changed packages) are committed, and the image appears as `:<version>-s<counter>`, e.g. `:2.0.0-s1`, `:2.0.0-s2` (and as `:2.0` and `:latest` if it is the highest). A new program version starts again at `-s1`. If nothing changed, nothing happens |
 | Every day 03:43 UTC | Trivy scans the published image `:latest`, so vulnerabilities that only become known after the release are noticed |
 | Mondays 06:29 UTC | How long do Debian, Python and Node still get security updates (endoflife.date)? From 12 months before the end a note on the run, from 6 months a red run |
 
-For every published version a release page `v<version>` with the changelog entry is created on GitHub (for security updates with the list of changed packages). `-s<counter>` means: same program, only newer packages. `:latest` always points to the highest version. An update only reaches a server with `sudo sh update.sh --pull` (or via Dockhand & co.).
+For every published version a release page `v<version>` with the changelog entry is created on GitHub (for security updates with the list of changed packages). `-s<counter>` means: same program, only newer packages. `:latest` always points to the highest version. An update reaches a server via the container manager, `docker compose pull` or `sudo sh update.sh` (see [Update](#update)).
 
 Trivy is not included as a GitHub Action (`trivy-action` and `setup-trivy` were compromised in March 2026, CVE-2026-33634). `scripts/install-trivy.sh` downloads a fixed version and checks its SHA-256 checksum against the stored value and against the official checksums file of the release. A new Trivy version is only taken over deliberately, with version and checksum in that file.
 
@@ -668,18 +693,18 @@ Trivy is not included as a GitHub Action (`trivy-action` and `setup-trivy` were 
 | *security updates end on …* | The base runs out soon | Plan the change: new tags in `images.lock` (e.g. the next Python series), test, publish as a new program version |
 | *… not reachable* / timeout | Docker Hub, snapshot.debian.org or endoflife.date could not be reached | Repeat the run later (*Re-run jobs*) |
 
-`data/`, `.env` and any `docker-compose.override.yml` are kept during an update; simply replace all other files with the new version. New options are listed in `.env.example`. All users are signed out afterwards.
-
-**Internet block removed (from 1.38.0):** if an older version installed the internet block, `update.sh` removes it automatically once the new version is running and "healthy" (iptables chains `SAMONB-EGRESS*`/`SAMONB-HOST*`, the systemd units `samonboarding-internetsperre.service`/`.path`/`.timer` and `data/netziele.txt`). The lines `INTERNET_SPERRE`, `ZUSATZ_ZIELE`, `DATEISERVER_NETZE` and `DNS_SERVER` in an existing `.env` are ignored and can be deleted. `update.sh` still needs root rights (as root or with `sudo`) for the permissions on `data/` and this cleanup.
-
 ### Backup
 
-Back up the `data/` folder. It contains:
+Back up the `data/` folder (together with `.env`). It contains everything the program stores:
 
-- `smtp_config.json`, `templates.json` and the module configurations
+- `config.json`, `smtp_config.json`, `templates.json` and the module configurations
 - `offboarding.db` (stored states for restoring after offboarding)
 - `reports.db` (reports: changes and log)
 - `tls/` (HTTPS certificate and key)
+- `datenstand.json` (data state and the program version used last)
+- `backups/` (backups the program makes itself before every version change; the last 10 are kept)
+
+The backups in `data/backups` are for going back to an older version. They do not help if the server is lost: `data/` also belongs in your normal backup.
 
 ### HTTPS
 
@@ -729,7 +754,7 @@ A reverse proxy is no longer needed. If you use one anyway, forward to `https://
 - For onboarding and password reset, notification mails contain the new password in plain text and go to the acting employee. Mails for offboarding, password reset, user management and deletion can be switched off individually in the SMTP settings. The onboarding mail is sent as soon as SMTP is enabled; if you do not want that, do not enable SMTP
 - The application protects against password guessing with a temporary lock per user and IP (default: 5 attempts, 5 minutes). An AD account lockout is independent of this; plan your AD policy accordingly
 - Deletion is reserved for administrators (menu hidden, the server checks the role). File server access runs with the signed-in administrator's permissions. Deleted files cannot be restored; plan backups or shadow copies on the file server
-- **No root in the container:** the application runs as user 10001 without Linux capabilities and cannot gain privileges (`no-new-privileges`). `data/` belongs to this user and only it can read it (`update.sh` sets this)
+- **No root for the program:** the container starts briefly as root, only with the rights CHOWN, SETUID and SETGID, to hand `data/` over to the program user 10001. After that the program runs permanently as 10001 without Linux capabilities and cannot gain privileges (`no-new-privileges`). Only this user can read `data/`
 - The image contains no data from `data/` (`.dockerignore`). Still, do not push it to public registries
 
 ---
@@ -748,13 +773,13 @@ A reverse proxy is no longer needed. If you use one anyway, forward to `https://
 | *Das Konto liegt nicht in einer … freigegebenen Quell-OU* | The target is outside the configured OUs. As administrator, extend the OUs |
 | Action fails with *insufficientAccessRights* | The signed-in user lacks AD rights on the OU (delegation, [section 5](#5-preparing-active-directory)) |
 | Certificate error (with `LDAP_CA_FILE`) | Wrong CA file, or `AD_DC_IP` is not the name from the certificate |
-| Interface without styling or icons | The image was built without local files. The logs say *"Lokale Assets … fehlen"* (local assets missing). Rebuild with `docker compose build --no-cache` |
+| Interface without styling or icons | The image is incomplete (the logs say *"Lokale Assets … fehlen"*, local assets missing). Get an official image: `sudo docker compose pull && sudo docker compose up -d` |
 | Changing `AD_DOMAIN` or `AD_DC_IP` has no effect | Check whether `data/config.json` exists. It takes precedence and must be adjusted or deleted |
 | *Sitzung ungueltig - bitte neu anmelden.* (session invalid) | The user's password was changed in AD or the session expired |
 | *Dieses Konto ist geschützt ...* (403) on offboarding or deletion | The account is a member of a privileged group (e.g. Domain Admins). Intended protection. If it really has to be processed, remove the membership in AD first |
 | Onboarding warning *Postfach konnte nicht angelegt werden* (mailbox could not be created) | Read the message: *authentication rejected* → change the authentication (NTLM) or check the *Mail Recipients* role. *Not reachable* → server name, port 443 and firewall from the container to Exchange. *Certificate* → trust the certificate or deliberately turn verification off. The account exists; create the mailbox in Exchange |
 | Restore: *Die OU … gibt es nicht mehr* (OU no longer exists) | Choose another OU in the restore dialog |
-| Times in the reports are in UTC | `TZ` is missing in `.env` or the image is old. Set `TZ=Europe/Berlin` and rebuild (`docker compose up -d --build`) |
+| Times in the reports are in UTC | `TZ` is missing in `.env`. Set `TZ=Europe/Berlin` and run `sudo docker compose up -d` |
 | Deletion: *Seit der Simulation hat sich etwas geändert* (something changed since the simulation) | The state changed between simulation and deletion (e.g. a user signed in and created a profile). Nothing was deleted. Repeat the simulation |
 | Deletion: *Nicht alle Ordner konnten gelöscht werden* (not all folders could be deleted) | Usually locked files (user still signed in, virus scanner) or missing delete rights. The AD account remains. Error details in the result list, then repeat the simulation |
 | Deletion simulation: *Dateiserver nicht erreichbar* (file server not reachable) | Port 445 from the container to the file server is blocked or the server name in the path is wrong. Check with the connection test on the page |
@@ -763,7 +788,10 @@ A reverse proxy is no longer needed. If you use one anyway, forward to `https://
 | Deletion: file or folder *ist in Benutzung (gesperrt)* (in use) | A file is still open (user signed in, virus scanner, indexing). End the session on the server (`Get-SmbOpenFile | Close-SmbOpenFile`) or wait, then repeat the simulation. Taking ownership does not help here |
 | Deletion: *Besitzübernahme fehlgeschlagen* (taking ownership failed) | The administrator lacks the right *Take ownership of files or other objects* on the server, or the folder is on a drive without NTFS permissions |
 | Deletion simulation: profile folder not found | The suffix does not match (e.g. `.V6` instead of `.V2`) or the folder is not below a configured base path |
-| Build stops with `"/samonboarding/web": not found` | The `samonboarding/` folder is not next to the `Dockerfile` |
+| Container does not start, log: *Die Daten stammen von SAMONBOARDING …* (data from a newer version) | An older version was started on data of a newer one. Either enter the newer version again or put back the named backup (see [Fixing a version and going back](#fixing-a-version-and-going-back)) |
+| Log: *The data folder could not be given to the application user* or *data/ ist … nicht beschreibbar* | An older `docker-compose.yml` without `user: "0:0"` or a data folder on a drive without Linux permissions. Use the current `docker-compose.yml` or run once `sudo chown -R 10001:10001 data` |
+| Note in the interface: *docker-compose.yml … out of date* | Run `sudo sh update.sh` or get the `docker-compose.yml` of the current release and run `sudo docker compose up -d` |
+| *pull access denied* / *unauthorized* when fetching the image | The image is private: log in once with `sudo docker login ghcr.io` (token with *read:packages*) |
 
 ---
 
@@ -806,6 +834,7 @@ samonboarding/
   i18n.py                   server-side translator (mails) and per-request language (header X-UI-Lang)
   routers/privacy_info.py   data protection window: retention (/api/privacy-info) and subject access for admins (/api/privacy/report)
   privacy.py                data protection: retention periods (daily), subject access (python -m samonboarding.privacy)
+  datastate.py              data state: backup before a version change, migrations, protection against older versions
 DATA-PROTECTION.en.md       data protection documentation (GDPR), German: DATENSCHUTZ.md
 Dockerfile                  stage 1 builds Tailwind CSS, fonts (Manrope, JetBrains Mono) and Font Awesome, stage 2 is the app
 tailwind.config.js          Tailwind scans samonboarding/web/*.html, colours and fonts from web/theme.json
@@ -813,12 +842,14 @@ tests/                      unit tests and scenarios (see Tests)
 pyproject.toml              ruff and pytest configuration
 requirements-dev.txt        packages for testing (exact versions)
 requirements.in             direct Python packages; requirements.txt is the exact lock list
-package.json                npm packages for the CSS build (exact); package-lock.json is created by sh update.sh
+package.json                npm packages for the CSS build (exact), package-lock.json with all sub-packages
 images.lock                 base images with version and digest, Debian snapshot
 os-packages.lock            all Debian packages in the image (per architecture)
 scripts/pins.py             pins the versions (also the weekly security update)
 scripts/install-trivy.sh    Trivy with fixed version and SHA-256 check
-update.sh                   back up, build, restart, check status; --lock re-pins the versions
+docker-compose.yml          the only file for the server (version SAMONBOARDING_COMPOSE), also in the image
+docker-entrypoint.sh        start in the container: hand data/ over, then run as user 10001 for good
+update.sh                   manual update: remember the previous version, fetch, start, go back if the start fails; --cleanup, --restore, --offline
 ```
 
 ### Adding a feature
@@ -831,8 +862,8 @@ update.sh                   back up, build, restart, check status; --lock re-pin
 
 ### Notes
 
-- New **Tailwind classes** in `web/index.html` need a new image build (`docker compose up -d --build`), because the CSS is generated from the HTML file during the build
-- Changes to **Python code** need a new image build (`sudo sh update.sh`). The code is part of the image and is not mounted from the host, so an image restored by a rollback also brings its own code
+- Changes to the code or to **Tailwind classes** in `web/index.html` need a new image. For development build locally: `docker build $(python3 scripts/pins.py build-args) -t samonboarding:dev .` and set `image: samonboarding:dev` in a `docker-compose.override.yml`. Published images are only built by GitHub
+- The code is part of the image and is not mounted from the host, so an image restored by a rollback also brings its own code
 - The Python packages are deliberately minimal: `fastapi`, `uvicorn`, `ldap3`, `pydantic`, plus `smbprotocol` for the file server features and `pypsrp` for the Exchange mailbox
 
 ### Tests
@@ -860,6 +891,9 @@ ruff check . && ruff format --check .
 | `tests/test_manual.py`, `tests/ui/manual.test.js` | Manual: sign-in required, both languages, safe rendering (no HTML, only internal or https links), every contents entry leads to a heading |
 | `tests/test_assets.py` | Colours/fonts (`theme.json`), local-only asset loading, no internet addresses, CSP, fonts in the Dockerfile |
 | `tests/test_scenarios.py` | Runs the scenarios in `tests/scenarios/`: sign-in and roles, onboarding, offboarding, groups, settings, deletion (simulation, execution, ownership takeover, mail), restore after offboarding, templates, sorting, renamed/moved OUs and groups |
+| `tests/test_update_sh.py` | `update.sh` with a simulated `docker` under dash: update, going back after a failed start, newer `docker-compose.yml`, offline, restore, cleanup spares data also via links and mounted folders |
+| `tests/test_datastate.py` | Backup before a version change, migrations, stop on data of a newer version, version of the `docker-compose.yml`, start script |
+| `tests/test_pins.py`, `tests/test_supply_chain.py` | Pinned versions and their limits, security update numbers, Trivy (simulated), GitHub workflows |
 
 The scenarios run against a **simulated AD and a simulated file server** and need no installed packages (small stand-in modules in `tests/scenarios/stubs`). Run one on its own with `python tests/scenarios/scenario_deletion.py`. They do **not** test real SMB connections or real file permissions; that is only possible on a test server (see Delete accounts — try with an unimportant account first). The same checks run on every push in GitHub Actions (`.github/workflows/image.yml`); the image is only built if everything passes.
 

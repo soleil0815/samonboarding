@@ -41,7 +41,7 @@ class CertificateTests(unittest.TestCase):
         self.patches = [
             mock.patch.object(config, "TLS_CERT_FILE", self.cert),
             mock.patch.object(config, "TLS_KEY_FILE", self.key),
-            mock.patch.object(config, "TLS_HOSTNAMES", ["samonboarding.firma.local", "192.168.1.20"]),
+            mock.patch.object(config, "TLS_HOSTNAMES", ["samonboarding.firma.local", "10.0.10.20"]),
         ]
         for p in self.patches:
             p.start()
@@ -61,7 +61,7 @@ class CertificateTests(unittest.TestCase):
             c = x509.load_pem_x509_certificate(f.read())
         san = c.extensions.get_extension_for_class(x509.SubjectAlternativeName).value
         self.assertIn("samonboarding.firma.local", san.get_values_for_type(x509.DNSName))
-        self.assertEqual([str(i) for i in san.get_values_for_type(x509.IPAddress)], ["192.168.1.20"])
+        self.assertEqual([str(i) for i in san.get_values_for_type(x509.IPAddress)], ["10.0.10.20"])
         before = Path(cert).read_bytes()
         tls.ensure_certificate()
         self.assertEqual(Path(cert).read_bytes(), before)  # vorhandenes Zertifikat bleibt
@@ -110,7 +110,7 @@ class ServeTests(unittest.TestCase):
         self.assertIn('CMD ["python", "-m", "samonboarding.serve"]', docker)
         self.assertIn("EXPOSE 9500", docker)
         self.assertIn('"${HTTPS_PORT:-9500}:${HTTPS_PORT:-9500}"', compose)
-        self.assertIn("os.environ.get('HTTPS_PORT', '9500')", compose)
+        self.assertIn("os.environ.get('HTTPS_PORT', '9500')", docker)  # Gesundheitscheck im Image, nicht in der Datei
         self.assertNotIn("8000", compose)
 
 
@@ -123,7 +123,9 @@ class EnvFileTests(unittest.TestCase):
         # keine Schreibweisen, die erst neuere Docker-Compose-Versionen kennen (Synology & Co.)
         self.assertNotIn("required:", compose)
         self.assertNotIn("path:", compose)
-        self.assertNotIn("environment:", compose)
+        # environment nur fuer die Kennung der Datei, keine Einstellungen
+        env_block = compose[compose.index("environment:") :].split("\n    ports:")[0]
+        self.assertEqual(env_block.count(":"), 2, env_block)
         for key in ("AD_DOMAIN", "AD_DC_IP", "CUSTOM_OPERATOR_GROUP"):
             self.assertNotIn(key, compose)
 

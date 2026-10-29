@@ -62,7 +62,7 @@ This document describes the personal data SAMONBOARDING processes: where it is k
   ```bash
   docker compose exec samonboarding python -m samonboarding.privacy bereinigen
   ```
-- **Backups:** if you back up `data/`, the retention periods apply to the backups as well. Plan backup retention to match. `update.sh` creates a backup in `backups/` before every update (readable by the owner only) and keeps only the last 3 (`KEEP_BACKUPS`).
+- **Backups:** if you back up `data/`, the retention periods apply to the backups as well. Plan backup retention to match. Before every version change the program itself creates a backup in `data/backups/` (readable only by the program user) and keeps only the last 10. Older backups in `backups/` next to the `docker-compose.yml` come from `update.sh` up to version 1.48 and can be deleted after checking.
 
 ---
 

@@ -246,9 +246,10 @@ class PrivacyApiTests(unittest.TestCase):
         ):
             self.assertIn(needed, html)
 
-    def test_kein_dockhand_mehr(self):
-        for name in ("docker-compose.yml", "update.sh"):
-            self.assertNotIn("dockhand", (ROOT / name).read_text(encoding="utf-8").lower())
+    def test_kein_dockhand_label_mehr(self):
+        """Das alte Label, das Dockhand-Updates abgeschaltet hat, bleibt draussen (Dockhand & Co. sollen updaten)."""
+        for name in ("docker-compose.yml", "update.sh", "Dockerfile"):
+            self.assertNotIn("dockhand.update", (ROOT / name).read_text(encoding="utf-8").lower())
 
 
 class DefaultsTests(unittest.TestCase):

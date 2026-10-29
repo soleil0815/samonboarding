@@ -5,6 +5,7 @@ import logging
 from fastapi import APIRouter, Cookie, Depends, HTTPException, Request, Response
 from ldap3.core.exceptions import LDAPBindError
 
+from .. import datastate
 from ..audit import audit
 from ..config import CONFIG_FILE, SESSION_IDLE_SECONDS, default_config
 from ..dn import base_dn
@@ -31,7 +32,16 @@ log = logging.getLogger(__name__)
 @router.get("/api/public-config")
 def get_public_config():
     cfg = load_json(CONFIG_FILE, default_config)
-    return {"domain": cfg.get("domain", "yourdomain.local"), "idleMinutes": SESSION_IDLE_SECONDS // 60}
+    return {"domain": cfg.get("domain", "firma.local"), "idleMinutes": SESSION_IDLE_SECONDS // 60}
+
+
+@router.get("/api/host-notices")
+def get_host_notices(user: dict = Depends(get_current_user)):
+    """Hinweise zum Betrieb (nur fuer Administratoren): z. B. eine veraltete docker-compose.yml."""
+    if user.get("role") != "Administrator":
+        return {"notices": []}
+    notice = datastate.compose_notice()
+    return {"notices": [dict(notice, kind="compose")] if notice else []}
 
 
 @router.get("/api/me")

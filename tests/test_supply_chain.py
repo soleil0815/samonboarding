@@ -49,12 +49,23 @@ class WorkflowSecurityTests(unittest.TestCase):
 
     def test_release_nur_vom_hauptzweig_und_nie_zwei_gleichzeitig(self):
         flow = text("image.yml")
-        self.assertIn("on:\n  push:\n    branches: [main]\n", flow)
-        self.assertIn("PUBLISH: ${{ github.ref == 'refs/heads/main' && 'true' || 'false' }}", flow)
+        self.assertTrue(
+            "on:\n  pull_request:\n    branches: [main]\n  push:\n    branches: [main]\n" in flow, "Ausloeser"
+        )
+        # veroeffentlicht nur von main, nie bei Push oder Pull Request: ein Merge allein veroeffentlicht nichts
+        publish = (
+            "PUBLISH: ${{ github.ref == 'refs/heads/main' && github.event_name != 'push' "
+            "&& github.event_name != 'pull_request' && 'true' || 'false' }}"
+        )
+        self.assertTrue(publish in flow, "PUBLISH")
         for step in ("Commit the new pins", "Publish the image"):
             block = flow[step_index(flow, step) :][:400]
             self.assertIn("if: env.PUBLISH == 'true'", block, step)
-        self.assertIn("concurrency:\n  group: image-release", flow)
+        self.assertTrue(
+            "group: ${{ github.event_name == 'pull_request' && format('image-pr-{0}', github.ref) || 'image-release' }}"
+            in flow,
+            "Releases nie gleichzeitig",
+        )
         self.assertIn("cancel-in-progress: false", flow)
         self.assertEqual(flow.count("--push"), 1)
         self.assertEqual(flow.count("docker login"), 1)
@@ -91,11 +102,26 @@ class ScheduleTests(unittest.TestCase):
 
     def test_modus_je_ausloeser(self):
         flow = text("image.yml")
-        self.assertIn(
-            "MODE: ${{ github.event_name == 'push' && 'release' || (github.event_name == 'workflow_dispatch' "
-            "&& inputs.mode) || 'security-update' }}",
-            flow,
+        mode = (
+            "MODE: ${{ (github.event_name == 'push' || github.event_name == 'pull_request') && 'check' || "
+            "(github.event_name == 'workflow_dispatch' && inputs.mode) || 'security-update' }}"
         )
+        self.assertTrue(mode in flow, "MODE")
+        plan = flow[step_index(flow, "Plan") :][:500]
+        self.assertTrue('if [ "$mode" = check ]; then mode=release; fi' in plan, "Pruefung plant wie ein Release")
+
+    def test_release_seite_mit_anhaengen_und_tag_x_y(self):
+        flow = text("image.yml")
+        release = flow[step_index(flow, "GitHub release (only main)") :]
+        for needed in ('cp docker-compose.yml "$assets/docker-compose.yml"', 'cp .env.example "$assets/env.example"',
+                       'docker save "$IMAGE:$TAG" | gzip -6 > "$assets/samonboarding-$TAG-$arch.tar.gz"',
+                       '--latest="$latest" "$assets"/*'):  # fmt: skip
+            self.assertTrue(needed in release, needed)
+        publish = flow[step_index(flow, "Publish the image") : step_index(flow, "GitHub release (only main)")]
+        self.assertTrue('if [ "$MINOR_LATEST" = true ]; then tags="$tags --tag $IMAGE:$MINOR"; fi' in publish, "X.Y")
+        smoke = flow[step_index(flow, "Start check of the server") : step_index(flow, "Vulnerability scan (Trivy")]
+        for arch in ("amd64", "arm64"):  # auch so gestartet wie mit der docker-compose.yml (als root, dann 10001)
+            self.assertTrue(f"smoke samonboarding:test-{arch} --as-root" in smoke, arch)
 
 
 class OrderTests(unittest.TestCase):
