@@ -16,6 +16,8 @@ Webanwendung für die tägliche Benutzerverwaltung im Active Directory (**Samba 
 
 Die Anwendung läuft als Docker-Container (FastAPI + ldap3), die Oberfläche ist komplett eingebaut und braucht kein Internet.
 
+![Anmeldeseite von SAMONBOARDING mit der Domäne firma.local](docs/images/anmeldung.png)
+
 > **Bitte vor dem Einsatz lesen**
 >
 > - **Freizeitprojekt, ohne Gewähr.** SAMONBOARDING ist für den eigenen Bedarf entstanden und wird in der Freizeit gepflegt. Es gibt keine Gewährleistung und keine Haftung (Abschnitte 15 und 16 der [Lizenz](LICENSE)).
@@ -376,6 +378,8 @@ In den Textfeldern kann der Platzhalter `%username%` stehen. Er wird durch den n
 
 ### Onboarding
 
+![Onboarding: Template „Vertrieb“ gewählt, Vorname, Nachname und E-Mail eingetragen, darunter Ziel-OU, Namensmakro und Gruppen des Templates](docs/images/onboarding.png)
+
 1. Template wählen, Vor- und Nachname sowie (je nach Einstellung) die E-Mail-Adresse eingeben
 2. Das Konto wird in der Ziel-OU des Templates angelegt (Name: *Vorname Nachname*, UPN: `benutzername@firma.local`)
 3. Das Konto wird zunächst **deaktiviert** angelegt, das Passwort gesetzt und dann aktiviert. Gelingt das Setzen des Passworts nicht, wird das halbfertige Konto wieder gelöscht
@@ -468,6 +472,8 @@ Konto aus den freigegebenen OUs wählen, dann *Zufallspasswort* (12 Zeichen) ode
 Alle Benutzerlisten sind alphabetisch nach Anzeigenamen sortiert.
 
 ### Konten löschen (nur Administratoren)
+
+![Konten löschen: Liste der deaktivierten Konten und Ergebnis der Simulation mit Profil, Ordnerumleitung und Basisordner, darunter die Bestätigung mit Benutzername und Passwort](docs/images/loeschen.png)
 
 Der Menüpunkt **Konten löschen** ist nur für Administratoren sichtbar. Account Operatoren sehen ihn nicht, und der Server weist ihre Anfragen zusätzlich mit *403* ab. Geschützte (privilegierte) Konten, siehe Offboarding, lassen sich auch hier weder simulieren noch löschen.
 
