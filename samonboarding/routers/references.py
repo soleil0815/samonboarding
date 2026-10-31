@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# Copyright (C) 2026 Die SAMONBOARDING-Autoren
 """Pruefung der Verweise auf OUs und Gruppen in den Einstellungen (nach Umbenennen/Verschieben im AD).
 Nur Administratoren - siehe samonboarding/references.py."""
 

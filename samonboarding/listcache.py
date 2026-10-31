@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# Copyright (C) 2026 Die SAMONBOARDING-Autoren
 """Kurzer Zwischenspeicher fuer Konto-Listen (nur im Arbeitsspeicher, je Sitzung).
 
 Wechselt man in der Oberflaeche zwischen den Bereichen, muessen die Listen nicht jedes Mal neu vom DC gelesen

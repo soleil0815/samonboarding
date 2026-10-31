@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# Copyright (C) 2026 Die SAMONBOARDING-Autoren
 """Hilfsfunktionen fuer Distinguished Names (DN) und LDAP-Filter (Escaping, Zerlegen, Vergleichen)."""
 
 import re

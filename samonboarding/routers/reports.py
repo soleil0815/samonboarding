@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# Copyright (C) 2026 Die SAMONBOARDING-Autoren
 """Berichte (nur Administratoren): Aenderungen und Protokoll ansehen und manuell loeschen."""
 
 from datetime import datetime, timedelta, timezone

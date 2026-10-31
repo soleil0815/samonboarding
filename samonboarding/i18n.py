@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# Copyright (C) 2026 Die SAMONBOARDING-Autoren
 """Sprache der Oberflaeche (Deutsch/Englisch).
 
 Die Anwendung ist auf Deutsch geschrieben. Fuer Englisch uebersetzt tr() Texte ueber samonboarding/web/i18n.json:

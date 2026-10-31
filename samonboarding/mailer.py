@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# Copyright (C) 2026 Die SAMONBOARDING-Autoren
 """E-Mail-Benachrichtigungen: HTML-/Text-Vorlage und SMTP-Versand."""
 
 import html

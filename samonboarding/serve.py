@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# Copyright (C) 2026 Die SAMONBOARDING-Autoren
 """Startet SAMONBOARDING nur ueber HTTPS:  python -m samonboarding.serve
 
 Es gibt keinen unverschluesselten HTTP-Port. Zertifikat siehe samonboarding/tls.py; ein in der Oberflaeche

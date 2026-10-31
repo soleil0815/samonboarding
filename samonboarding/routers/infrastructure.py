@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# Copyright (C) 2026 Die SAMONBOARDING-Autoren
 """AD-Infrastruktur (OUs, Gruppen, Benutzer, Laender) fuer die Auswahllisten der Oberflaeche."""
 
 import logging

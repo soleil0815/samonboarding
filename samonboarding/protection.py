@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# Copyright (C) 2026 Die SAMONBOARDING-Autoren
 """Schutz privilegierter Konten: Domaenen-Admins & Co. duerfen nicht versehentlich offgeboardet oder geloescht werden.
 
 Massgeblich ist die tatsaechliche Gruppenmitgliedschaft (tokenGroups: enthaelt verschachtelte Gruppen und die primaere

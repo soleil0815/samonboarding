@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# Copyright (C) 2026 Die SAMONBOARDING-Autoren
 """Loeschfunktion (nur Administratoren), Schritt 1: Einstellungen, Verbindungstest und Simulation.
 
 Alles hier ist rein lesend: Es wird weder im AD noch auf den Dateiservern etwas veraendert.

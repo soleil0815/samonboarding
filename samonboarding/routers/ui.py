@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# Copyright (C) 2026 Die SAMONBOARDING-Autoren
 """Oberflaeche: HTML-Seite und statische Dateien (lokales Tailwind-CSS, Schriften Manrope/JetBrains Mono, Font Awesome).
 
 Alles wird vom eigenen Server ausgeliefert - es gibt keine Verbindungen zu CDNs oder Google Fonts.

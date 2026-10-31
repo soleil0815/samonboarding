@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# Copyright (C) 2026 Die SAMONBOARDING-Autoren
 """JSON-Speicher: atomares Schreiben und gesichertes Lesen der Konfigurationsdateien."""
 
 import copy

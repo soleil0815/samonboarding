@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# Copyright (C) 2026 Die SAMONBOARDING-Autoren
 """LDAP-Zugriff: Verbindung, Suche, Fehlerpruefung und Zeilenobjekte mit komfortablem Attributzugriff."""
 
 import logging

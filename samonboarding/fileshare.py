@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# Copyright (C) 2026 Die SAMONBOARDING-Autoren
 """Dateifreigaben (SMB): strenge Pfadpruefung und rein lesender Ordner-Scan fuer die Loesch-Simulation.
 
 Alles, was einen Pfad betrifft, laeuft hier durch dieselben Regeln:

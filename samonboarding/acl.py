@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# Copyright (C) 2026 Die SAMONBOARDING-Autoren
 """Windows-Sicherheitsbeschreibungen (Security Descriptor, binaer): lesen, um einen Eintrag ergaenzen, schreiben.
 
 Das ist nur der kleine Ausschnitt, der gebraucht wird: einen Besitzer setzen und eine Zugriffsberechtigung (ACE)

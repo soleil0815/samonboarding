@@ -1,5 +1,5 @@
 # ---------------------------------------------------------------------------
-# Stage 1: build CSS and fonts (Tailwind, Manrope, JetBrains Mono, Font Awesome - all local)
+# Stage 1: build CSS and fonts (Tailwind, Manrope, JetBrains Mono, Font Awesome - all local, with their licence texts)
 # ---------------------------------------------------------------------------
 # Base images with fixed version AND digest: always passed from images.lock (update.sh, GitHub workflow,
 # "python3 scripts/pins.py build-args"). There is deliberately no default, so no build uses a changing tag.
@@ -19,7 +19,11 @@ COPY samonboarding/web ./samonboarding/web
 
 # Tailwind scans the HTML file for the classes used and generates only the CSS needed
 RUN npx tailwindcss -c tailwind.config.js -i tailwind.input.css -o dist/app.css --minify \
- && mkdir -p dist/vendor/fontawesome dist/vendor/fonts/files \
+ && mkdir -p dist/vendor/fontawesome dist/vendor/fonts/files dist/vendor/licenses \
+ && cp node_modules/@fontsource/manrope/LICENSE dist/vendor/licenses/LICENSE-Manrope.txt \
+ && cp node_modules/@fontsource/jetbrains-mono/LICENSE dist/vendor/licenses/LICENSE-JetBrains-Mono.txt \
+ && cp node_modules/@fortawesome/fontawesome-free/LICENSE.txt dist/vendor/licenses/LICENSE-Font-Awesome.txt \
+ && cp node_modules/tailwindcss/LICENSE dist/vendor/licenses/LICENSE-Tailwind-CSS.txt \
  && cp -r node_modules/@fortawesome/fontawesome-free/css node_modules/@fortawesome/fontawesome-free/webfonts dist/vendor/fontawesome/ \
  && for w in 400 500 600 700 800; do \
       cat node_modules/@fontsource/manrope/$w.css >> dist/vendor/fonts/fonts.css; \

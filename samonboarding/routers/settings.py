@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# Copyright (C) 2026 Die SAMONBOARDING-Autoren
 """Einstellungen (nur Administratoren schreiben): SMTP, Offboarding, Passwort-Reset, Benutzerverwaltung."""
 
 import logging

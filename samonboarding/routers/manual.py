@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# Copyright (C) 2026 Die SAMONBOARDING-Autoren
 """Handbuch fuer die Hilfe in der Oberflaeche (Markdown, wird im Browser dargestellt)."""
 
 from fastapi import APIRouter, Depends

@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# Copyright (C) 2026 Die SAMONBOARDING-Autoren
 """Onboarding-Templates: anlegen, bearbeiten, duplizieren, loeschen."""
 
 from fastapi import APIRouter, Depends, HTTPException

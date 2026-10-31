@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# Copyright (C) 2026 Die SAMONBOARDING-Autoren
 """HTTPS-Zertifikat: eigenes Zertifikat verwenden oder beim ersten Start ein selbstsigniertes erzeugen.
 
 Reihenfolge:

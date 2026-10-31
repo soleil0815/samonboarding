@@ -1,4 +1,6 @@
 #!/bin/sh
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# Copyright (C) 2026 Die SAMONBOARDING-Autoren
 # Install Trivy WITHOUT a GitHub Action: fixed version, checked against a fixed SHA-256 checksum.
 # (trivy-action and setup-trivy were compromised in March 2026, CVE-2026-33634; Trivy 0.69.4 was a malicious release.)
 # A new version is only taken over deliberately: version and checksum from the official checksums file of the

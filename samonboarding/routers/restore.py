@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# Copyright (C) 2026 Die SAMONBOARDING-Autoren
 """Offboarding rueckgaengig machen: Konto zurueck in die alte OU, wieder in die alten Gruppen, wieder aktiv.
 
 Grundlage ist der beim Offboarding gespeicherte Zustand (offboard_store). Konto und Gruppen werden ueber ihre feste
