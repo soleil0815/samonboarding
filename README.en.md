@@ -16,6 +16,8 @@ Web application for day-to-day user management in Active Directory (**Samba AD**
 
 The application runs as a Docker container (FastAPI + ldap3). The web interface is fully built in and needs no internet access. It is available in **English and German** (switch with *DE / EN*); German labels are given in *italics* in this document where they help.
 
+![Sign-in page of SAMONBOARDING with the domain firma.local](docs/images/anmeldung-en.png)
+
 > **Please read before use**
 >
 > - **Spare-time project, no warranty.** SAMONBOARDING was built for my own needs and is maintained in my spare time. There is no warranty and no liability (sections 15 and 16 of the [license](LICENSE)).
@@ -376,6 +378,8 @@ Text fields may contain the placeholder `%username%`. It is replaced by the new 
 
 ### Onboarding
 
+![Onboarding: template “Vertrieb” chosen, first name, last name and e-mail entered, below the target OU, naming macro and groups of the template](docs/images/onboarding-en.png)
+
 1. Choose a template, enter first and last name and (depending on the template) the e-mail address
 2. The account is created in the template's target OU (name: *First Last*, UPN: `username@firma.local`)
 3. The account is first created **disabled**, then the password is set, then it is enabled. If setting the password fails, the half-finished account is deleted again
@@ -468,6 +472,8 @@ Choose an account from the permitted OUs, then *random password* (12 characters)
 All user lists are sorted alphabetically by display name.
 
 ### Delete accounts (administrators only)
+
+![Delete accounts: list of disabled accounts and result of the simulation with roaming profile, folder redirection and home folder, below the confirmation with user name and password](docs/images/loeschen-en.png)
 
 The menu item *Konten löschen* is only visible to administrators. Account Operators do not see it, and the server additionally rejects their requests with *403*. Protected (privileged) accounts, see offboarding, can neither be simulated nor deleted here.
 
