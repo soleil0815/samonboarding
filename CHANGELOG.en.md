@@ -5,6 +5,21 @@ Update on the server: `sudo sh update.sh --pull`.
 
 Entries starting with "Security:" or "Fixed:" are marked accordingly in the interface.
 
+## 2.0.0-s1 – 2026-10-31
+- Security: security update without program changes: same program, updated packages.
+- Base images:
+  - Python (python): `3.13.17-slim-trixie@d98cc29d3266` → `3.13.18-slim-trixie@76baad603769`
+  - Node (node): `24.22.1-trixie-slim@43b9ba1142b8` → `24.22.2-trixie-slim@54f84b4cf843`
+- Debian packages:
+  - tzdata `2026e-0+deb13u1` → `2026f-0+deb13u1`
+- Python packages:
+  - opentelemetry-api `1.45.1` → `1.45.2`
+  - pyasn1 `0.6.4` → `0.6.5`
+  - pydantic `2.14.1` → `2.14.2`
+  - pydantic_core `2.50.1` → `2.50.2`
+- npm packages (only for building the interface, not in the image):
+  - postcss `8.5.31` → `8.5.32`
+
 ## 2.0.0 – 2026-10-29
 - **Moved to the Docker standard:** the program is completely in the image. Only `docker-compose.yml`, `.env` and the folder `data/` remain on the server. Installation: get the files from the release, fill in `.env`, `docker compose up -d`. Updates with a container manager (Dockhand, Watchtower, Tugtainer …) or with `docker compose pull && docker compose up -d`.
 - Security: before every version change the program itself backs up the data folder when it starts (`data/backups/vor-<version>-<date>.tar.gz`, the last 10 are kept) and then brings the data to the new state. If an older version starts on data of a newer one, it stops with a clear message naming the backup instead of running on with follow-up errors.

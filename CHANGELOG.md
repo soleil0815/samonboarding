@@ -5,6 +5,21 @@ Update auf dem Server: `sudo sh update.sh --pull`.
 
 Einträge, die mit „Sicherheit:“ oder „Behoben:“ beginnen, werden in der Oberfläche entsprechend markiert.
 
+## 2.0.0-s1 – 2026-10-31
+- Sicherheit: Sicherheitsupdate ohne Programmänderung: gleiches Programm, aktualisierte Pakete.
+- Basis-Images:
+  - Python (python): `3.13.17-slim-trixie@d98cc29d3266` → `3.13.18-slim-trixie@76baad603769`
+  - Node (node): `24.22.1-trixie-slim@43b9ba1142b8` → `24.22.2-trixie-slim@54f84b4cf843`
+- Debian-Pakete:
+  - tzdata `2026e-0+deb13u1` → `2026f-0+deb13u1`
+- Python-Pakete:
+  - opentelemetry-api `1.45.1` → `1.45.2`
+  - pyasn1 `0.6.4` → `0.6.5`
+  - pydantic `2.14.1` → `2.14.2`
+  - pydantic_core `2.50.1` → `2.50.2`
+- npm-Pakete (nur beim Bauen der Oberfläche, nicht im Image):
+  - postcss `8.5.31` → `8.5.32`
+
 ## 2.0.0 – 2026-10-29
 - **Umstellung auf den Docker-Standard:** Das Programm steckt komplett im Image. Auf dem Server liegen nur noch `docker-compose.yml`, `.env` und der Ordner `data/`. Installation: Dateien aus dem Release holen, `.env` ausfüllen, `docker compose up -d`. Updates mit einer Container-Verwaltung (Dockhand, Watchtower, Tugtainer …) oder mit `docker compose pull && docker compose up -d`.
 - Sicherheit: Vor jedem Versionswechsel sichert das Programm beim Start selbst den Datenordner (`data/backups/vor-<Version>-<Datum>.tar.gz`, die letzten 10 bleiben) und bringt die Daten danach auf den neuen Stand. Startet eine ältere Version auf Daten einer neueren, bricht sie mit einer klaren Meldung ab und nennt die Sicherung, statt mit Folgefehlern weiterzulaufen.
