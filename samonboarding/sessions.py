@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# Copyright (C) 2026 Die SAMONBOARDING-Autoren
 """Sitzungsverwaltung (im Arbeitsspeicher) und Schutz vor wiederholten Fehlanmeldungen.
 
 Eine Sitzung endet bei der Abmeldung, nach SESSION_IDLE_SECONDS ohne Anfrage (gleitend: jede Anfrage verlaengert)

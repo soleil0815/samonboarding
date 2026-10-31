@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# Copyright (C) 2026 Die SAMONBOARDING-Autoren
 """Datenschutz (DSGVO): Aufbewahrungsfristen und Auskunft.
 
 Personenbezogene Daten speichert die Anwendung nur in data/:

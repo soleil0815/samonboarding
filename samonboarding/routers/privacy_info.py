@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# Copyright (C) 2026 Die SAMONBOARDING-Autoren
 """Datenschutz in der Oberflaeche: Fristen anzeigen (oeffentlich), Auskunft nach Art. 15 DSGVO (nur Admins)."""
 
 from fastapi import APIRouter, Depends, HTTPException

@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# Copyright (C) 2026 Die SAMONBOARDING-Autoren
 """Neuigkeiten in der Oberflaeche: was hat sich in den installierten Versionen geaendert?
 
 Quelle ist das Changelog, das mit dem Programm ausgeliefert wird (CHANGELOG.md bzw. CHANGELOG.en.md im

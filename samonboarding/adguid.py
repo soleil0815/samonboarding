@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# Copyright (C) 2026 Die SAMONBOARDING-Autoren
 """objectGUID: die feste Kennung eines AD-Objekts. Sie bleibt gleich, wenn ein Konto oder eine Gruppe umbenannt oder
 verschoben wird. Damit findet die Wiederherstellung nach dem Offboarding Objekte auch unter neuem Namen wieder."""
 

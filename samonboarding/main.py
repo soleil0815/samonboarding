@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# Copyright (C) 2026 Die SAMONBOARDING-Autoren
 """SAMONBOARDING - Enterprise Suite: FastAPI-Anwendung zusammenbauen."""
 
 import logging

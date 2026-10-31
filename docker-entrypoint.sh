@@ -1,4 +1,6 @@
 #!/bin/sh
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# Copyright (C) 2026 Die SAMONBOARDING-Autoren
 # Start of the container. The application itself never runs as root.
 #
 # Started as root (the docker-compose.yml does that with "user: 0:0" and only the rights DAC_READ_SEARCH, CHOWN,

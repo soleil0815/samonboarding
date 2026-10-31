@@ -1,4 +1,6 @@
 #!/bin/sh
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# Copyright (C) 2026 Die SAMONBOARDING-Autoren
 # SAMONBOARDING - update helper for the manual way (container managers such as Dockhand, Watchtower or Tugtainer do
 # not need it). Runs with /bin/sh (dash, busybox ash), also on a NAS (e.g. Synology). It never unpacks ZIPs, never
 # places program files and never builds anything - the program is completely in the image.

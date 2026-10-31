@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# Copyright (C) 2026 Die SAMONBOARDING-Autoren
 """Verweise auf AD-Objekte in den Einstellungen: was passiert, wenn eine OU oder Gruppe umbenannt oder verschoben wird?
 
 Gespeichert wird in den Einstellungen der DN (so wie ihn RSAT anzeigt), z. B. die Ziel-OU eines Templates oder die

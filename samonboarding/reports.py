@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# Copyright (C) 2026 Die SAMONBOARDING-Autoren
 """Berichte in SQLite (data/reports.db): Aenderungen (Audit) und Protokoll (Programm-Meldungen).
 
   audit   wer hat wann was getan (ohne Passwoerter)       -> AUDIT_RETENTION_DAYS (Standard 365)

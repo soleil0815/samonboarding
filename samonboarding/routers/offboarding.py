@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# Copyright (C) 2026 Die SAMONBOARDING-Autoren
 """Offboarding: Konto deaktivieren, aus Gruppen entfernen und in die Ziel-OU verschieben."""
 
 import logging

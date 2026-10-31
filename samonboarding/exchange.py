@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# Copyright (C) 2026 Die SAMONBOARDING-Autoren
 """Postfach auf einem eigenen Exchange-Server anlegen (Enable-Mailbox ueber PowerShell-Remoting).
 
 Ein neues AD-Konto ist bei Exchange im eigenen Haus noch kein Postfach. Wenn der Administrator das aktiviert hat,

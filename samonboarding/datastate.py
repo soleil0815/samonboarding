@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# Copyright (C) 2026 Die SAMONBOARDING-Autoren
 """Datenstand: Sicherung vor einem Versionswechsel, Migrationen und Schutz vor einer aelteren Programmversion.
 
 data/datenstand.json haelt fest, welche Programmversion die Daten zuletzt benutzt hat und welchen Datenstand

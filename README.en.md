@@ -907,4 +907,6 @@ The scenarios run against a **simulated AD and a simulated file server** and nee
 
 SAMONBOARDING is free software under the **GNU Affero General Public License, version 3 or later** (AGPL-3.0-or-later), see [LICENSE](LICENSE). You may use, share and modify the program. Anyone who offers a **modified** version to others – even only over the network as a web application – must make the source code of the modified version available to those users (section 13 of the license). That is why the sign-in page links to the source code; if you run your own version, point the link in `samonboarding/web/index.html` to your own repository. There is no warranty (sections 15 and 16).
 
-The included packages (FastAPI, ldap3, Tailwind CSS, Font Awesome, fonts etc.) have their own licenses.
+Copyright holder: **The SAMONBOARDING authors** (Die SAMONBOARDING-Autoren). The copyright notice is in [NOTICE](NOTICE) and as a header in every program file (`SPDX-License-Identifier: AGPL-3.0-or-later`).
+
+The included packages (FastAPI, ldap3, Tailwind CSS, Font Awesome, fonts etc.) have their own licenses; the list is in [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md). `LICENSE`, `NOTICE` and this list are also in the container image (`/app`), the license texts of the fonts and icons under `/app/static/vendor/licenses/`.

@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# Copyright (C) 2026 Die SAMONBOARDING-Autoren
 """Gedaechtnis des Offboardings (SQLite in data/offboarding.db).
 
 Vor dem Offboarding wird festgehalten, wo das Konto lag, in welchen Gruppen es war und ob es aktiv war. Damit laesst
