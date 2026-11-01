@@ -62,6 +62,10 @@ def _now():
     return datetime.now(timezone.utc).isoformat(timespec="seconds")
 
 
+def _rows(rows) -> list[dict]:
+    return [out for out in (_row(r) for r in rows) if out is not None]
+
+
 def _row(r):
     if r is None:
         return None
@@ -117,13 +121,13 @@ def get(record_id):
 def list_open():
     with _db() as conn:
         rows = conn.execute("SELECT * FROM offboarded WHERE state = 'open' ORDER BY offboarded_at DESC, id DESC")
-        return [_row(r) for r in rows.fetchall()]
+        return _rows(rows.fetchall())
 
 
 def list_all():
     """Alle Eintraege (auch 'in Arbeit') - fuer die Auskunft nach Art. 15 DSGVO."""
     with _db() as conn:
-        return [_row(r) for r in conn.execute("SELECT * FROM offboarded ORDER BY offboarded_at, id").fetchall()]
+        return _rows(conn.execute("SELECT * FROM offboarded ORDER BY offboarded_at, id").fetchall())
 
 
 def purge_older_than(cutoff_iso):

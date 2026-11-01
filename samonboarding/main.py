@@ -103,7 +103,7 @@ MAX_BODY_BYTES = 6 * 1024 * 1024
 UNSAFE_METHODS = {"POST", "PUT", "PATCH", "DELETE"}
 
 
-async def _ldap_exception_handler(request: Request, exc: LDAPException):
+async def _ldap_exception_handler(request: Request, exc: Exception):  # nur fuer LDAPException registriert
     log.error("LDAP-Fehler bei %s: %s", request.url.path, exc)
     return JSONResponse(status_code=500, content={"detail": "LDAP-Fehler. Details stehen im Protokoll."})
 

@@ -95,14 +95,10 @@ def execute_pwdreset(data: PwdResetActionModel, background: BackgroundTasks, use
             ok = conn.modify(user_dn, {"unicodePwd": [(ldap3.MODIFY_REPLACE, [raw_pwd])]})
             ensure(conn, ok, "Passwort setzen", PWD_HINT)
 
-            if data.forceChange:
-                if not conn.modify(user_dn, {"pwdLastSet": [(ldap3.MODIFY_REPLACE, [0])]}):
-                    warnings.append(
-                        "Änderung beim nächsten Login konnte nicht erzwungen werden: " + ldap_error_text(conn)
-                    )
-            if data.unlockAccount:
-                if not conn.modify(user_dn, {"lockoutTime": [(ldap3.MODIFY_REPLACE, [0])]}):
-                    warnings.append("Kontensperre konnte nicht aufgehoben werden: " + ldap_error_text(conn))
+            if data.forceChange and not conn.modify(user_dn, {"pwdLastSet": [(ldap3.MODIFY_REPLACE, [0])]}):
+                warnings.append("Änderung beim nächsten Login konnte nicht erzwungen werden: " + ldap_error_text(conn))
+            if data.unlockAccount and not conn.modify(user_dn, {"lockoutTime": [(ldap3.MODIFY_REPLACE, [0])]}):
+                warnings.append("Kontensperre konnte nicht aufgehoben werden: " + ldap_error_text(conn))
         info["warnings"] = warnings
 
     smtp_cfg = load_json(SMTP_CONFIG_FILE, default_smtp_config)

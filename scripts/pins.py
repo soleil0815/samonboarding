@@ -277,7 +277,7 @@ def requirements_header(req_in_text):
 # Network: Docker Hub (base images)
 # ---------------------------------------------------------------------------------------------------------------------
 def http_json(url, headers=None, method="GET", timeout=30):
-    req = urllib.request.Request(url, headers=headers or {}, method=method)
+    req = urllib.request.Request(url, headers=headers or {}, method=method)  # noqa: S310 - fixed https URLs
     with urllib.request.urlopen(req, timeout=timeout) as resp:  # noqa: S310 - fixed https URLs
         body = resp.read()
         return json.loads(body) if body else {}, dict(resp.headers)
@@ -322,12 +322,16 @@ def registry_digest(repo, tag):
 
 def newest_python_tag(series, tags):
     major, minor, distro = series
-    best = None
+    best, best_patch = None, -1
     for tag in tags:
         match = PY_TAG_RE.match(tag)
-        if match and match.group(3) and (match.group(1), match.group(2), match.group(4)) == (major, minor, distro):
-            if best is None or int(match.group(3)) > int(PY_TAG_RE.match(best).group(3)):
-                best = tag
+        if (
+            match
+            and match.group(3)
+            and (match.group(1), match.group(2), match.group(4)) == (major, minor, distro)
+            and int(match.group(3)) > best_patch
+        ):
+            best, best_patch = tag, int(match.group(3))
     if not best:
         raise PinError(f"No image python:{major}.{minor}.x-slim-{distro} found")
     return best
@@ -422,7 +426,8 @@ def resolve_npm(node_image, package_json, package_lock):
         )
         done = docker("run", "--rm", "-v", f"{tmp}:/w:ro", "--entrypoint", "sh", node_image, "-ec", script)
     new_pkg, _, new_lock = done.stdout.partition("---8<---\n")
-    json.loads(new_pkg), json.loads(new_lock)  # both must be valid JSON
+    json.loads(new_pkg)  # both must be valid JSON
+    json.loads(new_lock)
     return new_pkg, new_lock
 
 
@@ -806,7 +811,8 @@ def _plan(mode, changed, published, root):
     elif mode == "security-update":
         if changed:
             counters = [security_counter(version, read_text(CHANGELOGS["de"], root))]
-            counters += [tag_key(t)[3] for t in published if t.startswith(version + "-s")]
+            keys = [tag_key(t) for t in published if t.startswith(version + "-s")]
+            counters += [key[3] for key in keys if key is not None]
             tag, commit = f"{version}-s{max(counters) + 1}", True
         else:
             tag, commit = current_tag(root), False
@@ -874,7 +880,7 @@ def cmd_run(args):
     for attempt in (1, 2):
         proc = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
         lines = []
-        for line in proc.stdout:
+        for line in proc.stdout or []:  # stdout=PIPE: always set
             sys.stdout.write(line)
             lines.append(line.rstrip("\n"))
             del lines[:-400]

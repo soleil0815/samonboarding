@@ -34,7 +34,7 @@ def _env_bool(name, default=False):
 
 def _env_int(name, default):
     try:
-        return int(os.environ.get(name, default))
+        return int(os.environ.get(name, str(default)))
     except (TypeError, ValueError):
         return default
 
@@ -153,7 +153,8 @@ SMTP_TLS_MODES = ("Auto", "STARTTLS", "SSL/TLS", SMTP_UNENCRYPTED)
 
 USER_FILTER = "(&(objectClass=user)(!(objectClass=computer)))"
 
+# Hinweistext, kein Passwort
 PWD_HINT = (
-    " Moegliche Ursachen: Passwort erfuellt die Passwortrichtlinie nicht, "
+    " Moegliche Ursachen: Passwort erfuellt die Passwortrichtlinie nicht, "  # noqa: S105
     "die Verbindung ist nicht per TLS (LDAPS) verschluesselt oder es fehlen Rechte."
 )

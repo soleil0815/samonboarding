@@ -64,8 +64,8 @@ def _configuration_nc(conn, search_base):
                     value = value[0] if value else ""
                 if value:
                     return str(value)
-    except Exception:
-        pass
+    except Exception as e:
+        log.debug("RootDSE nicht lesbar, Konfigurationsbereich wird angenommen: %s", type(e).__name__)
     return f"CN=Configuration,{search_base}"
 
 
@@ -82,8 +82,8 @@ def _own_names(conn, search_base):
             ["nETBIOSName"],
         )
         netbios = {r.text("nETBIOSName").lower() for r in rows if r.text("nETBIOSName")}
-    except Exception:  # Konfigurationsbereich nicht lesbar: dann bleibt es beim DNS-Namen
-        pass
+    except Exception as e:  # Konfigurationsbereich nicht lesbar: dann bleibt es beim DNS-Namen
+        log.debug("NetBIOS-Name nicht lesbar: %s", type(e).__name__)
     return names | netbios, bool(netbios)
 
 

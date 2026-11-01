@@ -2,10 +2,10 @@
 # Copyright (C) 2026 Die SAMONBOARDING-Autoren
 """E-Mail-Benachrichtigungen: HTML-/Text-Vorlage und SMTP-Versand."""
 
+import contextlib
 import html
 import logging
 import smtplib
-import socket
 import ssl
 from email.message import EmailMessage
 from email.utils import formataddr, formatdate
@@ -66,7 +66,7 @@ def render_mail(operator, title, accent, intro, rows):
             '<tr><td style="padding: 10px; font-weight: bold; color: #475569; width: 160px;'
             + border
             + '">'
-            + html.escape(label)
+            + html.escape(str(label))
             + '</td><td style="padding: 10px; '
             + value_style
             + border
@@ -75,8 +75,8 @@ def render_mail(operator, title, accent, intro, rows):
             + "</td></tr>"
         )
     rows_html = "".join(tr)
-    safe_title = html.escape(title)
-    safe_intro = html.escape(intro)
+    safe_title = html.escape(str(title))
+    safe_intro = html.escape(str(intro))
     body_html = f"""<!DOCTYPE html>
 <html lang="{current_lang()}">
 <head><meta charset="UTF-8"></head>
@@ -87,7 +87,7 @@ def render_mail(operator, title, accent, intro, rows):
         <table style="width: 100%; border-collapse: collapse; margin: 20px 0; background: #ffffff; border: 1px solid #e2e8f0; border-radius: 6px;">
             {rows_html}
         </table>
-        <p style="font-size: 13px; color: #475569;">{html.escape(closing)}<br><strong>SAMONBOARDING Suite v{VERSION}</strong></p>
+        <p style="font-size: 13px; color: #475569;">{html.escape(str(closing))}<br><strong>SAMONBOARDING Suite v{VERSION}</strong></p>
     </div>
 </body>
 </html>"""
@@ -117,7 +117,7 @@ def smtp_send(cfg, recipient_email, subject, body_text, body_html=None):
             server = smtplib.SMTP_SSL(host, port, timeout=10, context=ssl.create_default_context())
         else:
             server = smtplib.SMTP(host, port, timeout=10)
-    except (ConnectionRefusedError, ConnectionResetError, TimeoutError, socket.timeout) as e:
+    except (ConnectionRefusedError, ConnectionResetError, TimeoutError) as e:
         raise OSError(f"SMTP-Server {host}:{port} nicht erreichbar ({e}). Servername, Port und Firewall prüfen.") from e
     try:
         server.ehlo()
@@ -144,10 +144,8 @@ def smtp_send(cfg, recipient_email, subject, body_text, body_html=None):
         server.send_message(msg, to_addrs=[recipient_email] + cc_list)
         log.info('E-Mail gesendet: "%s" an %s Empfaenger ueber %s', msg["Subject"], 1 + len(cc_list), host)
     finally:
-        try:
+        with contextlib.suppress(Exception):
             server.quit()
-        except Exception:
-            pass
 
 
 def send_notification_email(recipient_email, subject, body_text, body_html=None):

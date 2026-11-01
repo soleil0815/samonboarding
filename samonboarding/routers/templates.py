@@ -76,7 +76,8 @@ def template_mail_mode(tmpl):
     if mode in MAIL_MODES:
         return mode
     legacy = load_json(ONBOARDING_CONFIG_FILE, default_onboarding_config)
-    return LEGACY_MAIL_MODES.get(legacy.get("mailMode") if isinstance(legacy, dict) else None, "required")
+    legacy_mode = legacy.get("mailMode") if isinstance(legacy, dict) else None
+    return LEGACY_MAIL_MODES.get(legacy_mode, "required") if isinstance(legacy_mode, str) else "required"
 
 
 def sanitize_template(raw):
@@ -98,15 +99,14 @@ def sanitize_template(raw):
     try:
         tmpl["homeDrive"] = normalize_home_drive(tmpl["homeDrive"])
     except ValueError as e:
-        raise HTTPException(status_code=400, detail=f"Basisordner: {e}")
-    if tmpl["homeDrive"]:
-        # Wie in RSAT ("Verbinden von"): Laufwerk nur mit Netzwerkpfad.
-        if not tmpl["homeDirectory"].startswith("\\\\"):
-            raise HTTPException(
-                status_code=400,
-                detail="Basisordner: Für ein Laufwerk muss der Pfad ein Netzwerkpfad sein "
-                "(\\\\server\\freigabe\\%username%).",
-            )
+        raise HTTPException(status_code=400, detail=f"Basisordner: {e}") from e
+    # Wie in RSAT ("Verbinden von"): Laufwerk nur mit Netzwerkpfad.
+    if tmpl["homeDrive"] and not tmpl["homeDirectory"].startswith("\\\\"):
+        raise HTTPException(
+            status_code=400,
+            detail="Basisordner: Für ein Laufwerk muss der Pfad ein Netzwerkpfad sein "
+            "(\\\\server\\freigabe\\%username%).",
+        )
     tmpl["createHomeFolder"] = bool(raw.get("createHomeFolder", False))
     if tmpl["createHomeFolder"] and not tmpl["homeDirectory"].startswith("\\\\"):
         raise HTTPException(
@@ -128,7 +128,7 @@ def sanitize_template(raw):
 
 
 def _next_template_id(tmpls):
-    ids = [t.get("id") for t in tmpls if isinstance(t, dict) and isinstance(t.get("id"), int)]
+    ids = [t["id"] for t in tmpls if isinstance(t, dict) and isinstance(t.get("id"), int)]
     return max(ids, default=0) + 1
 
 

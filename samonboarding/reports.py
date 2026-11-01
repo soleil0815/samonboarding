@@ -135,7 +135,7 @@ class DbLogHandler(logging.Handler):
                 message += "\n" + _FORMATTER.formatException(record.exc_info)
             ts = datetime.fromtimestamp(record.created, timezone.utc)
             write_log(record.levelname, record.name, message, ts=ts)
-        except Exception:  # Protokollieren darf das Programm nie stoeren
+        except Exception:  # noqa: S110 - Protokollieren darf das Programm nie stoeren (kein Log im Log-Handler)
             pass
         finally:
             _state.busy = False
@@ -211,11 +211,16 @@ def query_log(q="", level="all", before=None, limit=100):
 
 
 def _page(table, where, args, before, limit, convert):
+    if table not in TABLES:
+        raise ValueError(table)
     limit = max(1, min(int(limit or 100), 500))
     if before:
         where = where + ["id < ?"]
         args = args + [int(before)]
-    sql = f"SELECT * FROM {table}" + (" WHERE " + " AND ".join(where) if where else "")
+    # Tabelle nur aus TABLES, Bedingungen nur feste Texte mit "?" - alle Werte gehen als Parameter
+    sql = f"SELECT * FROM {table}"  # noqa: S608
+    if where:
+        sql += " WHERE " + " AND ".join(where)
     sql += " ORDER BY id DESC LIMIT ?"
     with _db() as conn:
         rows = conn.execute(sql, args + [limit + 1]).fetchall()
@@ -228,7 +233,7 @@ def counts():
     with _db() as conn:
         out = {}
         for table in TABLES:
-            row = conn.execute(f"SELECT COUNT(*) AS n, MIN(ts) AS oldest FROM {table}").fetchone()
+            row = conn.execute(f"SELECT COUNT(*) AS n, MIN(ts) AS oldest FROM {table}").fetchone()  # noqa: S608 - TABLES
             out[table] = {"count": row["n"], "oldest": row["oldest"]}
         return out
 
@@ -319,14 +324,14 @@ def delete_older_than(table, cutoff_utc_iso):
     if table not in TABLES:
         raise ValueError(table)
     with _db() as conn:
-        return conn.execute(f"DELETE FROM {table} WHERE ts_utc < ?", (cutoff_utc_iso,)).rowcount
+        return conn.execute(f"DELETE FROM {table} WHERE ts_utc < ?", (cutoff_utc_iso,)).rowcount  # noqa: S608 - TABLES
 
 
 def delete_all(table):
     if table not in TABLES:
         raise ValueError(table)
     with _db() as conn:
-        return conn.execute(f"DELETE FROM {table}").rowcount
+        return conn.execute(f"DELETE FROM {table}").rowcount  # noqa: S608 - TABLES
 
 
 # ---------------------------------------------------------------------------
