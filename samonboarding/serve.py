@@ -6,6 +6,7 @@ Es gibt keinen unverschluesselten HTTP-Port. Zertifikat siehe samonboarding/tls.
 hochgeladenes Zertifikat gilt sofort fuer neue Verbindungen (ohne Neustart).
 """
 
+import contextlib
 import logging
 import os
 import sys
@@ -19,10 +20,8 @@ def data_writable():
     """Das Programm laeuft ohne root: data/ muss dem Container-Benutzer gehoeren. Mit der aktuellen docker-compose.yml
     stellt das Startskript (docker-entrypoint.sh) das selbst ein."""
     probe = os.path.join(str(config.DATA_DIR), ".schreibtest")
-    try:
+    with contextlib.suppress(OSError):
         os.chmod(str(config.DATA_DIR), 0o700)  # nur fuer den Programmbenutzer (er ist der Besitzer)
-    except OSError:
-        pass
     try:
         with open(probe, "w") as f:
             f.write("ok")
@@ -64,7 +63,7 @@ def main():
     cert_file, key_file, _self_signed = tls.ensure_certificate()
     server_config = uvicorn.Config(
         "samonboarding.main:app",
-        host="0.0.0.0",
+        host="0.0.0.0",  # noqa: S104 - im Container; nach aussen gibt nur docker-compose.yml den Port frei
         port=config.HTTPS_PORT,
         ssl_certfile=cert_file,
         ssl_keyfile=key_file,

@@ -295,11 +295,12 @@ def execute_onboard(data: OnboardModel, background: BackgroundTasks, user: dict 
                 detail = e.detail if isinstance(e, AdError) else str(e)
                 raise AdError(f"Benutzer wurde nicht angelegt. {detail}") from e
 
-            if tmpl.get("forceChange", True):
-                if not conn.modify(user_dn, {"pwdLastSet": [(ldap3.MODIFY_REPLACE, [0])]}):
-                    warnings.append(
-                        "Passwortänderung beim nächsten Login konnte nicht erzwungen werden: " + ldap_error_text(conn)
-                    )
+            if tmpl.get("forceChange", True) and not conn.modify(
+                user_dn, {"pwdLastSet": [(ldap3.MODIFY_REPLACE, [0])]}
+            ):
+                warnings.append(
+                    "Passwortänderung beim nächsten Login konnte nicht erzwungen werden: " + ldap_error_text(conn)
+                )
 
             home_sid = None
             if tmpl.get("createHomeFolder") and home_dir:

@@ -14,6 +14,7 @@ import secrets
 import threading
 import time
 from datetime import datetime, timezone
+from typing import Any
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
 
@@ -114,7 +115,7 @@ def _clean_location(kind, loc):
         try:
             root = normalize_unc(raw)
         except ValueError as e:
-            raise HTTPException(status_code=400, detail=f"{label}: Basispfad '{raw}' ungültig. {e}")
+            raise HTTPException(status_code=400, detail=f"{label}: Basispfad '{raw}' ungültig. {e}") from e
         if root.lower() not in seen:
             seen.add(root.lower())
             roots.append(root)
@@ -153,9 +154,8 @@ def save_deletion_config(data: DeletionConfigModel, user: dict = Depends(get_cur
     cfg = {"enabled": bool(data.enabled), "disabledOu": data.disabledOu.strip()}
     for kind in KINDS:
         cfg[kind] = _clean_location(kind, getattr(data, kind))
-    if cfg["enabled"]:
-        if not cfg["disabledOu"]:
-            raise HTTPException(status_code=400, detail="Bitte die OU der deaktivierten Konten angeben.")
+    if cfg["enabled"] and not cfg["disabledOu"]:
+        raise HTTPException(status_code=400, detail="Bitte die OU der deaktivierten Konten angeben.")
     save_json(DELETION_CONFIG_FILE, cfg)
     audit(
         actor_name(user),
@@ -325,7 +325,7 @@ def inspect_target(backend, target, server_errors, takeover=False):
     takeover=True: fehlende Rechte gelten nicht als Hindernis, wenn der Besitz uebernommen werden koennte
     (status 'takeover' bzw. takeoverNeeded > 0). Es wird dabei nichts veraendert.
     """
-    res = dict(
+    res: dict[str, Any] = dict(
         target,
         status="skipped",
         message=target["skip"],
@@ -719,9 +719,7 @@ def simulate_deletion_batch(data: DeletionBatchSimulateModel, user: dict = Depen
                 item = {"dn": dn, "state": "blocked", "error": ""}
                 try:
                     info = inspect_account(user, cfg, dn, backend, server_errors)
-                except HTTPException as e:
-                    item["error"] = str(e.detail)
-                except AdError as e:
+                except HTTPException as e:  # auch AdError (Unterklasse)
                     item["error"] = str(e.detail)
                 else:
                     item.update(simulation_payload(cfg, info))
@@ -1030,9 +1028,7 @@ def run_batch_job(job_id, user, cfg, items):
             try:
                 result = run_deletion(user, cfg, plan)
                 entry.update(status=result["status"], message=result["message"], results=result["results"])
-            except HTTPException as e:
-                entry.update(status="error", message=str(e.detail))
-            except AdError as e:
+            except HTTPException as e:  # auch AdError (Unterklasse)
                 entry.update(status="error", message=str(e.detail))
             except Exception as e:  # ein Konto darf den Rest nicht verhindern
                 log.exception("Sammellöschung: Fehler bei %s", plan["sam"])
@@ -1043,7 +1039,15 @@ def run_batch_job(job_id, user, cfg, items):
         job["finished"] = True
         job["finishedAt"] = time.time()
         counts = {k: sum(1 for i in job["items"] if i["status"] == k) for k in ("success", "partial", "error")}
-        audit(actor_name(user), "deletion-batch", f"{len(items)} Konten", **counts, accounts=[i["sam"] for i in items])
+        audit(
+            actor_name(user),
+            "deletion-batch",
+            f"{len(items)} Konten",
+            success=counts["success"],
+            partial=counts["partial"],
+            error=counts["error"],
+            accounts=[i["sam"] for i in items],
+        )
         if _notify_enabled(user):
             subject, text, html = _batch_mail(user, job)
             send_notification_email(user["email"], subject, text, html)

@@ -5,8 +5,9 @@
 import logging
 import ssl
 import unicodedata
-from contextlib import contextmanager
+from contextlib import contextmanager, suppress
 from datetime import datetime
+from typing import Any
 
 import ldap3
 from fastapi import HTTPException
@@ -20,7 +21,7 @@ from .storage import load_json
 log = logging.getLogger(__name__)
 
 
-def _first(value):
+def _first(value) -> Any:
     if isinstance(value, (list, tuple)):
         return value[0] if value else None
     return value
@@ -128,10 +129,8 @@ def ldap_connection(dc_ip, bind_user, password):
         yield conn
     finally:
         if conn is not None:
-            try:
+            with suppress(Exception):
                 conn.unbind()
-            except Exception:
-                pass
 
 
 AD_CAPABILITY_OID = "1.2.840.113556.1.4.800"  # LDAP_CAP_ACTIVE_DIRECTORY_OID: Windows und Samba melden ihn
@@ -190,7 +189,7 @@ def detect_mail_system(conn):
     Dienstkonto namens MSOL_* (aeltere Versionen AAD_*). Beides ist nur ein Hinweis fuer die Einstellung, die
     Entscheidung trifft der Administrator.
     """
-    result = {"exchange": None, "entra": None}
+    result: dict[str, bool | None] = {"exchange": None, "entra": None}
     try:
         if not conn.search(
             "", "(objectClass=*)", ldap3.BASE, attributes=["configurationNamingContext", "defaultNamingContext"]
@@ -245,7 +244,7 @@ def ad_session(user):
     except LDAPBindError:
         # Passwort wurde zwischenzeitlich geaendert / Konto gesperrt -> Sitzung ungueltig.
         drop_session(user.get("sid"))
-        raise HTTPException(status_code=401, detail="Sitzung ungueltig - bitte neu anmelden.")
+        raise HTTPException(status_code=401, detail="Sitzung ungueltig - bitte neu anmelden.") from None
 
 
 def ldap_search(conn, base, flt, attrs, scope=ldap3.SUBTREE, page_size=500):

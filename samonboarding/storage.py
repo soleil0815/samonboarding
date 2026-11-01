@@ -2,6 +2,7 @@
 # Copyright (C) 2026 Die SAMONBOARDING-Autoren
 """JSON-Speicher: atomares Schreiben und gesichertes Lesen der Konfigurationsdateien."""
 
+import contextlib
 import copy
 import json
 import logging
@@ -20,7 +21,7 @@ def load_json(filename, default):
         if not os.path.exists(filename):
             return copy.deepcopy(default)
         try:
-            with open(filename, "r", encoding="utf-8") as f:
+            with open(filename, encoding="utf-8") as f:
                 return json.load(f)
         except ValueError:
             # Defekte Datei nicht ueberschreiben, sondern sichern.
@@ -55,7 +56,5 @@ def save_json(filename, data, invalidate=True):
 
 def restrict(path):
     """Rechte auf 0600 setzen (best effort, z. B. fuer vorhandene Dateien aus aelteren Versionen)."""
-    try:
+    with contextlib.suppress(OSError):
         os.chmod(path, 0o600)
-    except OSError:
-        pass

@@ -55,12 +55,16 @@ jobs:
       - name: Install Trivy (fixed version, SHA-256 checked, no GitHub Action)
         run: sh scripts/install-trivy.sh
 
-      - name: Check code (ruff), .trivyignore and interface tests
+      - name: Check code (ruff, pyright), .trivyignore and interface tests
         run: |
           python3 -m venv /tmp/lint
           /tmp/lint/bin/pip install --quiet --disable-pip-version-check "ruff==$(sed -n 's/^ruff==//p' requirements-dev.txt)"
           /tmp/lint/bin/ruff check .
           /tmp/lint/bin/ruff format --check .
+          # type check against exactly the package versions of the image (requirements.txt)
+          /tmp/lint/bin/pip install --quiet --disable-pip-version-check --no-deps -r requirements.txt
+          /tmp/lint/bin/pip install --quiet --disable-pip-version-check "pyright==$(sed -n 's/^pyright==//p' requirements-dev.txt)"
+          /tmp/lint/bin/pyright --pythonpath /tmp/lint/bin/python
           python3 scripts/pins.py trivyignore-check
           for f in tests/ui/*.test.js; do
             node "$f" > /tmp/ui.log 2>&1 || { cat /tmp/ui.log; echo "::error title=Interface test failed::$f"; exit 1; }

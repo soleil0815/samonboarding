@@ -661,7 +661,7 @@ Jeder Build verwendet exakt dieselben Versionen. Gleiche Dateien ergeben das gle
 | `requirements.txt` | Alle Python-Pakete inklusive der indirekten, jeweils `==Version`. Installiert wird mit `--no-deps`, danach prüft `pip check`, ob alles zusammenpasst |
 | `requirements.in` | Die direkten Python-Pakete mit ihren äußeren Grenzen |
 | `package.json`, `package-lock.json` | npm-Pakete für CSS, Schriften und Icons, exakt und mit Prüfsummen aller Unterpakete (`npm ci`). Sie werden nur beim Bauen gebraucht und sind nicht im Image |
-| `requirements-dev.txt` | Test-Werkzeuge (pytest, ruff) mit exakten Versionen |
+| `requirements-dev.txt` | Test-Werkzeuge (pytest, ruff, pyright) mit exakten Versionen |
 
 Neu festgelegt werden die Versionen mit `python3 scripts/pins.py update` (braucht Docker und Internet). Auf GitHub geschieht das jede Woche automatisch (siehe *Automatische Sicherheitsupdates*). Auf einem Server wird nie etwas festgelegt oder gebaut. Dabei gelten immer dieselben Grenzen:
 
@@ -845,7 +845,7 @@ DATENSCHUTZ.md              Datenschutz-Dokumentation (DSGVO), englisch: DATA-PR
 Dockerfile                  Stufe 1 baut Tailwind-CSS, Schriften (Manrope, JetBrains Mono) und Font Awesome, Stufe 2 ist die App
 tailwind.config.js          Tailwind scannt samonboarding/web/*.html, Farben und Schriften aus web/theme.json
 tests/                      Unit-Tests und Szenarien (siehe Tests)
-pyproject.toml              Konfiguration von ruff und pytest
+pyproject.toml              Konfiguration von ruff, pyright und pytest
 requirements-dev.txt        Pakete zum Testen (exakte Versionen)
 requirements.in             direkte Python-Pakete; requirements.txt ist die exakte Sperrliste
 package.json                npm-Pakete für den CSS-Build (exakt), package-lock.json mit allen Unterpaketen
@@ -877,11 +877,16 @@ update.sh                   Update von Hand: vorherige Version merken, holen, st
 ```bash
 pip install -r requirements-dev.txt
 pytest -q          # alle Tests
-ruff check . && ruff format --check .
+ruff check . && ruff format --check .   # Stil, Sicherheitsmuster (Bandit), typische Fehler (Bugbear)
+pyright            # Typprüfung von Programm und Bau-Skripten
 ```
+
+Der GitHub-Workflow führt ruff und pyright vor jedem Bau aus, pyright mit genau den Paketversionen des Images. Ausnahmen von Sicherheitsregeln stehen im Programm nur einzeln an der Zeile, mit Begründung (`# noqa: S… - …`).
 
 | Datei | Prüft |
 |---|---|
+| `tests/test_codecheck.py` | Code-Prüfung: ruff-Regeln (auch Sicherheit), keine pauschalen Ausnahmen im Programm, pyright im Workflow mit den Paketen des Images |
+| `tests/test_license.py` | Urheber-Hinweis (NOTICE, Kopfzeilen), Liste der Fremdkomponenten, Lizenztexte im Image |
 | `tests/test_acl.py` | Windows-Sicherheitsdeskriptoren (SID, ACE, Einfügen vor geerbten Einträgen, defekte Daten) |
 | `tests/test_protection.py` | Schutz privilegierter Konten (SIDs aus Rohdaten, verschachtelte Gruppen, RID 500/502), Erkennung Samba/Windows und Exchange/Entra-Hinweis |
 | `tests/test_exchange.py` | Exchange-Einstellungen prüfen, Aufrufe an die Exchange-Verwaltungsshell (mit Ersatzmodulen für `pypsrp`), Fehlermeldungen |

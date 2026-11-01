@@ -34,7 +34,9 @@ MAX_UPLOAD_BYTES = 1024 * 1024
 WARN_DAYS = 30
 
 _lock = threading.Lock()
-_active = {"ctx": None}  # aktueller SSLContext fuer neue Verbindungen (None = der des Servers)
+_active: dict[str, ssl.SSLContext | None] = {
+    "ctx": None
+}  # aktueller SSLContext fuer neue Verbindungen (None = der des Servers)
 
 
 class CertError(ValueError):

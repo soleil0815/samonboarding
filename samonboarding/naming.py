@@ -9,7 +9,7 @@ import unicodedata
 
 # Zeichen, die man beim Abtippen oder Vorlesen leicht verwechselt (0/O/o, 1/l/I), kommen nicht vor
 AMBIGUOUS_CHARS = "0Oo1lI"
-PASSWORD_SPECIALS = "!@#$%&*"
+PASSWORD_SPECIALS = "!@#$%&*"  # noqa: S105 - erlaubte Sonderzeichen, kein Passwort
 
 
 def generate_secure_password(length=12):

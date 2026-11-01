@@ -77,7 +77,7 @@ def _core(text, depth):
             raw = m.group(pos + 1)
             t = _core(raw, depth + 1)
             values[idx] = raw if t is None else t
-        return re.sub(r"\{(\d+)\}", lambda g: values.get(int(g.group(1)), ""), en)
+        return re.sub(r"\{(\d+)\}", lambda g, values=values: values.get(int(g.group(1)), ""), en)
     return _fallback(text, depth)
 
 
@@ -90,7 +90,7 @@ def _fallback(text, depth):
         parts = text.split(" · ")
         done = [_core(p, depth + 1) for p in parts]
         if any(d is not None for d in done):
-            return " · ".join(p if d is None else d for p, d in zip(parts, done))
+            return " · ".join(p if d is None else d for p, d in zip(parts, done, strict=True))
     if ": " in text:
         left, right = text.split(": ", 1)
         r = _core(right, depth + 1)
@@ -110,5 +110,7 @@ def tr(text, lang=None):
     if "\n" in text:
         return "\n".join(tr(line, "en") for line in text.split("\n"))
     m = re.match(r"^(\s*)([\s\S]*?)(\s*)$", text)
+    if m is None:  # passt immer; nur fuer die Typpruefung
+        return text
     out = _core(m.group(2), 0)
     return text if out is None else m.group(1) + out + m.group(3)

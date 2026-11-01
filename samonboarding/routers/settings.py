@@ -37,7 +37,7 @@ from ..storage import file_lock, load_json, save_json
 
 log = logging.getLogger(__name__)
 router = APIRouter()
-SMTP_PASSWORD_MASK = "••••••••••••"
+SMTP_PASSWORD_MASK = "••••••••••••"  # noqa: S105 - Platzhalter in der Anzeige, kein Passwort
 
 
 @router.get("/api/smtp-config")
@@ -142,6 +142,7 @@ def save_exchange_config(data: ExchangeConfigModel, user: dict = Depends(get_cur
 def test_exchange_config(data: ExchangeConfigModel, user: dict = Depends(get_current_user)):
     """Verbindungstest mit den eingegebenen (ungespeicherten) Werten und den Zugangsdaten des Administrators."""
     require_admin(user, "Nur Administratoren.")
+    cfg: dict = {}
     try:
         cfg = clean_config(data.model_dump() if hasattr(data, "model_dump") else vars(data))
         if not cfg["server"]:
@@ -150,7 +151,7 @@ def test_exchange_config(data: ExchangeConfigModel, user: dict = Depends(get_cur
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e)) from None
     except ExchangeError as e:
-        audit(actor_name(user), "exchange-test", cfg["server"], ok=False, error=str(e))
+        audit(actor_name(user), "exchange-test", cfg.get("server", ""), ok=False, error=str(e))
         raise HTTPException(status_code=502, detail=str(e)) from None
     audit(actor_name(user), "exchange-test", cfg["server"])
     return {"status": "success", "message": message}
@@ -226,5 +227,5 @@ def test_smtp(user: dict = Depends(get_current_user)):
         smtp_send(cfg, recipient, "SAMONBOARDING - SMTP Test-Mail", body_text, body_html)
     except Exception as e:
         log.warning("SMTP-Test fehlgeschlagen: %s", e)
-        raise HTTPException(status_code=500, detail=f"Test-Mail konnte nicht gesendet werden: {e}")
+        raise HTTPException(status_code=500, detail=f"Test-Mail konnte nicht gesendet werden: {e}") from e
     return {"status": "success", "message": f"Test-Mail erfolgreich an {recipient} gesendet!"}

@@ -109,7 +109,7 @@ def login(credentials: LoginModel, request: Request, response: Response):
         audit(
             clean_user, "login", ok=False, error="bind fehlgeschlagen", ip=request.client.host if request.client else ""
         )
-        raise HTTPException(status_code=401, detail=bind_error_message(str(e)))
+        raise HTTPException(status_code=401, detail=bind_error_message(str(e))) from None
     except Exception:
         throttle_release(key, attempt)  # z. B. DC nicht erreichbar: kein falsches Passwort
         raise

@@ -256,9 +256,8 @@ class ReviewFixTests(unittest.TestCase):
         server = mock.Mock()
         server.has_extn.return_value = False
         cfg = {"host": "h", "port": 587, "tlsMode": "Auto", "username": "u", "password": "p", "fromEmail": "a@b.c"}
-        with mock.patch.object(smtplib, "SMTP", return_value=server):
-            with self.assertRaises(smtplib.SMTPException):
-                mailer.smtp_send(cfg, "x@y.z", "s", "t")
+        with mock.patch.object(smtplib, "SMTP", return_value=server), self.assertRaises(smtplib.SMTPException):
+            mailer.smtp_send(cfg, "x@y.z", "s", "t")
         server.login.assert_not_called()
         server.send_message.assert_not_called()
 

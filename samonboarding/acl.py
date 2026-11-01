@@ -113,7 +113,7 @@ class SecurityDescriptor:
     control: int = SE_SELF_RELATIVE
     owner: str | None = None
     group: str | None = None
-    dacl: list = field(default_factory=list)  # None = keine DACL vorhanden (NULL-DACL)
+    dacl: list | None = field(default_factory=list)  # None = keine DACL vorhanden (NULL-DACL)
     dacl_revision: int = 2
 
 

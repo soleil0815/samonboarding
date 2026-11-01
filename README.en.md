@@ -661,7 +661,7 @@ Every build uses exactly the same versions. The same files give the same image:
 | `requirements.txt` | All Python packages including indirect ones, each `==version`. Installed with `--no-deps`; `pip check` then verifies that everything fits together |
 | `requirements.in` | The direct Python packages with their outer limits |
 | `package.json`, `package-lock.json` | npm packages for CSS, fonts and icons, exact and with checksums of all sub-packages (`npm ci`). Only needed while building, not part of the image |
-| `requirements-dev.txt` | Test tools (pytest, ruff) with exact versions |
+| `requirements-dev.txt` | Test tools (pytest, ruff, pyright) with exact versions |
 
 The versions are renewed with `python3 scripts/pins.py update` (needs Docker and internet). On GitHub this happens automatically every week (see *Automatic security updates*). Nothing is ever pinned or built on a server. The same limits always apply:
 
@@ -845,7 +845,7 @@ DATA-PROTECTION.en.md       data protection documentation (GDPR), German: DATENS
 Dockerfile                  stage 1 builds Tailwind CSS, fonts (Manrope, JetBrains Mono) and Font Awesome, stage 2 is the app
 tailwind.config.js          Tailwind scans samonboarding/web/*.html, colours and fonts from web/theme.json
 tests/                      unit tests and scenarios (see Tests)
-pyproject.toml              ruff and pytest configuration
+pyproject.toml              ruff, pyright and pytest configuration
 requirements-dev.txt        packages for testing (exact versions)
 requirements.in             direct Python packages; requirements.txt is the exact lock list
 package.json                npm packages for the CSS build (exact), package-lock.json with all sub-packages
@@ -877,11 +877,16 @@ update.sh                   manual update: remember the previous version, fetch,
 ```bash
 pip install -r requirements-dev.txt
 pytest -q          # all tests
-ruff check . && ruff format --check .
+ruff check . && ruff format --check .   # style, security patterns (Bandit), typical bugs (Bugbear)
+pyright            # type check of the program and the build scripts
 ```
+
+The GitHub workflow runs ruff and pyright before every build, pyright with exactly the package versions of the image. Exceptions to security rules appear in the program only on the single line, with a reason (`# noqa: S… - …`).
 
 | File | Checks |
 |---|---|
+| `tests/test_codecheck.py` | Code check: ruff rules (including security), no blanket exceptions in the program, pyright in the workflow with the packages of the image |
+| `tests/test_license.py` | Copyright notice (NOTICE, headers), list of third-party components, licence texts in the image |
 | `tests/test_acl.py` | Windows security descriptors (SID, ACE, inserting before inherited entries, broken data) |
 | `tests/test_protection.py` | Protection of privileged accounts (SIDs from raw data, nested groups, RID 500/502), Samba/Windows detection and Exchange/Entra hint |
 | `tests/test_exchange.py` | Exchange settings validation, calls to the Exchange Management Shell (with stand-in modules for `pypsrp`), error messages |
