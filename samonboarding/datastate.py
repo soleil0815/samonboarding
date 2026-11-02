@@ -32,6 +32,7 @@ MIGRATIONS = {}
 STATE_NAME = "datenstand.json"
 BACKUP_DIR_NAME = "backups"
 KEEP_BACKUPS = 10
+PENDING_NAME = ".wechsel-laeuft"  # Versionswechsel begonnen (Sicherung angelegt), Migrationen noch nicht fertig
 _BACKUP_RE = re.compile(r"^vor-(.+)-(\d{8}-\d{6})\.tar\.gz$")
 
 
@@ -67,7 +68,7 @@ def write_state(data_dir, version, data_state, now=None):
 
 def _has_data(data_dir):
     """Gibt es schon Daten (auch von einer Version vor 2.0, die noch keinen Datenstand kannte)?"""
-    skip = {BACKUP_DIR_NAME, ".schreibtest"}
+    skip = {BACKUP_DIR_NAME, ".schreibtest", PENDING_NAME}
     return any(p.name not in skip for p in Path(data_dir).iterdir())
 
 
@@ -83,7 +84,7 @@ def backup(data_dir, version, now=None, keep=KEEP_BACKUPS):
     tmp = target_dir / (name + ".tmp")
     with tarfile.open(tmp, "w:gz") as tar:
         for item in sorted(data_dir.iterdir()):
-            if item.name in (BACKUP_DIR_NAME, ".schreibtest"):
+            if item.name in (BACKUP_DIR_NAME, ".schreibtest", PENDING_NAME):
                 continue
             tar.add(item, arcname=item.name)
     os.chmod(tmp, 0o600)
@@ -129,13 +130,29 @@ def prepare(data_dir=DATA_DIR, version=VERSION, data_state=DATA_STATE, migration
         )
     if stored_version == version and stored == data_state:
         return "unverändert"
-    saved = backup(data_dir, version, now)
-    log.info("Versionswechsel %s -> %s: Daten gesichert nach %s", stored_version, version, saved)
+    # Ist ein Wechsel auf diese Version schon begonnen, aber nicht fertig geworden (Migration abgestuerzt, Neustart in
+    # Schleife), bleibt es bei der Sicherung von damals: sonst wuerden halb migrierte Daten gesichert und nach
+    # KEEP_BACKUPS Neustarts die saubere Sicherung gekappt
+    pending = data_dir / PENDING_NAME
+    try:
+        pending_version = pending.read_text(encoding="utf-8").strip()
+    except OSError:
+        pending_version = ""
+    found = find_backup(data_dir, version) if pending_version == version else None
+    if found:
+        saved = found
+        log.warning("Wechsel auf %s war nicht abgeschlossen - es bleibt bei der Sicherung %s", version, saved.name)
+    else:
+        saved = backup(data_dir, version, now)
+        pending.write_text(version + "\n", encoding="utf-8")
+        os.chmod(pending, 0o600)
+        log.info("Versionswechsel %s -> %s: Daten gesichert nach %s", stored_version, version, saved)
     for step in range(stored + 1, data_state + 1):
         migrations[step](data_dir)
         write_state(data_dir, version, step, now)
         log.info("Daten auf Datenstand %s gebracht", step)
     write_state(data_dir, version, data_state, now)
+    pending.unlink(missing_ok=True)
     if _version_key(version) < _version_key(stored_version):
         log.warning(
             "Aeltere Programmversion %s auf Daten von %s (gleicher Datenstand) gestartet", version, stored_version

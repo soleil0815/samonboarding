@@ -1,9 +1,23 @@
 # Changelog
 
 All notable changes to SAMONBOARDING, newest first. The interface shows them under *Help → News*.
-Update on the server: `sudo sh update.sh --pull`.
+Update on the server: `sudo sh update.sh` or `docker compose pull && docker compose up -d`.
 
 Entries starting with "Security:" or "Fixed:" are marked accordingly in the interface.
+
+## 2.0.1 – Code audit – 2026-11-02
+- Security: `update.sh --cleanup` could delete `data/`, `docker-compose.yml` and `update.sh` too when a file name contained `*` or spaces (e.g. `neu * .zip`). Unusual names are now only reported; everything is checked again right before deleting.
+- Security: `update.sh --cleanup` now reliably detects mounted folders (also bind mounts from the same disk and a mount directly on an old program folder) and leaves them alone.
+- Security: `update.sh --restore` only restores backups with plain files and folders (no links or device files). Further hardening: versions only from digits, letters, `.`, `_` and `-`; link loops no longer break `--cleanup`.
+- Security: if the DC rejects the certificate on port 636 (with `LDAP_CA_FILE`), there is no longer a fallback to unencrypted LDAP, not even with `LDAP_ALLOW_PLAIN=true`.
+- Security: Delete accounts: a folder is also not deleted when another account's home folder lies inside it, when another account has `%username%` literally in its AD attribute, when the path from AD contains a short name with `~`, or when the same folder is also configured as folder redirection and belongs to another account.
+- Fixed: Delete accounts: if two locations point to the same folder (e.g. folder redirection into the home folder), it is deleted and counted only once; the AD account is then deleted as expected.
+- Security: notification mails (with the initial password) now only go to the address in the signed-in person's AD attribute `mail`. Without this attribute no mail is sent, instead of assuming `<user>@<AD domain>`.
+- Security: the container health check no longer runs as root but gives up all rights first. An empty `HTTPS_PORT=` in `.env` now means 9500 there as well (before, the container became "unhealthy").
+- Data protection: the program's own backups in `data/backups` are deleted once they are older than the longest retention period; `offboarding.db` overwrites deleted entries (`secure_delete`), as documented.
+- Fixed: if a data migration fails at start-up, a restart loop no longer creates new backups; the clean backup from before the change is kept.
+- Fixed: the menu item *E-mail notification* is hidden for operators (the server does not give them the settings). Credentials PDF: a message instead of a silent failure when a pop-up blocker prevents the window. Two missing English translations added.
+- Docs corrected: `TZ` (empty means UTC), operator rights, example values, template `env.example`, browser storage.
 
 ## 2.0.0-s1 – 2026-10-31
 - Security: security update without program changes: same program, updated packages.

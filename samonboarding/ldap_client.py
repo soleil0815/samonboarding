@@ -86,6 +86,19 @@ def name_sort_key(name, tiebreak=""):
     return (_fold(name), _fold(tiebreak))
 
 
+def _certificate_rejected(error):
+    """Hat der DC auf 636 ein Zertifikat gezeigt, das die Pruefung (LDAP_CA_FILE) nicht besteht?
+
+    ldap3 verpackt den SSL-Fehler in LDAPSocketOpenError (eine LDAPCommunicationError); erkennbar ist er nur am Text.
+    Dann darf es nie auf unverschluesseltes LDAP (389) weitergehen - sonst schickt ein Angreifer mit falschem
+    Zertifikat die Anmeldung in den Klartext.
+    """
+    if isinstance(error, ssl.SSLCertVerificationError):
+        return True
+    text = str(error).casefold()
+    return "certificate_verify_failed" in text or "certificate verify failed" in text
+
+
 def _tls_config():
     if LDAP_CA_FILE:
         return ldap3.Tls(validate=ssl.CERT_REQUIRED, version=ssl.PROTOCOL_TLSv1_2, ca_certs_file=LDAP_CA_FILE)
@@ -123,6 +136,9 @@ def ldap_connection(dc_ip, bind_user, password):
             except (LDAPCommunicationError, OSError) as e:
                 conn = None
                 log.warning("LDAP-Verbindung zu %s:%s fehlgeschlagen: %s", dc_ip, port, e)
+                if use_ssl and _certificate_rejected(e):
+                    log.error("Zertifikat des DC %s abgelehnt - kein Rueckfall auf unverschluesseltes LDAP", dc_ip)
+                    break
         if conn is None:
             # Einzelheiten (Socket-Fehler) stehen oben im Protokoll, nicht in der Meldung an den Browser
             raise DcUnreachable(f"Domain Controller {dc_ip} nicht erreichbar. Details stehen im Protokoll.")

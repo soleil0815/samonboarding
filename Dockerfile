@@ -113,9 +113,10 @@ USER ${APP_UID}:${APP_UID}
 # HTTPS only: there is no HTTP port. Certificate from data/tls/ or self-signed on the first start
 EXPOSE 9500
 
-# Health check in the image itself - also applies without Docker Compose (docker run)
+# Health check in the image itself - also applies without Docker Compose (docker run). docker-entrypoint.sh gives up
+# the rights first (Docker runs it as the container user, with the docker-compose.yml that is root).
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
-  CMD ["python", "-c", "import os, ssl, urllib.request; urllib.request.urlopen('https://localhost:%s/api/public-config' % os.environ.get('HTTPS_PORT', '9500'), timeout=3, context=ssl._create_unverified_context())"]
+  CMD ["/app/docker-entrypoint.sh", "healthcheck"]
 
 # Start of the container (docker-entrypoint.sh), then the application (uvicorn with TLS, see samonboarding/serve.py).
 # The image also carries the current docker-compose.yml, .env.example and update.sh (/app) - update.sh takes them from

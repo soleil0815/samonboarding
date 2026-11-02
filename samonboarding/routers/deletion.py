@@ -286,6 +286,9 @@ def _others_using(conn, search_base, attr, target_path, own_dn, kind):
     clauses = "".join(
         f"({attr}=*{ldap_escape(chr(92) + n)})({attr}=*{ldap_escape(chr(92) + n + chr(92))})" for n in names
     )
+    # Code-Audit 2026-11: auch Konten, deren Ordner INNERHALB dieses Ordners liegt (\\fs\home$\azubis\mueller),
+    # und Werte, die %username% woertlich enthalten (erst nach dem Einsetzen vergleichbar)
+    clauses += f"({attr}=*{ldap_escape(chr(92) + last + chr(92))}*)({attr}=*%username%*)"
     rows = ldap_search(conn, search_base, f"(&{USER_FILTER}(|{clauses}))", ["sAMAccountName", attr])
     others = []
     for r in rows:
@@ -295,14 +298,16 @@ def _others_using(conn, search_base, attr, target_path, own_dn, kind):
             other = normalize_unc(expand_username(r.text(attr), r.text("sAMAccountName")))
         except ValueError:
             continue
-        if {_path_key(other), _path_key(other, strip_suffix=profile)} & (want | ancestors):
+        keys = {_path_key(other), _path_key(other, strip_suffix=profile)}
+        inside = any(k[:2] == w[:2] and len(k[2]) > len(w[2]) and k[2][: len(w[2])] == w[2] for k in keys for w in want)
+        if keys & (want | ancestors) or inside:
             others.append(r.text("sAMAccountName"))
     return sorted(others)
 
 
 def plan_targets(conn, cfg, entry, sam, search_base):
     """Alle moeglichen Ordner des Kontos; Ordner, die auch anderen Konten gehoeren, werden ausgeschlossen."""
-    targets = []
+    targets, shared = [], {}
     for kind in KINDS:
         attr = ATTR_OF_KIND.get(kind)
         raw = entry.text(attr) if attr else ""
@@ -312,8 +317,22 @@ def plan_targets(conn, cfg, entry, sam, search_base):
                 if others:
                     shown = ", ".join(others[:5]) + (" …" if len(others) > 5 else "")
                     target["skip"] = f"Wird auch von anderen Konten verwendet ({shown}) - würde deren Daten löschen."
+                    shared.setdefault(_path_key(target["path"]), target["skip"])
             targets.append(target)
-    return targets
+    # Derselbe Ordner bei mehreren Speicherorten (z. B. Ordnerumleitung in den Basisordner): nur einmal aufnehmen -
+    # und gar nicht, wenn er bei einem der Speicherorte einem anderen Konto gehoert (Code-Audit 2026-11)
+    result, seen = [], set()
+    for target in targets:
+        if target["path"] and not target["skip"]:
+            key = _path_key(target["path"])
+            if key in shared:
+                target["skip"] = shared[key]
+            elif key in seen:
+                continue
+            else:
+                seen.add(key)
+        result.append(target)
+    return result
 
 
 MAX_OWNERSHIP_CHECKS = 50

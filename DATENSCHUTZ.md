@@ -14,7 +14,7 @@ Dieses Dokument beschreibt, welche personenbezogenen Daten SAMONBOARDING verarbe
 |---|---|
 | Zweck | Anlegen, Ändern, Deaktivieren, Wiederherstellen und Löschen von Benutzerkonten im eigenen Active Directory |
 | Rechtsgrundlage (typisch) | Art. 6 Abs. 1 lit. b DSGVO / § 26 BDSG (Durchführung des Beschäftigungsverhältnisses), für die Berichte Art. 6 Abs. 1 lit. f bzw. Art. 32 DSGVO (Nachweis und Sicherheit) |
-| Wo laufen die Daten? | Im eigenen Netz: Container, Domänencontroller, Dateiserver, Exchange. Dazu euer SMTP-Server, ggf. beim Mail-Anbieter (z. B. Strato) |
+| Wo laufen die Daten? | Im eigenen Netz: Container, Domänencontroller, Dateiserver, Exchange. Dazu euer SMTP-Server, ggf. bei einem externen Mail-Anbieter |
 | Dritte / Drittland | **Keine.** Keine Cloud, keine CDNs, kein Google Fonts, keine Telemetrie, keine Update-Prüfung |
 | Internetzugang | Nicht nötig. Die Anwendung baut von sich aus keine Verbindungen ins Internet auf, sie verbindet sich nur mit DC, Dateiserver, eurem SMTP- und Exchange-Server. Wer den Container zusätzlich abschotten will, beschränkt den ausgehenden Verkehr in der Firewall des Hosts, Routers oder der Synology |
 | Speicherdauer | Berichte (Änderungen) 365 Tage, Protokoll 90 Tage, Wiederherstellungs-Einträge 180 Tage (einstellbar), danach automatische Löschung. Manuell löschen unter *Berichte* |
@@ -38,7 +38,7 @@ Dieses Dokument beschreibt, welche personenbezogenen Daten SAMONBOARDING verarbe
 | Merkliste der Verweise: Pfad (DN) und objectGUID der OUs und Gruppen, die in den Einstellungen und Templates gewählt sind. **Keine Konten, keine Personendaten** | `data/verweise.json` | Hinweis, wenn eine OU/Gruppe im AD umbenannt, verschoben oder gelöscht wurde |
 | Kontolisten der Module und AD-Struktur (Namen/DNs für die Auswahllisten) (Zwischenspeicher, damit der Wechsel zwischen den Bereichen schnell geht) | **Nur im Arbeitsspeicher**, je Sitzung; nach 60 Sekunden ungültig und beim nächsten Zugriff entfernt, sofort geleert bei jeder Änderung, beim Abmelden und beim Neustart. **Keine Kopie in einer Datenbank** | Bedienung |
 | Benachrichtigungs-Mails (bei Onboarding und Passwort-Reset mit neuem Passwort) | Eigener Mailserver, Postfach des ausführenden Mitarbeiters | Übergabe der Zugangsdaten |
-| Spracheinstellung DE/EN und zuletzt gelesene Version der Neuigkeiten | `localStorage` im Browser | Bedienung |
+| Spracheinstellung DE/EN, zuletzt gelesene Version der Neuigkeiten und Zeitpunkt der letzten Aktivität (für die Abmeldung bei Leerlauf) | `localStorage` im Browser | Bedienung |
 | Container-Protokoll (Fehler, Hinweise) | Docker-Log, rotiert (3 × 10 MB) | Betrieb / Fehlersuche |
 
 ---
@@ -62,7 +62,7 @@ Dieses Dokument beschreibt, welche personenbezogenen Daten SAMONBOARDING verarbe
   ```bash
   docker compose exec samonboarding python -m samonboarding.privacy bereinigen
   ```
-- **Backups:** Wenn `data/` gesichert wird, gelten die Fristen auch für die Sicherungen. Plant die Aufbewahrung der Backups passend. Das Programm legt vor jedem Versionswechsel selbst eine Sicherung in `data/backups/` an (nur für den Programmbenutzer lesbar) und behält nur die letzten 10. Ältere Sicherungen in `backups/` neben der `docker-compose.yml` stammen von `update.sh` bis Version 1.48 und können nach Prüfung gelöscht werden.
+- **Backups:** Wenn `data/` gesichert wird, gelten die Fristen auch für die Sicherungen. Plant die Aufbewahrung der Backups passend. Das Programm legt vor jedem Versionswechsel selbst eine Sicherung in `data/backups/` an (nur für den Programmbenutzer lesbar) und behält nur die letzten 10. Diese Sicherungen enthalten auch Berichte und Protokoll: Die tägliche Bereinigung löscht sie, sobald sie älter als die längste Frist sind (dann ist alles darin abgelaufen); ist eine Frist `0`, bleiben sie. Ältere Sicherungen in `backups/` neben der `docker-compose.yml` stammen von `update.sh` bis Version 1.48 und können nach Prüfung gelöscht werden.
 
 ---
 
@@ -128,7 +128,7 @@ Die Suche läuft als Textsuche nach dem Benutzernamen. Bitte prüft das Ergebnis
 - [ ] **Rechte auf `data/` einschränken** (`chmod 700 data`). Dort liegt u. a. das SMTP-Passwort im Klartext.
 - [ ] **Passwörter in Mails abwägen:** Onboarding- und Passwort-Reset-Mails enthalten das neue Passwort. Gehen sie nur intern an den ausführenden Mitarbeiter, ist das meist vertretbar. Alternativ SMTP nicht aktivieren und das PDF bzw. die Kopierfunktion nutzen.
 - [ ] **Berechtigungen** für Operatoren nur auf die nötigen OUs delegieren.
-- [ ] **Externer Mail-Anbieter** (z. B. Strato) für die Benachrichtigungen? Dann einen Vertrag zur Auftragsverarbeitung (Art. 28) mit dem Anbieter abschließen bzw. prüfen und ihn im Verzeichnis der Verarbeitungstätigkeiten als Empfänger eintragen.
+- [ ] **Externer Mail-Anbieter** für die Benachrichtigungen? Dann einen Vertrag zur Auftragsverarbeitung (Art. 28) mit dem Anbieter abschließen bzw. prüfen und ihn im Verzeichnis der Verarbeitungstätigkeiten als Empfänger eintragen.
 - [ ] Den Einsatz mit eurem **Datenschutzbeauftragten** abstimmen.
 
 ### Vorlage: Eintrag im Verzeichnis von Verarbeitungstätigkeiten

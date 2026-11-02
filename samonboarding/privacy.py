@@ -7,6 +7,8 @@ Personenbezogene Daten speichert die Anwendung nur in data/:
   * reports.db, Tabelle applog  Protokoll (Programm-Meldungen)        -> LOG_RETENTION_DAYS      (Standard 90)
   * offboarding.db              Wiederherstellungs-Eintraege          -> OFFBOARD_RETENTION_DAYS (Standard 180)
 0 bedeutet: unbegrenzt aufbewahren. Die Bereinigung laeuft beim Start und danach einmal taeglich.
+Eigene Sicherungen (data/backups/vor-*.tar.gz) enthalten diese Daten ebenfalls: sie werden entfernt, sobald sie
+aelter als die laengste Frist sind (dann ist alles darin abgelaufen); ist eine Frist 0, bleiben sie.
 Manuell loeschen koennen Administratoren unter "Berichte".
 
 Auskunft nach Art. 15 DSGVO (im Container; in der Oberflaeche unter "Datenschutz"):
@@ -20,8 +22,9 @@ import logging
 import sys
 import threading
 from datetime import datetime, timedelta, timezone
+from pathlib import Path
 
-from . import config, offboard_store, reports
+from . import config, datastate, offboard_store, reports
 
 log = logging.getLogger(__name__)
 INTERVAL_SECONDS = 24 * 3600
@@ -47,9 +50,27 @@ def purge_offboarding(days, now=None):
     return offboard_store.purge_older_than(_cutoff_iso(days, now)) if days > 0 else 0
 
 
+def purge_backups(days_list, now=None, data_dir=None):
+    """Entfernt eigene Sicherungen (data/backups/vor-*.tar.gz), die aelter als die laengste Frist sind - alles darin
+    ist dann abgelaufen. Ist eine Frist 0 (unbegrenzt), bleibt jede Sicherung. Liefert die Anzahl."""
+    if not days_list or any(d <= 0 for d in days_list):
+        return 0
+    folder = Path(data_dir or config.DATA_DIR) / datastate.BACKUP_DIR_NAME
+    if not folder.is_dir():
+        return 0
+    cutoff = ((now or datetime.now(timezone.utc)) - timedelta(days=max(days_list))).timestamp()
+    removed = 0
+    for path in folder.iterdir():
+        own = datastate._BACKUP_RE.match(path.name) and path.is_file() and not path.is_symlink()
+        if own and path.stat().st_mtime < cutoff:
+            path.unlink()
+            removed += 1
+    return removed
+
+
 def run_retention(now=None):
     """Alle Fristen anwenden; Fehler werden protokolliert, nie geworfen."""
-    result = {"audit": 0, "log": 0, "offboarding": 0}
+    result = {"audit": 0, "log": 0, "offboarding": 0, "backups": 0}
     jobs = (
         ("audit", purge_audit, config.AUDIT_RETENTION_DAYS),
         ("log", purge_log, config.LOG_RETENTION_DAYS),
@@ -60,12 +81,17 @@ def run_retention(now=None):
             result[key] = fn(days, now)
         except Exception as e:
             log.error("Bereinigung (%s) fehlgeschlagen: %s", key, e)
+    try:
+        result["backups"] = purge_backups([days for _, _, days in jobs], now)
+    except Exception as e:
+        log.error("Bereinigung (Sicherungen) fehlgeschlagen: %s", e)
     log.info(
-        "Aufbewahrungsfristen geprueft: %s Aenderungen, %s Protokoll-Eintraege und %s Wiederherstellungs-Eintraege "
-        "entfernt",
+        "Aufbewahrungsfristen geprueft: %s Aenderungen, %s Protokoll-Eintraege, %s Wiederherstellungs-Eintraege und "
+        "%s Sicherungen entfernt",
         result["audit"],
         result["log"],
         result["offboarding"],
+        result["backups"],
     )
     return result
 

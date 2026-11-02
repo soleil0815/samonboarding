@@ -868,7 +868,10 @@
   "Die docker-compose.yml auf dem Server ist veraltet.": "The docker-compose.yml on the server is out of date.",
   "Stand der Datei:": "File version:",
   "benötigt:": "required:",
-  "Abhilfe: im Ordner der docker-compose.yml „sh update.sh“ ausführen – oder die docker-compose.yml aus dem aktuellen Release herunterladen und „docker compose up -d“ ausführen. Die .env und die Daten bleiben unverändert.": "Remedy: run “sh update.sh” in the folder of the docker-compose.yml – or download the docker-compose.yml from the current release and run “docker compose up -d”. The .env and the data stay unchanged."
+  "Abhilfe: im Ordner der docker-compose.yml „sh update.sh“ ausführen – oder die docker-compose.yml aus dem aktuellen Release herunterladen und „docker compose up -d“ ausführen. Die .env und die Daten bleiben unverändert.": "Remedy: run “sh update.sh” in the folder of the docker-compose.yml – or download the docker-compose.yml from the current release and run “docker compose up -d”. The .env and the data stay unchanged.",
+  "Diese Objekte wurden gelöscht und unter gleichem Namen neu angelegt. Das neue Objekt übernehmen?": "These objects were deleted and created again under the same name. Accept the new object?",
+  "Der Pfad enthält '~' (Kurzname) - wird nicht automatisch gelöscht.": "The path contains '~' (short name) - it will not be deleted automatically.",
+  "Das Fenster zum Drucken wurde blockiert. Bitte Pop-ups für diese Seite erlauben.": "The print window was blocked. Please allow pop-ups for this page."
  },
  "patterns": [
   [
@@ -1340,6 +1343,10 @@
    "Test mail sent to {0}."
   ],
   [
+   "Test-Mail erfolgreich an {0} gesendet!",
+   "Test mail sent to {0}!"
+  ],
+  [
    "Konto {0} und {1} Ordner wurden gelöscht.",
    "Account {0} and {1} folder(s) were deleted."
   ],
@@ -1634,10 +1641,6 @@
   [
    "Verweise angepasst: {0}",
    "References updated: {0}"
-  ],
-  [
-   "Diese Objekte wurden gelöscht und unter gleichem Namen neu angelegt. Das neue Objekt übernehmen?\n\n{0}",
-   "These objects were deleted and created again under the same name. Accept the new object?\n\n{0}"
   ],
   [
    "SMTP-Server {0} nicht erreichbar ({1}). Servername, Port und Firewall prüfen.",

@@ -14,6 +14,17 @@ APP_UID=10001
 APP_GID=10001
 DATA=/app/data
 
+# Health check of the image (HEALTHCHECK): Docker runs it as the container user - with "user: 0:0" that is root.
+# It never runs as root either: give up all rights first. An empty HTTPS_PORT= in .env means the default (9500).
+if [ "${1:-}" = healthcheck ]; then
+    PORT="${HTTPS_PORT:-9500}"
+    set -- python -I -c "import ssl, urllib.request; urllib.request.urlopen('https://localhost:$PORT/api/public-config', timeout=3, context=ssl._create_unverified_context())"
+    if [ "$(id -u)" = 0 ]; then
+        exec setpriv --reuid="$APP_UID" --regid="$APP_GID" --clear-groups --inh-caps=-all -- "$@"
+    fi
+    exec "$@"
+fi
+
 if [ "$(id -u)" = 0 ]; then
     mkdir -p "$DATA"
     if [ "$(stat -c %u "$DATA")" != "$APP_UID" ] || [ "$(stat -c %g "$DATA")" != "$APP_GID" ]; then

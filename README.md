@@ -195,7 +195,7 @@ Läuft alles, kann das alte Volume mit `sudo docker volume rm samonboarding-data
 
 Ob das Verzeichnis ein **Samba AD** oder ein **Windows Server AD** ist, wird beim Anmelden automatisch erkannt (RootDSE) und oben neben der Rolle angezeigt. Eine Einstellung ist dafür nicht nötig.
 
-Alle Einstellungen stehen in der Datei **`.env`** (Vorlage: `.env.example`). Nach einer Änderung: `docker compose up -d` (der Container wird dabei neu erstellt). Ein leerer Wert bedeutet: Standardwert.
+Alle Einstellungen stehen in der Datei **`.env`** (Vorlage: `env.example` am Release bzw. `.env.example` im Repository). Nach einer Änderung: `docker compose up -d` (der Container wird dabei neu erstellt). Ein leerer Wert bedeutet: Standardwert (Ausnahme `TZ`: leer heißt UTC).
 
 | Variable | Standard | Bedeutung |
 |---|---|---|
@@ -757,7 +757,7 @@ Ein Reverse Proxy ist nicht mehr nötig. Wer trotzdem einen verwendet, leitet an
 - Die Anwendung läuft nur über HTTPS (siehe oben). Am besten ein eigenes Zertifikat hinterlegen und `LDAP_ALLOW_PLAIN` auf `false` lassen (Standard)
 - Operatoren nur die Rechte geben, die sie brauchen (Delegierung auf einzelne OUs)
 - Der Ordner `data/` enthält das **SMTP-Passwort im Klartext** und eventuell feste Template-Passwörter. Rechte einschränken (`chmod 700 data`) und Sicherungen schützen
-- Benachrichtigungs-Mails enthalten bei Onboarding und Passwort-Reset das neue Passwort im Klartext und gehen an den ausführenden Mitarbeiter. Die Mails für Offboarding, Passwort-Reset, Benutzerverwaltung und Löschen lassen sich in den SMTP-Einstellungen einzeln abschalten. Die Onboarding-Mail wird gesendet, sobald SMTP aktiviert ist. Wenn das nicht gewünscht ist, SMTP nicht aktivieren
+- Benachrichtigungs-Mails enthalten bei Onboarding und Passwort-Reset das neue Passwort im Klartext und gehen an den ausführenden Mitarbeiter, und zwar nur an die Adresse aus seinem AD-Attribut `mail`. Ohne `mail`-Attribut geht keine Mail raus (bis 2.0.0 wurde `<Benutzer>@<AD-Domäne>` angenommen). Die Mails für Offboarding, Passwort-Reset, Benutzerverwaltung und Löschen lassen sich in den SMTP-Einstellungen einzeln abschalten. Die Onboarding-Mail wird gesendet, sobald SMTP aktiviert ist. Wenn das nicht gewünscht ist, SMTP nicht aktivieren
 - Die Anwendung schützt vor Passwort-Raten durch eine zeitweise Sperre je Benutzer und IP (Standard: 5 Versuche, 5 Minuten). Eine Kontensperre im AD ist davon unabhängig, plane die AD-Richtlinie entsprechend
 - Die Löschfunktion ist Administratoren vorbehalten (Menü ausgeblendet, Server prüft die Rolle). Dateiserver-Zugriffe laufen mit den Rechten des angemeldeten Administrators. Gelöschte Dateien lassen sich nicht wiederherstellen. Plane Sicherungen bzw. Schattenkopien auf dem Dateiserver ein
 - **Kein root für das Programm:** Der Container startet kurz als root, nur mit den Rechten DAC_READ_SEARCH, CHOWN, SETUID und SETGID, um `data/` an den Programmbenutzer 10001 zu übergeben. Danach läuft das Programm dauerhaft als 10001 ohne Linux-Capabilities und ohne die Möglichkeit, Rechte hinzuzugewinnen (`no-new-privileges`). `data/` ist nur für diesen Benutzer lesbar
@@ -785,7 +785,7 @@ Ein Reverse Proxy ist nicht mehr nötig. Wer trotzdem einen verwendet, leitet an
 | *Dieses Konto ist geschützt ...* (403) beim Offboarding oder Löschen | Das Konto ist Mitglied einer privilegierten Gruppe (z. B. Domänen-Admins). Beabsichtigter Schutz. Soll es wirklich bearbeitet werden, zuerst die Mitgliedschaft im AD entfernen |
 | Onboarding-Warnung *Postfach konnte nicht angelegt werden* | Meldung lesen: *Anmeldung abgelehnt* → Anmeldeart ändern (NTLM) oder Rolle *Mail Recipients* prüfen. *Nicht erreichbar* → Servername, Port 443 und Firewall vom Container zum Exchange-Server. *Zertifikat* → Zertifikat vertrauen oder die Prüfung bewusst abschalten. Konto ist angelegt, Postfach in Exchange nachholen |
 | Wiederherstellen: *Die OU … gibt es nicht mehr* | Im Wiederherstellen-Dialog eine andere OU wählen |
-| Zeiten in den Berichten stehen in UTC | `TZ` fehlt in der `.env`. `TZ=Europe/Berlin` setzen und `sudo docker compose up -d` |
+| Zeiten in den Berichten stehen in UTC | `TZ` ist in der `.env` leer oder ungültig. `TZ=Europe/Berlin` setzen und `sudo docker compose up -d` |
 | Löschen: *Seit der Simulation hat sich etwas geändert* | Zwischen Simulation und Löschen hat sich der Zustand verändert (z. B. ein Benutzer hat sich angemeldet und ein Profil angelegt). Nichts wurde gelöscht. Simulation wiederholen |
 | Löschen: *Nicht alle Ordner konnten gelöscht werden* | Meist gesperrte Dateien (Benutzer noch angemeldet, Virenscanner) oder fehlende Löschrechte. Das AD-Konto bleibt bestehen. Fehlerdetails in der Ergebnisliste, danach Simulation wiederholen |
 | Löschen-Simulation: *Dateiserver nicht erreichbar* | Port 445 vom Container zum Dateiserver gesperrt oder Servername im Pfad falsch. Prüfen mit dem Verbindungstest auf der Seite |
@@ -903,6 +903,7 @@ Der GitHub-Workflow führt ruff und pyright vor jedem Bau aus, pyright mit genau
 | `tests/test_assets.py` | Farben/Schriften (`theme.json`), Einbindung nur lokal, keine Internet-Adressen, CSP, Schriften im Dockerfile |
 | `tests/test_scenarios.py` | Startet die Szenarien in `tests/scenarios/`: Anmeldung und Rollen, Onboarding, Offboarding, Gruppen, Einstellungen, Löschen (Simulation, Ausführung, Besitzübernahme, Mail), Wiederherstellen nach dem Offboarding, Templates, Sortierung, umbenannte/verschobene OUs und Gruppen |
 | `tests/test_update_sh.py` | `update.sh` mit nachgebautem `docker` unter dash: Update, Rückkehr bei Fehlstart, neuere `docker-compose.yml`, offline, Wiederherstellen, Aufräumen schont Daten auch über Verknüpfungen und eingebundene Ordner |
+| `tests/test_audit_2026_11.py`, `tests/ui/pdf.test.js`, `tests/ui/nav.test.js` | Code-Audit 2026-11: kein Klartext-Rückfall bei abgelehntem DC-Zertifikat, Löschschutz für Ordner anderer Konten, Gesundheitscheck ohne root, Sicherungen bei Migrationsfehlern und Löschfristen, Mails nur an das AD-Attribut `mail`, Menü je Rolle |
 | `tests/test_datastate.py` | Sicherung vor einem Versionswechsel, Migrationen, Abbruch bei Daten einer neueren Version, Kennung der `docker-compose.yml`, Startskript |
 | `tests/test_pins.py`, `tests/test_supply_chain.py` | Festgelegte Versionen und ihre Grenzen, Nummern der Sicherheitsupdates, Trivy (nachgestellt), Workflows auf GitHub |
 

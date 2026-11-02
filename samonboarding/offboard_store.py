@@ -48,6 +48,7 @@ def _db():
         restrict(config.OFFBOARD_DB_FILE)
         try:
             conn.row_factory = sqlite3.Row
+            conn.execute("PRAGMA secure_delete=ON")  # geloeschte Eintraege werden ueberschrieben (wie reports.db)
             conn.executescript(SCHEMA)
             yield conn
             conn.commit()

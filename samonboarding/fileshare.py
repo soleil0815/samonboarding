@@ -174,6 +174,10 @@ def _from_attribute(kind, raw, sam, roots, suffixes=()):
         return _target(kind, str(raw), "AD-Attribut", f"Nicht verwendbar: {e}")
     if not below_any_root(path, roots):
         return _target(kind, path, "AD-Attribut", "Liegt nicht unterhalb eines freigegebenen Basispfads.")
+    if "~" in path:
+        # Windows-Kurznamen (CHEF~1) koennten auf den Ordner eines anderen zeigen; der Vergleich mit anderen Konten
+        # sieht sie nicht
+        return _target(kind, path, "AD-Attribut", "Der Pfad enthält '~' (Kurzname) - wird nicht automatisch gelöscht.")
     if not name_matches_sam(last_name(path), sam, suffixes):
         # Schutz: Steht im Attribut der Ordner eines anderen (z. B. \\fs\home$\chef), darf er nicht geloescht werden
         return _target(

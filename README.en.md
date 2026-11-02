@@ -195,11 +195,11 @@ Once everything runs, the old volume can be deleted with `sudo docker volume rm 
 
 Whether the directory is a **Samba AD** or a **Windows Server AD** is detected automatically at sign-in (RootDSE) and shown next to the role. No setting is needed for this.
 
-All settings are in the file **`.env`** (template: `.env.example`). After a change run `docker compose up -d` (the container is recreated). An empty value means: default.
+All settings are in the file **`.env`** (template: `env.example` in the release or `.env.example` in the repository). After a change run `docker compose up -d` (the container is recreated). An empty value means: default (exception `TZ`: empty means UTC).
 
 | Variable | Default | Meaning |
 |---|---|---|
-| `AD_DOMAIN` | `firma.local` | DNS name of the domain (not the NetBIOS name). The search base is derived from it: `firma.local` → `DC=company,DC=local` |
+| `AD_DOMAIN` | `firma.local` | DNS name of the domain (not the NetBIOS name). The search base is derived from it: `firma.local` → `DC=firma,DC=local` |
 | `AD_DC_IP` | `10.0.10.5` | IP address or name of the domain controller |
 | `CUSTOM_OPERATOR_GROUP` | empty | sAMAccountName of an additional group whose members are operators. The built-in *Account Operators* group always applies, recognised by its SID |
 | `LDAP_CA_FILE` | empty | Path (inside the container) to a CA file in PEM format. If set, the DC certificate is verified |
@@ -296,7 +296,7 @@ Or with `ldp.exe`: *Connection → Connect…*, port `636`, tick *SSL*.
 **Create an operator group (optional):**
 
 ```powershell
-New-ADGroup -Name "CO-ADMIN" -GroupScope Global -GroupCategory Security -Path "OU=Groups,DC=company,DC=local"
+New-ADGroup -Name "CO-ADMIN" -GroupScope Global -GroupCategory Security -Path "OU=Groups,DC=firma,DC=local"
 Add-ADGroupMember -Identity "CO-ADMIN" -Members user1,user2
 ```
 
@@ -757,7 +757,7 @@ A reverse proxy is no longer needed. If you use one anyway, forward to `https://
 - The application runs over HTTPS only (see above). Ideally install your own certificate and leave `LDAP_ALLOW_PLAIN` at `false` (default)
 - Give operators only the rights they need (delegation on individual OUs)
 - The `data/` folder contains the **SMTP password in plain text** and possibly fixed template passwords. Restrict permissions (`chmod 700 data`) and protect backups
-- For onboarding and password reset, notification mails contain the new password in plain text and go to the acting employee. Mails for offboarding, password reset, user management and deletion can be switched off individually in the SMTP settings. The onboarding mail is sent as soon as SMTP is enabled; if you do not want that, do not enable SMTP
+- For onboarding and password reset, notification mails contain the new password in plain text and go to the acting employee, and only to the address in their AD attribute `mail`. Without a `mail` attribute no mail is sent (up to 2.0.0 `<user>@<AD domain>` was assumed). Mails for offboarding, password reset, user management and deletion can be switched off individually in the SMTP settings. The onboarding mail is sent as soon as SMTP is enabled; if you do not want that, do not enable SMTP
 - The application protects against password guessing with a temporary lock per user and IP (default: 5 attempts, 5 minutes). An AD account lockout is independent of this; plan your AD policy accordingly
 - Deletion is reserved for administrators (menu hidden, the server checks the role). File server access runs with the signed-in administrator's permissions. Deleted files cannot be restored; plan backups or shadow copies on the file server
 - **No root for the program:** the container starts briefly as root, only with the rights DAC_READ_SEARCH, CHOWN, SETUID and SETGID, to hand `data/` over to the program user 10001. After that the program runs permanently as 10001 without Linux capabilities and cannot gain privileges (`no-new-privileges`). Only this user can read `data/`
@@ -785,7 +785,7 @@ A reverse proxy is no longer needed. If you use one anyway, forward to `https://
 | *Dieses Konto ist geschützt ...* (403) on offboarding or deletion | The account is a member of a privileged group (e.g. Domain Admins). Intended protection. If it really has to be processed, remove the membership in AD first |
 | Onboarding warning *Postfach konnte nicht angelegt werden* (mailbox could not be created) | Read the message: *authentication rejected* → change the authentication (NTLM) or check the *Mail Recipients* role. *Not reachable* → server name, port 443 and firewall from the container to Exchange. *Certificate* → trust the certificate or deliberately turn verification off. The account exists; create the mailbox in Exchange |
 | Restore: *Die OU … gibt es nicht mehr* (OU no longer exists) | Choose another OU in the restore dialog |
-| Times in the reports are in UTC | `TZ` is missing in `.env`. Set `TZ=Europe/Berlin` and run `sudo docker compose up -d` |
+| Times in the reports are in UTC | `TZ` in `.env` is empty or invalid. Set `TZ=Europe/Berlin` and run `sudo docker compose up -d` |
 | Deletion: *Seit der Simulation hat sich etwas geändert* (something changed since the simulation) | The state changed between simulation and deletion (e.g. a user signed in and created a profile). Nothing was deleted. Repeat the simulation |
 | Deletion: *Nicht alle Ordner konnten gelöscht werden* (not all folders could be deleted) | Usually locked files (user still signed in, virus scanner) or missing delete rights. The AD account remains. Error details in the result list, then repeat the simulation |
 | Deletion simulation: *Dateiserver nicht erreichbar* (file server not reachable) | Port 445 from the container to the file server is blocked or the server name in the path is wrong. Check with the connection test on the page |
@@ -903,6 +903,7 @@ The GitHub workflow runs ruff and pyright before every build, pyright with exact
 | `tests/test_assets.py` | Colours/fonts (`theme.json`), local-only asset loading, no internet addresses, CSP, fonts in the Dockerfile |
 | `tests/test_scenarios.py` | Runs the scenarios in `tests/scenarios/`: sign-in and roles, onboarding, offboarding, groups, settings, deletion (simulation, execution, ownership takeover, mail), restore after offboarding, templates, sorting, renamed/moved OUs and groups |
 | `tests/test_update_sh.py` | `update.sh` with a simulated `docker` under dash: update, going back after a failed start, newer `docker-compose.yml`, offline, restore, cleanup spares data also via links and mounted folders |
+| `tests/test_audit_2026_11.py`, `tests/ui/pdf.test.js`, `tests/ui/nav.test.js` | Code audit 2026-11: no plain-text fallback when the DC certificate is rejected, deletion protection for other accounts' folders, health check without root, backups on migration errors and retention, mails only to the AD attribute `mail`, menu per role |
 | `tests/test_datastate.py` | Backup before a version change, migrations, stop on data of a newer version, version of the `docker-compose.yml`, start script |
 | `tests/test_pins.py`, `tests/test_supply_chain.py` | Pinned versions and their limits, security update numbers, Trivy (simulated), GitHub workflows |
 

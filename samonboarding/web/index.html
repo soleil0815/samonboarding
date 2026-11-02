@@ -1606,6 +1606,9 @@
             if(navReports) navReports.style.display = role === "Administrator" ? '' : 'none';
             const navCert = document.getElementById('nav-cert');
             if(navCert) navCert.style.display = role === "Administrator" ? '' : 'none';
+            // SMTP-Einstellungen liest nur ein Administrator (der Server verweigert sie Operatoren)
+            const navSmtp = document.getElementById('nav-smtp');
+            if(navSmtp) navSmtp.style.display = role === "Administrator" ? '' : 'none';
 
             if(role !== "Administrator") {
                 document.getElementById('btn-new-tpl').classList.add('hidden');
@@ -4369,6 +4372,10 @@
 
         function generatePDF() {
             const printWindow = window.open('', '_blank');
+            if (!printWindow) {  // Pop-up-Blocker: sonst bricht die Funktion ohne Hinweis ab
+                alert(tr('Das Fenster zum Drucken wurde blockiert. Bitte Pop-ups für diese Seite erlauben.'));
+                return;
+            }
             const T = (text) => esc(tr(text));
             const htmlContent = `<!DOCTYPE html>
                 <html lang="${uiLang}">
