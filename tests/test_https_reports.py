@@ -110,7 +110,7 @@ class ServeTests(unittest.TestCase):
         self.assertIn('CMD ["python", "-m", "samonboarding.serve"]', docker)
         self.assertIn("EXPOSE 9500", docker)
         self.assertIn('"${HTTPS_PORT:-9500}:${HTTPS_PORT:-9500}"', compose)
-        self.assertIn("os.environ.get('HTTPS_PORT', '9500')", docker)  # Gesundheitscheck im Image, nicht in der Datei
+        self.assertIn('CMD ["/app/docker-entrypoint.sh", "healthcheck"]', docker)  # Gesundheitscheck im Image
         self.assertNotIn("8000", compose)
 
 

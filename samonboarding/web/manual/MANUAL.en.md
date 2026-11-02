@@ -78,7 +78,8 @@ The role comes from your group membership in AD. It is recognised by the fixed i
 |---|---|---|
 | Who | Member of *Account Operators* or the custom operator group | Member of *Domain Admins*, *Enterprise Admins* or *Administrators* |
 | Onboarding, user management, password, offboarding, restore | yes, in the released OUs | yes |
-| Module settings, templates, SMTP | view only | yes |
+| Module settings, templates | view only | yes |
+| SMTP and Exchange settings | no | yes |
 | Delete accounts, reports, certificate | no | yes |
 | Change protected accounts (e.g. Domain Admins) | no | yes (offboarding and deleting: nobody) |
 | Add to privileged groups | no | yes |
@@ -258,9 +259,9 @@ A template defines what a new account looks like. Open **Templates**: **+ New te
 
 ## 12. E-mail notification
 
-Open **E-mail notification** (operators can only view the settings).
+Open **E-mail notification** (administrators only; operators do not see the settings). Mails go to the address in the signed-in person's AD attribute `mail`; without this attribute no mail is sent.
 
-1. **Enable e-mail sending globally**, enter server, port, TLS mode, user and password and the sender. For Strato for example `smtp.strato.de`, port `587`, *STARTTLS*.
+1. **Enable e-mail sending globally**, enter server, port, TLS mode, user and password and the sender. For example `mail.firma.local`, port `587`, *STARTTLS*.
 2. **Save**, then send yourself a mail with **Send test email**.
 3. Choose which actions send mails: offboarding, password reset, user management, deletion. The onboarding mail is always sent as soon as SMTP is enabled.
 
@@ -378,4 +379,4 @@ The application's messages come from the server; in the English interface they a
 | Delete: *something has changed since the simulation* | Nothing was deleted. Run the simulation again |
 | Delete: *file is in use* | User still signed in or virus scanner. Simulate again later |
 | Delete: *no access* | You lack rights on the folder on the file server. Check the rights or enable *take ownership* |
-| Times in the reports are wrong | Set `TZ` in `.env` (e.g. `Europe/Berlin`) and run `sudo docker compose up -d` |
+| Times in the reports are wrong | `TZ` in `.env` is empty or invalid: set it correctly (e.g. `Europe/Berlin`) and run `sudo docker compose up -d` |

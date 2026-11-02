@@ -68,6 +68,7 @@ while [ $# -gt 0 ]; do
 done
 
 case "$WANT_VERSION" in
+    *[!0-9A-Za-z._-]*) fail "Version not understood: $WANT_VERSION (examples: 2.0, 2.0.1, 2.0.1-s2)" ;;
     ""|latest|[0-9]*.[0-9]*) ;;
     *) fail "Version not understood: $WANT_VERSION (examples: 2.0, 2.0.1, 2.0.1-s2)" ;;
 esac
@@ -79,7 +80,14 @@ HERE="$(pwd -P)"
 
 # An older update.sh (up to 1.48) starts this one after fetching the image and leaves a temporary folder behind
 if [ -n "${SAMONB_TMP:-}" ]; then
-    case "$SAMONB_TMP" in "$HERE"/.update-*) rm -rf "$SAMONB_TMP" ;; esac
+    case "$SAMONB_TMP" in
+        "$HERE"/.update-*)
+            # only a folder directly in this folder: no further "/", no "..", no link
+            case "${SAMONB_TMP#"$HERE"/.update-}" in
+                ""|*/*|*..*) ;;
+                *) if [ -d "$SAMONB_TMP" ] && [ ! -L "$SAMONB_TMP" ]; then rm -rf "$SAMONB_TMP"; fi ;;
+            esac ;;
+    esac
 fi
 
 ask() {  # ask "question" default(yes|no) - with -y always yes; without a terminal the default
@@ -178,7 +186,7 @@ take_compose_from_image() {  # $1 = image reference
 # --- update ----------------------------------------------------------------------------------------------------------
 do_update() {
     [ -f docker-compose.yml ] || fail "docker-compose.yml is missing in $HERE."
-    [ -f .env ] || fail ".env is missing: copy .env.example as .env and fill it in (see README)."
+    [ -f .env ] || fail ".env is missing: copy env.example (from the release) or .env.example as .env and fill it in (see README)."
     cp -p .env "$HERE/.env.update-bak"
 
     # .env of versions up to 1.48: SAMONBOARDING_IMAGE=ghcr.io/...:<tag> -> SAMONBOARDING_VERSION
@@ -273,6 +281,9 @@ do_restore() {
     [ -f "$file" ] || fail "Backup not found: $file"
     list="$(tar -tzf "$file" 2>/dev/null)" || fail "$file is not a readable backup (tar.gz)."
     if printf '%s\n' "$list" | grep -Eq '^/|(^|/)\.\.(/|$)'; then fail "$file contains unsafe paths - not restored."; fi
+    # only plain files and folders: no links, hard links or device files (they could point out of data/)
+    types="$(tar -tvzf "$file" 2>/dev/null | cut -c1)" || fail "$file is not a readable backup (tar.gz)."
+    if printf '%s\n' "$types" | grep -q '[^-d]'; then fail "$file contains links or special files - not restored."; fi
     say "The data in data/ is replaced by $file."
     say "The current state is saved first (data/backups/vor-wiederherstellen-<time>.tar.gz)."
     ask "Restore now?" no || fail "Nothing changed."
@@ -290,7 +301,10 @@ do_restore() {
         chmod 600 "backups/vor-wiederherstellen-$stamp.tar.gz" 2>/dev/null || true
         for entry in "$@"; do rm -rf "./$entry"; done
     ) || fail "The current state could not be saved - nothing restored."
-    tar -xzf "$file" -C data || fail "Restoring failed - the previous state is in data/backups/vor-wiederherstellen-$stamp.tar.gz"
+    if ! tar -xzf "$file" -C data; then
+        if [ "$(id -u)" = 0 ]; then chown -R "$APP_UID:$APP_UID" data || true; fi
+        fail "Restoring failed - the previous state is in data/backups/vor-wiederherstellen-$stamp.tar.gz"
+    fi
     if [ "$(id -u)" = 0 ]; then chown -R "$APP_UID:$APP_UID" data; fi
     ok "Backup restored ($file)"
     [ "$SET_VERSION" = 0 ] || env_set SAMONBOARDING_VERSION "$WANT_VERSION"
@@ -315,12 +329,14 @@ CHANGELOG.md CHANGELOG.en.md DATENSCHUTZ.md DATA-PROTECTION.en.md LICENSE SECURI
 PROTECTED_NAMES="data backups .env docker-compose.yml docker-compose.yml.alt docker-compose.override.yml update.sh"
 
 resolve() {  # full path with all links resolved (also for paths that do not exist yet: their folder)
+    # $2 = depth: a loop of links (a -> b -> a) gives up after 40 steps instead of crashing
+    if [ "${2:-0}" -gt 40 ]; then return 1; fi
     if [ -d "$1" ]; then (cd -P "$1" 2>/dev/null && pwd -P); return; fi
     d="$(dirname "$1")"; b="$(basename "$1")"
     if [ -L "$1" ]; then
         target="$(readlink "$1")"
         case "$target" in /*) ;; *) target="$d/$target" ;; esac
-        resolve "$target"
+        resolve "$target" $((${2:-0} + 1))
         return
     fi
     printf '%s/%s\n' "$(cd -P "$d" 2>/dev/null && pwd -P)" "$b"
@@ -338,9 +354,22 @@ overlaps_protected() {  # is $1 (resolved) a protected path, inside one, or does
     done | grep -q yes
 }
 
-crosses_mount() {  # does the folder $1 contain another file system (a mount point somewhere inside)?
+MOUNTINFO="${SAMONB_MOUNTINFO:-/proc/self/mountinfo}"  # tests use a prepared file
+
+is_mount_or_has_mount() {  # is the resolved path $1 itself a mount point, or is one mounted below it?
+    [ -r "$MOUNTINFO" ] || return 1
+    # field 5 is the mount point; spaces etc. are written as \040 (octal) - printf %b turns them back
+    cut -d ' ' -f 5 "$MOUNTINFO" | while IFS= read -r m; do
+        m="$(printf '%b' "$(printf '%s' "$m" | sed 's/\\\([0-7][0-7][0-7]\)/\\0\1/g')")"
+        case "$m" in "$1"|"$1"/*) echo yes; break ;; esac
+    done | grep -q yes
+}
+
+crosses_mount() {  # is the folder $1 (or anything inside) on another file system or a mount point (also bind mounts)?
     [ -d "$1" ] && [ ! -L "$1" ] || return 1
-    base="$(stat -c %d "$1" 2>/dev/null)" || return 0
+    real="$(cd -P "$1" 2>/dev/null && pwd -P)" || return 0
+    if is_mount_or_has_mount "$real"; then return 0; fi
+    base="$(stat -c %d "$HERE" 2>/dev/null)" || return 0
     find "$1" -type d -exec stat -c %d {} + 2>/dev/null | grep -qvx "$base"
 }
 
@@ -360,16 +389,29 @@ do_cleanup() {
         [ -e "$HERE/$name" ] || [ -L "$HERE/$name" ] || continue
         candidates="$candidates $name"
     done
+    skipped=""
     for path in "$HERE"/*.zip "$HERE"/*.ZIP "$HERE"/samonboarding-[0-9]* "$HERE"/.update-* "$HERE"/.env.update-bak; do
         [ -e "$path" ] || [ -L "$path" ] || continue
-        candidates="$candidates $(basename "$path")"
+        name="$(basename "$path")"
+        # the lists below are split at spaces: names with spaces, wildcards or other special characters are never
+        # put in them (a "*" would otherwise stand for every file in this folder, data/ included)
+        case "$name" in
+            *[!A-Za-z0-9._+-]*) skipped="$skipped
+      $name (unusual name - please delete by hand if no longer needed)"; continue ;;
+        esac
+        candidates="$candidates $name"
     done
 
+    set -f  # no wildcard expansion while working with the lists
     delete=""
-    skipped=""
     for name in $candidates; do
         path="$HERE/$name"
-        real="$(resolve "$path")"
+        real="$(resolve "$path" || true)"
+        if [ -z "$real" ]; then
+            skipped="$skipped
+      $name (links could not be resolved)"
+            continue
+        fi
         case "$real" in "$HERE"/*) ;; *) skipped="$skipped
       $name (points outside this folder: $real)"; continue ;; esac
         if overlaps_protected "$real"; then
@@ -403,6 +445,13 @@ do_cleanup() {
     say "  Never touched: data/, backups/, .env, docker-compose.yml (and .alt/.override), update.sh, mounted folders."
     ask "Delete the files listed above?" no || { say "Nothing deleted."; return 0; }
     for name in $delete; do
+        # checked again directly before deleting (something may have changed while the question was open)
+        real="$(resolve "$HERE/$name" || true)"
+        case "$real" in "$HERE"/*) ;; *) warn "left alone: $name (changed in the meantime)"; continue ;; esac
+        if overlaps_protected "$real" || crosses_mount "$HERE/$name"; then
+            warn "left alone: $name (changed in the meantime)"
+            continue
+        fi
         if [ -L "$HERE/$name" ]; then rm -f "$HERE/$name"; else rm -rf "${HERE:?}/$name"; fi
         ok "deleted: $name"
     done

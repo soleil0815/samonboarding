@@ -121,7 +121,9 @@ def login(credentials: LoginModel, request: Request, response: Response):
 
     throttle_clear(key)
     clean_user = sam or clean_user  # der echte sAMAccountName (z. B. bei Anmeldung per UPN)
-    email = user_mail if user_mail else f"{clean_user}@{domain}"
+    # Nur die Adresse aus dem AD (Attribut mail): eine erratene <name>@<AD-Domaene> kann bei einem Sammelpostfach oder
+    # einer anderen Person landen - die Mails enthalten Startpasswoerter. Ohne mail-Attribut gehen keine Mails raus.
+    email = user_mail or ""
     token = create_session(
         {
             "username": clean_user,

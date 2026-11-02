@@ -14,7 +14,7 @@ This document describes the personal data SAMONBOARDING processes: where it is k
 |---|---|
 | Purpose | Creating, changing, disabling, restoring and deleting user accounts in your own Active Directory |
 | Legal basis (typical) | Art. 6(1)(b) GDPR / national employment law (Germany: § 26 BDSG). Reports: Art. 6(1)(f) and Art. 32 GDPR (accountability and security) |
-| Where does data go? | Within your own network: the container, domain controller, file servers, Exchange. Plus your SMTP server, possibly at your mail provider (e.g. Strato) |
+| Where does data go? | Within your own network: the container, domain controller, file servers, Exchange. Plus your SMTP server, possibly at an external mail provider |
 | Third parties / third countries | **None.** No cloud, no CDNs, no Google Fonts, no telemetry, no update check |
 | Internet access | Not needed. The application does not open any internet connections by itself; it only connects to the DC, file servers and your SMTP and Exchange servers. If you want to shield the container further, restrict its outgoing traffic in the firewall of the host, router or Synology |
 | Retention | Reports (changes) 365 days, log 90 days, restore entries 180 days (configurable), then deleted automatically. Delete manually under *Reports* |
@@ -38,7 +38,7 @@ This document describes the personal data SAMONBOARDING processes: where it is k
 | Reference list: path (DN) and objectGUID of the OUs and groups chosen in the settings and templates. **No accounts, no personal data** | `data/verweise.json` | Notice when an OU/group was renamed, moved or deleted in AD |
 | Account lists of the modules and AD structure (names/DNs for the pickers) (cache, so that switching between pages is fast) | **In memory only**, per session; invalid after 60 seconds and removed on the next access, cleared immediately on every change, on sign-out and on restart. **No copy in a database** | Operation |
 | Notification mails (for onboarding and password reset they contain the new password) | Your own mail server, mailbox of the acting employee | Handing over credentials |
-| Language setting DE/EN and the last version read in News | Browser `localStorage` | Usability |
+| Language setting DE/EN, the last version read in News and the time of the last activity (for sign-out when idle) | Browser `localStorage` | Usability |
 | Container log (errors, notices) | Docker log, rotated (3 × 10 MB) | Operation / troubleshooting |
 
 ---
@@ -62,7 +62,7 @@ This document describes the personal data SAMONBOARDING processes: where it is k
   ```bash
   docker compose exec samonboarding python -m samonboarding.privacy bereinigen
   ```
-- **Backups:** if you back up `data/`, the retention periods apply to the backups as well. Plan backup retention to match. Before every version change the program itself creates a backup in `data/backups/` (readable only by the program user) and keeps only the last 10. Older backups in `backups/` next to the `docker-compose.yml` come from `update.sh` up to version 1.48 and can be deleted after checking.
+- **Backups:** if you back up `data/`, the retention periods apply to the backups as well. Plan backup retention to match. Before every version change the program itself creates a backup in `data/backups/` (readable only by the program user) and keeps only the last 10. These backups also contain reports and log: the daily clean-up deletes them once they are older than the longest retention period (then everything in them has expired); if a period is `0`, they are kept. Older backups in `backups/` next to the `docker-compose.yml` come from `update.sh` up to version 1.48 and can be deleted after checking.
 
 ---
 
@@ -128,7 +128,7 @@ The search is a text search for the user name. Review the result before handing 
 - [ ] **Restrict access to `data/`** (`chmod 700 data`). Among other things, it holds the SMTP password in plain text.
 - [ ] **Weigh up passwords in mails:** onboarding and password-reset mails contain the new password. If they only go internally to the acting employee, this is usually acceptable. Alternatively, leave SMTP disabled and use the PDF or the copy function.
 - [ ] **Permissions:** delegate operators only to the OUs they need.
-- [ ] **External mail provider** (e.g. Strato) for the notifications? Then conclude or check a data processing agreement (Art. 28) with the provider and list it as a recipient in the record of processing activities.
+- [ ] **External mail provider** for the notifications? Then conclude or check a data processing agreement (Art. 28) with the provider and list it as a recipient in the record of processing activities.
 - [ ] Agree the use of the tool with your **data protection officer**.
 
 ### Template: entry in the record of processing activities

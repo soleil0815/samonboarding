@@ -1,9 +1,23 @@
 # Changelog
 
 Alle wichtigen Änderungen an SAMONBOARDING, neueste zuerst. Die Oberfläche zeigt sie unter *Hilfe → Neuigkeiten*.
-Update auf dem Server: `sudo sh update.sh --pull`.
+Update auf dem Server: `sudo sh update.sh` oder `docker compose pull && docker compose up -d`.
 
 Einträge, die mit „Sicherheit:“ oder „Behoben:“ beginnen, werden in der Oberfläche entsprechend markiert.
+
+## 2.0.1 – Code-Audit – 2026-11-02
+- Sicherheit: `update.sh --cleanup` konnte bei einem Dateinamen mit `*` oder Leerzeichen (z. B. `neu * .zip`) auch `data/`, `docker-compose.yml` und `update.sh` löschen. Ungewöhnliche Namen werden jetzt nur gemeldet; vor jedem Löschen wird erneut geprüft.
+- Sicherheit: `update.sh --cleanup` erkennt eingehängte Ordner jetzt zuverlässig (auch Bind-Mounts vom selben Datenträger und einen Mount direkt auf einem alten Programmordner) und lässt sie stehen.
+- Sicherheit: `update.sh --restore` spielt nur Sicherungen mit gewöhnlichen Dateien und Ordnern zurück (keine Links oder Gerätedateien). Weitere Härtung: Versionsangaben nur aus Ziffern, Buchstaben, `.`, `_` und `-`; Link-Schleifen brechen `--cleanup` nicht mehr ab.
+- Sicherheit: Lehnt der DC auf Port 636 das Zertifikat ab (mit `LDAP_CA_FILE`), gibt es keinen Rückfall auf unverschlüsseltes LDAP mehr, auch nicht mit `LDAP_ALLOW_PLAIN=true`.
+- Sicherheit: Konten löschen: Ein Ordner wird auch dann nicht gelöscht, wenn der Basisordner eines anderen Kontos darin liegt, wenn ein anderes Konto `%username%` wörtlich im AD-Attribut stehen hat, wenn der Pfad aus dem AD einen Kurznamen mit `~` enthält oder wenn derselbe Ordner auch als Ordnerumleitung eingetragen ist und einem anderen Konto gehört.
+- Behoben: Konten löschen: Zeigen zwei Speicherorte auf denselben Ordner (z. B. Ordnerumleitung in den Basisordner), wird er nur einmal gelöscht und gezählt; das AD-Konto wird danach wie erwartet gelöscht.
+- Sicherheit: Benachrichtigungs-Mails (mit Startpasswort) gehen nur noch an die Adresse aus dem AD-Attribut `mail` des Angemeldeten. Ohne dieses Attribut wird keine Mail verschickt, statt `<Benutzer>@<AD-Domäne>` anzunehmen.
+- Sicherheit: Der Gesundheitscheck des Containers läuft nicht mehr als root, sondern gibt vorher alle Rechte ab. Ein leeres `HTTPS_PORT=` in der `.env` gilt dabei wie überall als 9500 (vorher wurde der Container „unhealthy“).
+- Datenschutz: Die eigenen Sicherungen in `data/backups` werden gelöscht, sobald sie älter als die längste Aufbewahrungsfrist sind; `offboarding.db` überschreibt gelöschte Einträge (`secure_delete`), wie dokumentiert.
+- Behoben: Bricht eine Datenmigration beim Start ab, legt jeder Neustart keine weitere Sicherung mehr an; die saubere Sicherung von vor dem Wechsel bleibt erhalten.
+- Behoben: Der Menüpunkt *E-Mail-Benachrichtigung* ist für Operatoren ausgeblendet (der Server gibt ihnen die Einstellungen nicht). PDF der Zugangsdaten: Hinweis statt stillem Abbruch, wenn ein Pop-up-Blocker das Fenster verhindert. Zwei fehlende englische Übersetzungen ergänzt.
+- Doku korrigiert: `TZ` (leer heißt UTC), Rechte der Operatoren, Beispielwerte, Vorlage `env.example`, Browser-Speicher.
 
 ## 2.0.0-s1 – 2026-10-31
 - Sicherheit: Sicherheitsupdate ohne Programmänderung: gleiches Programm, aktualisierte Pakete.

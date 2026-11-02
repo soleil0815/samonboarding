@@ -64,7 +64,7 @@ class UpdateShTests(unittest.TestCase):
         state.update(values)
         self.state_file.write_text(json.dumps(state), encoding="utf-8")
 
-    def run_update(self, *args, stdin=None):
+    def run_update(self, *args, stdin=None, extra_env=None):
         env = dict(
             os.environ,
             PATH=f"{self.bin}{os.pathsep}{os.environ.get('PATH', '')}",
@@ -72,7 +72,9 @@ class UpdateShTests(unittest.TestCase):
             SAMONB_WAIT="3",
             SAMONB_SLEEP="1",
             SAMONB_ETC=str(self.etc),
+            SAMONB_MOUNTINFO=str(Path(self.tmp.name) / "keine-mountinfo"),
         )
+        env.update(extra_env or {})
         return subprocess.run(
             [SHELL, str(self.dir / "update.sh"), *args],
             capture_output=True,
@@ -361,6 +363,87 @@ class UpdateShTests(unittest.TestCase):
         # Programmordner mit einem Link in die Daten: nur der Ordner samt Link verschwindet, die Daten bleiben
         self.assertFalse((d / "static").exists())
         self.assertIn("Left alone", done.stdout)
+
+    def test_aufraeumen_sonderzeichen_im_namen_loeschen_nie_daten(self):
+        # Code-Audit 2026-11: ein "*" im Namen stand fuer alle Dateien im Ordner (auch data/)
+        d = self.dir
+        (d / "neu * .zip").write_text("z", encoding="utf-8")
+        (d / "samonboarding-1.48 Sicherung").mkdir()
+        (d / "Sicherung").mkdir()
+        (d / "Sicherung" / "wichtig.txt").write_text("w", encoding="utf-8")
+        (d / "Dockerfile").write_text("x", encoding="utf-8")
+        done = self.run_update("--cleanup", "-y")
+        self.assertEqual(done.returncode, 0, done.stderr)
+        self.assertEqual((d / "data" / "config.json").read_text(encoding="utf-8"), "{}")
+        self.assertTrue((d / "docker-compose.yml").exists())
+        self.assertTrue((d / "update.sh").exists())
+        self.assertTrue((d / "Sicherung" / "wichtig.txt").exists())
+        self.assertTrue((d / "neu * .zip").exists())  # ungewoehnlicher Name: nur gemeldet
+        self.assertTrue((d / "samonboarding-1.48 Sicherung").exists())
+        self.assertFalse((d / "Dockerfile").exists())
+        self.assertIn("unusual name", done.stdout)
+
+    def test_aufraeumen_schont_eingehaengte_ordner(self):
+        # Code-Audit 2026-11: ein Mount direkt auf einem Kandidaten oder ein Bind-Mount darin wurde nicht erkannt
+        d = self.dir
+        for name in ("static/inhalt.txt", "node_modules/sub/f.txt", "tests/t.py"):
+            path = d / name
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_text("x", encoding="utf-8")
+        here = os.path.realpath(d)
+        mountinfo = Path(self.tmp.name) / "mountinfo"
+        mountinfo.write_text(
+            "22 1 8:1 / / rw - ext4 /dev/sda1 rw\n"
+            f"36 22 0:32 / {here}/static rw - tmpfs tmpfs rw\n"
+            f"37 22 8:1 /fremd {here}/node_modules/sub rw - ext4 /dev/sda1 rw\n",
+            encoding="utf-8",
+        )
+        done = self.run_update("--cleanup", "-y", extra_env={"SAMONB_MOUNTINFO": str(mountinfo)})
+        self.assertEqual(done.returncode, 0, done.stderr)
+        self.assertTrue((d / "static" / "inhalt.txt").exists())
+        self.assertTrue((d / "node_modules" / "sub" / "f.txt").exists())
+        self.assertFalse((d / "tests").exists())  # ohne Mount: entfernt
+        self.assertIn("another file system", done.stdout)
+
+    def test_aufraeumen_link_schleife_bricht_nicht_ab(self):
+        d = self.dir
+        os.symlink("scripts", d / "tests")
+        os.symlink("tests", d / "scripts")
+        (d / "Dockerfile").write_text("x", encoding="utf-8")
+        done = self.run_update("--cleanup", "-y")
+        self.assertEqual(done.returncode, 0, done.stderr)
+        self.assertFalse((d / "Dockerfile").exists())
+        self.assertIn("could not be resolved", done.stdout)
+
+    def test_alter_temp_ordner_nur_direkt_im_ordner(self):
+        d = self.dir
+        (d / ".update-x").mkdir()
+        victim = Path(self.tmp.name) / "opfer"
+        victim.mkdir()
+        (victim / "f").write_text("x", encoding="utf-8")
+        tmp_value = f"{os.path.realpath(d)}/.update-x/../../opfer"
+        self.run_update("--cleanup", extra_env={"SAMONB_TMP": tmp_value})
+        self.assertTrue((victim / "f").exists())
+
+    def test_version_nur_mit_erlaubten_zeichen(self):
+        done = self.run_update("--version", "2.0&x", "-y")
+        self.assertNotEqual(done.returncode, 0)
+        self.assertIn("Version not understood", done.stderr)
+        self.assertNotIn("&", self.env_text())
+
+    def test_wiederherstellen_ohne_links_im_archiv(self):
+        folder = self.dir / "data" / "backups"
+        folder.mkdir()
+        evil = folder / "vor-9-20260102-000000.tar.gz"
+        with tarfile.open(evil, "w:gz") as tar:
+            link = tarfile.TarInfo("lnk")
+            link.type = tarfile.SYMTYPE
+            link.linkname = "/etc"
+            tar.addfile(link)
+        done = self.run_update("--restore", f"data/backups/{evil.name}", "-y")
+        self.assertIn("links or special files", done.stderr)
+        self.assertEqual((self.dir / "data" / "config.json").read_text(encoding="utf-8"), "{}")
+        self.assertFalse(os.path.lexists(self.dir / "data" / "lnk"))
 
     def test_aufraeumen_ohne_altlasten(self):
         done = self.run_update("--cleanup", "-y")

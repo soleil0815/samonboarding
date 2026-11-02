@@ -76,7 +76,8 @@ Die Rolle ergibt sich aus der Gruppenmitgliedschaft im AD. Erkannt wird sie an d
 |---|---|---|
 | Wer | Mitglied von *Konten-Operatoren* (Account Operators) oder der eigenen Operator-Gruppe | Mitglied von *Domänen-Admins*, *Organisations-Admins* oder *Administratoren* |
 | Onboarding, Benutzerverwaltung, Passwort, Offboarding, Wiederherstellen | ja, in den freigegebenen OUs | ja |
-| Einstellungen der Module, Templates, SMTP | nur ansehen | ja |
+| Einstellungen der Module, Templates | nur ansehen | ja |
+| SMTP- und Exchange-Einstellungen | nein | ja |
 | Konten löschen, Berichte, Zertifikat | nein | ja |
 | Geschützte Konten (z. B. Domänen-Admins) bearbeiten | nein | ja (Offboarding und Löschen: für niemanden) |
 | In privilegierte Gruppen aufnehmen | nein | ja |
@@ -256,9 +257,9 @@ Ein Template legt fest, wie ein neues Konto aussieht. Menü **Templates**: **+ N
 
 ## 12. E-Mail-Benachrichtigung
 
-Menü **E-Mail-Benachrichtigung** (Operatoren sehen die Einstellungen nur).
+Menü **E-Mail-Benachrichtigung** (nur Administratoren; Operatoren sehen die Einstellungen nicht). Mails gehen an die Adresse aus dem AD-Attribut `mail` des Angemeldeten; ohne dieses Attribut wird keine Mail verschickt.
 
-1. **E-Mail-Versand global aktivieren**, Server, Port, TLS-Modus, Benutzer und Passwort sowie Absender eintragen. Bei Strato z. B. `smtp.strato.de`, Port `587`, *STARTTLS*.
+1. **E-Mail-Versand global aktivieren**, Server, Port, TLS-Modus, Benutzer und Passwort sowie Absender eintragen. Zum Beispiel `mail.firma.local`, Port `587`, *STARTTLS*.
 2. **Speichern**, dann mit **Test-Mail senden** eine Mail an dich schicken.
 3. Festlegen, wofür Mails verschickt werden: Offboarding, Passwort-Reset, Benutzerverwaltung, Löschen. Die Onboarding-Mail geht immer, sobald SMTP aktiv ist.
 
@@ -374,4 +375,4 @@ docker compose logs -f
 | Löschen: *Seit der Simulation hat sich etwas geändert* | Nichts wurde gelöscht. Simulation wiederholen |
 | Löschen: *Datei ist in Benutzung* | Benutzer noch angemeldet oder Virenscanner. Später neu simulieren |
 | Löschen: *Kein Zugriff* | Dir fehlen auf dem Dateiserver Rechte auf dem Ordner. Rechte prüfen oder *Besitz übernehmen* aktivieren |
-| Uhrzeiten in den Berichten stimmen nicht | `TZ` in der `.env` setzen (z. B. `Europe/Berlin`) und `sudo docker compose up -d` |
+| Uhrzeiten in den Berichten stimmen nicht | `TZ` in der `.env` ist leer oder ungültig: richtig setzen (z. B. `Europe/Berlin`) und `sudo docker compose up -d` |
