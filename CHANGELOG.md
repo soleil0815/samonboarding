@@ -5,6 +5,13 @@ Update auf dem Server: `sudo sh update.sh` oder `docker compose pull && docker c
 
 Einträge, die mit „Sicherheit:“ oder „Behoben:“ beginnen, werden in der Oberfläche entsprechend markiert.
 
+## 2.0.1-s1 – 2026-11-02
+- Sicherheit: Sicherheitsupdate ohne Programmänderung: gleiches Programm, aktualisierte Pakete.
+- Basis-Images:
+  - Python (python): `3.13.18-slim-trixie@76baad603769` → `3.13.18-slim-trixie@ae14d4ce8771`
+- Python-Pakete:
+  - anyio `4.15.1` → `4.16.0`
+
 ## 2.0.1 – Code-Audit – 2026-11-02
 - Sicherheit: `update.sh --cleanup` konnte bei einem Dateinamen mit `*` oder Leerzeichen (z. B. `neu * .zip`) auch `data/`, `docker-compose.yml` und `update.sh` löschen. Ungewöhnliche Namen werden jetzt nur gemeldet; vor jedem Löschen wird erneut geprüft.
 - Sicherheit: `update.sh --cleanup` erkennt eingehängte Ordner jetzt zuverlässig (auch Bind-Mounts vom selben Datenträger und einen Mount direkt auf einem alten Programmordner) und lässt sie stehen.

@@ -5,6 +5,13 @@ Update on the server: `sudo sh update.sh` or `docker compose pull && docker comp
 
 Entries starting with "Security:" or "Fixed:" are marked accordingly in the interface.
 
+## 2.0.1-s1 – 2026-11-02
+- Security: security update without program changes: same program, updated packages.
+- Base images:
+  - Python (python): `3.13.18-slim-trixie@76baad603769` → `3.13.18-slim-trixie@ae14d4ce8771`
+- Python packages:
+  - anyio `4.15.1` → `4.16.0`
+
 ## 2.0.1 – Code audit – 2026-11-02
 - Security: `update.sh --cleanup` could delete `data/`, `docker-compose.yml` and `update.sh` too when a file name contained `*` or spaces (e.g. `neu * .zip`). Unusual names are now only reported; everything is checked again right before deleting.
 - Security: `update.sh --cleanup` now reliably detects mounted folders (also bind mounts from the same disk and a mount directly on an old program folder) and leaves them alone.

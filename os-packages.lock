@@ -1,5 +1,5 @@
 # All Debian packages in the finished image per architecture (<arch> name=version), from the Debian
-# snapshot in images.lock (20261031T180000Z). Written by scripts/pins.py os-lock; every build is compared.
+# snapshot in images.lock (20261102T120000Z). Written by scripts/pins.py os-lock; every build is compared.
 # Debian sometimes rebuilds a package for one architecture only (version with '+b1').
 amd64 adduser=3.152
 amd64 apt=3.0.3
