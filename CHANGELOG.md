@@ -5,6 +5,9 @@ Update auf dem Server: `sudo sh update.sh` oder `docker compose pull && docker c
 
 Einträge, die mit „Sicherheit:“ oder „Behoben:“ beginnen, werden in der Oberfläche entsprechend markiert.
 
+## 2.0.2 – 2026-11-03
+- Neues Logo: zwei Personen statt Schild – zeigt auf einen Blick, dass es um die Verwaltung von Benutzerkonten geht. Gilt für Anmeldung, Seitenleiste, mobile Ansicht und das Symbol im Browser-Tab.
+
 ## 2.0.1-s1 – 2026-11-02
 - Sicherheit: Sicherheitsupdate ohne Programmänderung: gleiches Programm, aktualisierte Pakete.
 - Basis-Images:
