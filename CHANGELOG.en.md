@@ -5,6 +5,9 @@ Update on the server: `sudo sh update.sh` or `docker compose pull && docker comp
 
 Entries starting with "Security:" or "Fixed:" are marked accordingly in the interface.
 
+## 2.0.2 – 2026-11-03
+- New logo: two people instead of a shield – shows at a glance that this is about managing user accounts. Applies to sign-in, sidebar, mobile view and the icon in the browser tab.
+
 ## 2.0.1-s1 – 2026-11-02
 - Security: security update without program changes: same program, updated packages.
 - Base images:

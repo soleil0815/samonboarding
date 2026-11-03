@@ -102,5 +102,26 @@ class AssetHeadTests(unittest.TestCase):
         self.assertNotIn("docker compose", head)
 
 
+class LogoTests(unittest.TestCase):
+    """Logo (zwei Personen) ist eine eigene Zeichnung in der Seite: ueberall dasselbe Symbol, kein Bild aus dem Netz."""
+
+    def test_logo_ueberall_gleich_und_lokal(self):
+        html = (WEB / "index.html").read_text(encoding="utf-8")
+        self.assertEqual(html.count('<symbol id="brand-team"'), 1)
+        marks = re.findall(r'<span class="brand-mark[^"]*"[^>]*>(.*?)</span>', html)
+        self.assertEqual(len(marks), 3)  # Anmeldung, mobile Kopfzeile, Seitenleiste
+        for mark in marks:
+            self.assertIn('<use href="#brand-team"/>', mark)
+        sprite_css = re.search(r"\.brand-sprite \{([^}]*)\}", html)
+        self.assertIsNotNone(sprite_css)
+        self.assertNotIn(
+            "display", sprite_css.group(1) if sprite_css else ""
+        )  # bei display:none greift die Maske nicht
+        icon = re.search(r'<link rel="icon" type="image/svg\+xml" href="data:image/svg\+xml,([^"]+)">', html)
+        self.assertIsNotNone(icon)
+        svg = icon.group(1) if icon else ""
+        self.assertEqual(re.findall(r"https?://[^'\s]+", svg), ["http://www.w3.org/2000/svg"])  # nur der Namensraum
+
+
 if __name__ == "__main__":
     unittest.main()
