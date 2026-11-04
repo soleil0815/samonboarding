@@ -48,7 +48,7 @@ class ThemeTests(unittest.TestCase):
 
 HOMEPAGE = "https://helfi.space"
 SOURCE = "https://github.com/soleil0815/samonboarding"  # source code link (AGPL section 13)
-SUPPORT = "https://buymeacoffee.com/soleil0815v"  # support link, administrators only
+SUPPORT = "https://buymeacoffee.com/soleil0815"  # support link, administrators only
 
 
 class NoInternetTests(unittest.TestCase):
@@ -132,7 +132,7 @@ class SupportLinkTests(unittest.TestCase):
         links = re.findall(r"<a [^>]*buymeacoffee\.com[^>]*>", html)
         self.assertEqual(len(links), 1)
         link = links[0]
-        self.assertIn('href="https://buymeacoffee.com/soleil0815v"', link)
+        self.assertIn('href="https://buymeacoffee.com/soleil0815"', link)
         self.assertIn('id="nav-coffee"', link)
         self.assertIn('style="display:none"', link)  # hidden until the role is known
         self.assertIn('rel="noopener noreferrer"', link)
@@ -140,7 +140,7 @@ class SupportLinkTests(unittest.TestCase):
         roles = html[html.index("function setupRoleVisibility(role)") :][:3000]
         self.assertIn("navCoffee.style.display = role === \"Administrator\" ? '' : 'none'", roles)
         # no image, script or font from the coffee site: only the link target
-        self.assertEqual(html.count("buymeacoffee.com/soleil0815v"), 1)
+        self.assertEqual(html.count("buymeacoffee.com/soleil0815"), 1)
         self.assertNotRegex(html, r'(src|srcset)="https?://[^"]*buymeacoffee')
 
     def test_tooltip_translated(self):
