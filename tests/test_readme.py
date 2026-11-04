@@ -12,7 +12,7 @@ IMAGE_RE = re.compile(r"!\[([^\]]*)\]\(([^)]+)\)")
 
 class ReadmeImageTests(unittest.TestCase):
     def test_bilder_in_beiden_sprachen(self):
-        for name, suffix in (("README.md", ""), ("README.en.md", "-en")):
+        for name, suffix in (("README.de.md", ""), ("README.md", "-en")):
             text = (ROOT / name).read_text(encoding="utf-8")
             images = IMAGE_RE.findall(text)
             self.assertEqual(

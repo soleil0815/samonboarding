@@ -1,6 +1,6 @@
 # SAMONBOARDING – Datenschutz (DSGVO)
 
-[English version](DATA-PROTECTION.en.md)
+[English version](DATA-PROTECTION.md)
 
 Dieses Dokument beschreibt, welche personenbezogenen Daten SAMONBOARDING verarbeitet, wo sie liegen, wie lange sie aufbewahrt werden und welche technischen Maßnahmen eingebaut sind. Es ist als Grundlage für euren Eintrag im **Verzeichnis von Verarbeitungstätigkeiten** (Art. 30 DSGVO) gedacht.
 

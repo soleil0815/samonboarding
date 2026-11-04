@@ -1,6 +1,6 @@
 # SAMONBOARDING – Data protection (GDPR)
 
-[Deutsche Fassung](DATENSCHUTZ.md)
+[Deutsche Fassung](DATENSCHUTZ.de.md)
 
 This document describes the personal data SAMONBOARDING processes: where it is kept, how long it is retained and which technical measures are built in. Use it as the basis for your entry in the **record of processing activities** (Art. 30 GDPR).
 

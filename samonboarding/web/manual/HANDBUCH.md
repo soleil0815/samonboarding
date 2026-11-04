@@ -309,7 +309,7 @@ Der Link **Datenschutz** (Anmeldeseite unten und Seitenleiste unter *Hilfe*) zei
 - Dein Passwort liegt nur während der Sitzung im Arbeitsspeicher.
 - **Auskunft (Art. 15 DSGVO):** Administratoren geben dort einen Benutzernamen ein und laden alles herunter, was die Anwendung über dieses Konto gespeichert hat (JSON). Vor der Herausgabe prüfen und Angaben über andere Personen schwärzen.
 
-Details für das Verzeichnis der Verarbeitungstätigkeiten stehen in `DATENSCHUTZ.md`.
+Details für das Verzeichnis der Verarbeitungstätigkeiten stehen in `DATENSCHUTZ.de.md`.
 
 ---
 
