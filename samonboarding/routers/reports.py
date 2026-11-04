@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 # Copyright (C) 2026 Die SAMONBOARDING-Autoren
-"""Berichte (nur Administratoren): Aenderungen und Protokoll ansehen und manuell loeschen."""
+"""Reports (administrators only): view changes and log, and delete them manually."""
 
 from datetime import datetime, timedelta, timezone
 
@@ -66,7 +66,7 @@ def reports_delete(data: ReportsDeleteModel, user: dict = Depends(get_current_us
         removed = reports.delete_older_than(table, cutoff.isoformat(timespec="seconds"))
     else:
         removed = reports.delete_all(table)
-    # Erst nach dem Loeschen eintragen, damit der Nachweis erhalten bleibt
+    # Record only after deleting so the evidence is kept
     audit(
         actor_name(user),
         "reports-delete",

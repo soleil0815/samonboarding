@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 # Copyright (C) 2026 Die SAMONBOARDING-Autoren
-"""Fehlerklassen fuer AD-Operationen."""
+"""Error classes for AD operations."""
 
 from fastapi import HTTPException
 

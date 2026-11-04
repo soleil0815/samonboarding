@@ -1,11 +1,11 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 # Copyright (C) 2026 Die SAMONBOARDING-Autoren
-"""Postfach auf einem eigenen Exchange-Server anlegen (Enable-Mailbox ueber PowerShell-Remoting).
+"""Create a mailbox on an on-premises Exchange server (Enable-Mailbox via PowerShell remoting).
 
-Ein neues AD-Konto ist bei Exchange im eigenen Haus noch kein Postfach. Wenn der Administrator das aktiviert hat,
-verbindet sich die Anwendung nach dem Anlegen mit der Exchange-Verwaltungsshell (https://<server>/PowerShell) und fuehrt
-dort Enable-Mailbox aus. Es werden die Zugangsdaten des angemeldeten Benutzers verwendet, der dafuer in Exchange die
-Rolle 'Mail Recipients' braucht. Das Paket pypsrp wird erst bei Bedarf geladen. Zugangsdaten werden nie protokolliert.
+With on-premises Exchange, a new AD account does not have a mailbox yet. If the administrator has enabled this,
+the application connects to the Exchange Management Shell (https://<server>/PowerShell) after creating the account
+and runs Enable-Mailbox there. The credentials of the logged-in user are used; that user needs the Exchange role
+'Mail Recipients'. The pypsrp package is loaded only when needed. Credentials are never logged.
 """
 
 import logging
@@ -16,7 +16,7 @@ log = logging.getLogger(__name__)
 
 AUTH_MODES = ("negotiate", "ntlm", "kerberos", "basic")
 HOST_RE = re.compile(r"^[A-Za-z0-9]([A-Za-z0-9.-]{0,251}[A-Za-z0-9])?$")
-OPERATION_TIMEOUT = 90  # Sekunden: das Anlegen eines Postfachs kann etwas dauern
+OPERATION_TIMEOUT = 90  # seconds: creating a mailbox can take a while
 CONNECT_TIMEOUT = 20
 
 default_exchange_config = {
@@ -32,11 +32,11 @@ default_exchange_config = {
 
 
 class ExchangeError(Exception):
-    """Fehler mit lesbarer Meldung (enthaelt nie Zugangsdaten)."""
+    """Error with a readable message (never contains credentials)."""
 
 
 def clean_config(raw):
-    """Prueft und bereinigt die Einstellungen. Wirft ValueError mit lesbarer Meldung."""
+    """Validates and normalizes the settings. Raises ValueError with a readable message."""
     raw = raw or {}
     cfg = dict(default_exchange_config)
     cfg["enabled"] = bool(raw.get("enabled", False))
@@ -50,7 +50,7 @@ def clean_config(raw):
         raise ValueError("Ungültige Anmeldeart.")
     cfg["auth"] = auth
     if auth == "basic" and not cfg["ssl"]:
-        # Basic ohne HTTPS schickt das Passwort des angemeldeten Admins im Klartext
+        # Basic without HTTPS sends the logged-in admin's password in clear text
         raise ValueError("Die Anmeldeart 'basic' ist nur mit HTTPS erlaubt.")
     try:
         port = int(raw.get("port") or (443 if cfg["ssl"] else 80))
@@ -76,13 +76,13 @@ def _short(text, limit=300):
 
 
 class _Session:
-    """Fuehrt Cmdlets in der geoeffneten Exchange-Shell aus."""
+    """Runs cmdlets in the open Exchange shell."""
 
     def __init__(self, pool, powershell_cls):
         self._pool, self._ps_cls = pool, powershell_cls
 
     def run(self, cmdlet, **params):
-        """Liefert (Ausgabeobjekte, Fehlertexte)."""
+        """Returns (output objects, error texts)."""
         ps = self._ps_cls(self._pool)
         ps.add_cmdlet(cmdlet)
         for key, value in params.items():
@@ -94,7 +94,7 @@ class _Session:
 
 @contextmanager
 def _open_session(cfg, user):
-    """Verbindet sich mit der Exchange-Verwaltungsshell (in Tests austauschbar)."""
+    """Connects to the Exchange Management Shell (replaceable in tests)."""
     try:
         from pypsrp.powershell import PowerShell, RunspacePool
         from pypsrp.wsman import WSMan
@@ -144,7 +144,7 @@ def _explain(error, cfg):
 
 
 def check_connection(cfg, user):
-    """Prueft Verbindung, Anmeldung und ob das Konto Enable-Mailbox nutzen darf. Liefert eine Meldung."""
+    """Checks connection, login and whether the account may use Enable-Mailbox. Returns a message."""
     with _open_session(cfg, user) as session:
         output, errors = session.run("Get-Command", Name="Enable-Mailbox")
         if errors:
@@ -158,13 +158,13 @@ def check_connection(cfg, user):
 
 
 def enable_mailbox(cfg, user, user_dn, domain_controller=""):
-    """Legt fuer das AD-Konto ein Postfach an. Wirft ExchangeError mit lesbarer Meldung."""
+    """Creates a mailbox for the AD account. Raises ExchangeError with a readable message."""
     params = {"Identity": user_dn}
     if cfg.get("database"):
         params["Database"] = cfg["database"]
     dc = cfg.get("domainController") or domain_controller
     if dc:
-        params["DomainController"] = dc  # gleicher DC wie beim Anlegen: kein Warten auf die Replikation
+        params["DomainController"] = dc  # same DC as for account creation: no waiting for replication
     with _open_session(cfg, user) as session:
         _output, errors = session.run("Enable-Mailbox", **params)
     if errors:

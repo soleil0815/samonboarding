@@ -1,11 +1,11 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 # Copyright (C) 2026 Die SAMONBOARDING-Autoren
-"""Gedaechtnis des Offboardings (SQLite in data/offboarding.db).
+"""Offboarding memory (SQLite in data/offboarding.db).
 
-Vor dem Offboarding wird festgehalten, wo das Konto lag, in welchen Gruppen es war und ob es aktiv war. Damit laesst
-sich ein versehentlich offgeboardetes Konto wiederherstellen. Ein Eintrag verschwindet, sobald das Konto
-wiederhergestellt oder geloescht wurde, ein Administrator ihn verwirft
-oder die Aufbewahrungsfrist (OFFBOARD_RETENTION_DAYS) abgelaufen ist. Passwoerter werden nicht gespeichert.
+Before offboarding, the program records where the account was located, which groups it belonged to and whether it was
+enabled. This allows an account that was offboarded by mistake to be restored. An entry disappears as soon as the
+account has been restored or deleted, an administrator discards it,
+or the retention period (OFFBOARD_RETENTION_DAYS) has expired. Passwords are not stored.
 """
 
 import json
@@ -42,13 +42,13 @@ CREATE INDEX IF NOT EXISTS offboarded_sam ON offboarded (sam);
 
 @contextmanager
 def _db():
-    """Eine kurze Verbindung je Vorgang; die Sperre verhindert gleichzeitiges Schreiben aus mehreren Threads."""
+    """One short connection per operation; the lock prevents concurrent writes from multiple threads."""
     with _lock:
         conn = sqlite3.connect(config.OFFBOARD_DB_FILE, timeout=10)
         restrict(config.OFFBOARD_DB_FILE)
         try:
             conn.row_factory = sqlite3.Row
-            conn.execute("PRAGMA secure_delete=ON")  # geloeschte Eintraege werden ueberschrieben (wie reports.db)
+            conn.execute("PRAGMA secure_delete=ON")  # deleted entries are overwritten (like reports.db)
             conn.executescript(SCHEMA)
             yield conn
             conn.commit()
@@ -80,7 +80,7 @@ def _row(r):
 
 
 def record(*, user_guid, sam, name, original_dn, original_ou, was_enabled, groups, actor):
-    """Legt einen Eintrag an (vor dem Offboarding). Ein offener Eintrag fuer dasselbe Konto wird ersetzt."""
+    """Create an entry (before offboarding). An open entry for the same account is replaced."""
     with _db() as conn:
         if user_guid:
             conn.execute("DELETE FROM offboarded WHERE user_guid = ? AND state = 'open'", (user_guid,))
@@ -126,40 +126,40 @@ def list_open():
 
 
 def list_all():
-    """Alle Eintraege (auch 'in Arbeit') - fuer die Auskunft nach Art. 15 DSGVO."""
+    """All entries (including 'in progress') - for data subject access requests under Art. 15 GDPR."""
     with _db() as conn:
         return _rows(conn.execute("SELECT * FROM offboarded ORDER BY offboarded_at, id").fetchall())
 
 
 def purge_older_than(cutoff_iso):
-    """Loescht offene Eintraege, die vor `cutoff_iso` (UTC, ISO-Format) angelegt wurden. Liefert die Anzahl.
-    Eine gerade laufende Wiederherstellung bleibt; haengengebliebene setzt reset_stale_claims() beim Start zurueck."""
+    """Delete open entries created before `cutoff_iso` (UTC, ISO format). Returns the count.
+    A restore that is currently running is kept; stuck ones are reset by reset_stale_claims() at startup."""
     with _db() as conn:
         cur = conn.execute("DELETE FROM offboarded WHERE state = 'open' AND offboarded_at < ?", (cutoff_iso,))
         return cur.rowcount
 
 
 def reset_stale_claims():
-    """Beim Start: Eine Wiederherstellung, die beim Beenden lief, ist abgebrochen - Eintrag wieder anzeigen."""
+    """At startup: a restore that was running at shutdown was aborted - show the entry again."""
     with _db() as conn:
         return conn.execute("UPDATE offboarded SET state = 'open' WHERE state = 'restoring'").rowcount
 
 
 def claim(record_id):
-    """Markiert den Eintrag als 'in Arbeit'. False, wenn er nicht (mehr) offen ist - verhindert Doppelausfuehrung."""
+    """Mark the entry as 'in progress'. False if it is not (or no longer) open - prevents double execution."""
     with _db() as conn:
         cur = conn.execute("UPDATE offboarded SET state = 'restoring' WHERE id = ? AND state = 'open'", (record_id,))
         return cur.rowcount == 1
 
 
 def release(record_id):
-    """Gibt einen Eintrag nach einem Fehler wieder frei."""
+    """Release an entry again after an error."""
     with _db() as conn:
         conn.execute("UPDATE offboarded SET state = 'open' WHERE id = ? AND state = 'restoring'", (record_id,))
 
 
 def forget_account(*, user_guid="", sam="", dn=""):
-    """Entfernt Eintraege eines geloeschten Kontos. Liefert die Anzahl."""
+    """Remove entries of a deleted account. Returns the count."""
     with _db() as conn:
         n = 0
         if user_guid:

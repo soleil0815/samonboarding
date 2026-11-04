@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 # Copyright (C) 2026 Die SAMONBOARDING-Autoren
-"""objectGUID: die feste Kennung eines AD-Objekts. Sie bleibt gleich, wenn ein Konto oder eine Gruppe umbenannt oder
-verschoben wird. Damit findet die Wiederherstellung nach dem Offboarding Objekte auch unter neuem Namen wieder."""
+"""objectGUID: the permanent identifier of an AD object. It stays the same when an account or group is renamed or
+moved. This lets the restore after offboarding find objects again even under a new name."""
 
 import uuid
 
@@ -9,7 +9,7 @@ import ldap3
 
 
 def guid_from_ldap(value):
-    """objectGUID aus LDAP (16 Bytes, Windows-Reihenfolge) oder als Text -> GUID-Text. Leer, wenn ungueltig."""
+    """objectGUID from LDAP (16 bytes, Windows byte order) or as text -> GUID text. Empty if invalid."""
     if isinstance(value, (list, tuple)):
         value = value[0] if value else None
     if isinstance(value, (bytes, bytearray)):
@@ -22,7 +22,7 @@ def guid_from_ldap(value):
 
 
 def guid_filter(guid):
-    """LDAP-Filterteil fuer eine GUID, z. B. (objectGUID=\\67\\45...)."""
+    """LDAP filter part for a GUID, e.g. (objectGUID=\\67\\45...)."""
     raw = uuid.UUID(guid).bytes_le
     return "(objectGUID=" + "".join(f"\\{b:02x}" for b in raw) + ")"
 
@@ -35,7 +35,7 @@ def _lookup(mapping, name):
 
 
 def read_guid(conn, dn, flt="(objectClass=*)"):
-    """Liest die objectGUID eines Objekts (Rohbytes bevorzugt). Leer, wenn nicht lesbar."""
+    """Reads the objectGUID of an object (raw bytes preferred). Empty if not readable."""
     try:
         if not conn.search(dn, flt, ldap3.BASE, attributes=["objectGUID"]):
             return ""

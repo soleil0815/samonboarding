@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 # Copyright (C) 2026 Die SAMONBOARDING-Autoren
-"""Pydantic-Modelle fuer die Anfragen der API."""
+"""Pydantic models for the API requests."""
 
 from pydantic import BaseModel
 
@@ -138,13 +138,13 @@ def clean_ou_list(values):
 
 
 class ReportsDeleteModel(BaseModel):
-    kind: str  # "audit" (Aenderungen) oder "log" (Protokoll)
-    olderThanDays: int = 0  # 0 = alle Eintraege
+    kind: str  # "audit" (changes) or "log" (program log)
+    olderThanDays: int = 0  # 0 = all entries
     password: str = ""
 
 
 class CertUploadModel(BaseModel):
-    # Dateiinhalte Base64-kodiert: entweder pfx (+ password) oder cert + key (+ chain, password fuer den Schluessel)
+    # File contents Base64-encoded: either pfx (+ password) or cert + key (+ chain, password for the key)
     pfx: str = ""
     cert: str = ""
     key: str = ""

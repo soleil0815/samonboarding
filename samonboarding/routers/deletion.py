@@ -1,9 +1,9 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 # Copyright (C) 2026 Die SAMONBOARDING-Autoren
-"""Loeschfunktion (nur Administratoren), Schritt 1: Einstellungen, Verbindungstest und Simulation.
+"""Deletion feature (administrators only), step 1: settings, connection test and simulation.
 
-Alles hier ist rein lesend: Es wird weder im AD noch auf den Dateiservern etwas veraendert.
-Der Zugriff auf die Freigaben erfolgt mit den Zugangsdaten des angemeldeten Administrators.
+Everything here is read-only: nothing is changed in AD or on the file servers.
+The shares are accessed with the credentials of the logged-on administrator.
 """
 
 import contextvars
@@ -64,12 +64,12 @@ router = APIRouter()
 
 ADMIN_MSG = "Nur Administratoren dürfen die Löschfunktion nutzen."
 KINDS = ("profile", "folderRedirection", "home")
-# AD-Attribut, aus dem der Pfad eines Speicherorts stammen kann (Ordnerumleitung steht nur in der GPO)
+# AD attribute a storage location's path can come from (folder redirection is only stored in the GPO)
 ATTR_OF_KIND = {"profile": "profilePath", "home": "homeDirectory"}
 
 
 def make_backend(user):
-    """SMB-Zugriff im Namen des angemeldeten Administrators (in Tests austauschbar)."""
+    """SMB access on behalf of the logged-on administrator (replaceable in tests)."""
     try:
         return open_backend(user)
     except FsError as e:
@@ -77,24 +77,24 @@ def make_backend(user):
 
 
 class _NoBackend:
-    """Platzhalter ohne Dateizugriff: wenn kein Speicherort aktiviert ist, wird nur das AD-Konto geloescht."""
+    """Placeholder without file access: if no storage location is enabled, only the AD account is deleted."""
 
     def close(self):
         pass
 
 
 def backend_for(user, cfg):
-    """Dateizugriff nur oeffnen, wenn ueberhaupt ein Speicherort (Profil, Ordnerumleitung, Basisordner) aktiv ist."""
+    """Open file access only if any storage location (profile, folder redirection, home folder) is enabled at all."""
     if not any(cfg[kind]["enabled"] for kind in KINDS):
         return _NoBackend()
     return make_backend(user)
 
 
 # ---------------------------------------------------------------------------
-# Konfiguration
+# Configuration
 # ---------------------------------------------------------------------------
 def load_deletion_config():
-    """Gespeicherte Konfiguration, fehlende Schluessel werden mit Standardwerten aufgefuellt."""
+    """Saved configuration; missing keys are filled in with defaults."""
     stored = load_json(DELETION_CONFIG_FILE, default_deletion_config)
     cfg = copy.deepcopy(default_deletion_config)
     cfg["enabled"] = bool(stored.get("enabled", False))
@@ -175,11 +175,11 @@ def _require_enabled(cfg):
 
 
 # ---------------------------------------------------------------------------
-# Kandidatenliste
+# Candidate list
 # ---------------------------------------------------------------------------
 @router.get("/api/deletion/users")
 def get_deletion_users(user: dict = Depends(get_current_user), frisch: bool = False):
-    """Liste kurz zwischengespeichert (listcache); frisch=1 liest immer neu vom DC."""
+    """List cached briefly (listcache); frisch=1 always reads fresh from the DC."""
     require_admin(user, ADMIN_MSG)
     return listcache.cached(user, "deletion-users", lambda: _get_deletion_users(user), frisch)
 
@@ -216,7 +216,7 @@ def _get_deletion_users(user):
 
 
 # ---------------------------------------------------------------------------
-# Verbindungstest
+# Connection test
 # ---------------------------------------------------------------------------
 def probe_root(backend, kind, root, server_errors):
     row = {"kind": kind, "label": LOCATION_LABELS[kind], "root": root, "ok": False, "message": "", "entries": 0}
@@ -260,8 +260,8 @@ def test_deletion_paths(user: dict = Depends(get_current_user)):
 # Simulation
 # ---------------------------------------------------------------------------
 def _path_key(path, strip_suffix=False):
-    """Vergleichsschluessel eines UNC-Pfads: Server ohne Domaene (fs = fs.firma.local), alles klein, optional ohne
-    Profil-Endung (profilePath steht im AD ohne .V6)."""
+    """Comparison key of a UNC path: server without domain (fs = fs.firma.local), all lowercase, optionally without
+    the profile suffix (profilePath is stored in AD without .V6)."""
     server, share, parts = parse_unc(path)
     parts = [p.lower() for p in parts]
     if strip_suffix and parts and "." in parts[-1]:
@@ -270,13 +270,13 @@ def _path_key(path, strip_suffix=False):
 
 
 def _others_using(conn, search_base, attr, target_path, own_dn, kind):
-    """Andere Konten, deren AD-Attribut (homeDirectory/profilePath) auf diesen Ordner zeigt - gleich, ob der Ordner
-    aus dem AD-Attribut oder aus dem Basispfad stammt. Verglichen wird tolerant (Gross-/Kleinschreibung, Server mit
-    oder ohne Domaene, abschliessender Backslash, Profil-Endung)."""
+    """Other accounts whose AD attribute (homeDirectory/profilePath) points to this folder - regardless of whether the
+    folder comes from the AD attribute or from the base path. The comparison is tolerant (case, server with or without
+    domain, trailing backslash, profile suffix)."""
     profile = kind == "profile"
     want = {_path_key(target_path), _path_key(target_path, strip_suffix=profile)}
-    # Liegt der Ordner IM Ordner eines anderen Kontos (z. B. \\fs\home$\chef\mueller), gehoert er nicht allein
-    # diesem Konto - auch dann nicht loeschen
+    # If the folder lies INSIDE another account's folder (e.g. \\fs\home$\chef\mueller), it does not belong to
+    # this account alone - do not delete it in that case either
     server, share, parts = parse_unc(target_path)
     ancestors = {_path_key(canonical(server, share, parts[:i])) for i in range(1, len(parts))}
     last = parts[-1]
@@ -286,8 +286,8 @@ def _others_using(conn, search_base, attr, target_path, own_dn, kind):
     clauses = "".join(
         f"({attr}=*{ldap_escape(chr(92) + n)})({attr}=*{ldap_escape(chr(92) + n + chr(92))})" for n in names
     )
-    # Code-Audit 2026-11: auch Konten, deren Ordner INNERHALB dieses Ordners liegt (\\fs\home$\azubis\mueller),
-    # und Werte, die %username% woertlich enthalten (erst nach dem Einsetzen vergleichbar)
+    # Code audit 2026-11: also accounts whose folder lies INSIDE this folder (\\fs\home$\azubis\mueller),
+    # and values that literally contain %username% (comparable only after substitution)
     clauses += f"({attr}=*{ldap_escape(chr(92) + last + chr(92))}*)({attr}=*%username%*)"
     rows = ldap_search(conn, search_base, f"(&{USER_FILTER}(|{clauses}))", ["sAMAccountName", attr])
     others = []
@@ -306,7 +306,7 @@ def _others_using(conn, search_base, attr, target_path, own_dn, kind):
 
 
 def plan_targets(conn, cfg, entry, sam, search_base):
-    """Alle moeglichen Ordner des Kontos; Ordner, die auch anderen Konten gehoeren, werden ausgeschlossen."""
+    """All possible folders of the account; folders that also belong to other accounts are excluded."""
     targets, shared = [], {}
     for kind in KINDS:
         attr = ATTR_OF_KIND.get(kind)
@@ -319,8 +319,8 @@ def plan_targets(conn, cfg, entry, sam, search_base):
                     target["skip"] = f"Wird auch von anderen Konten verwendet ({shown}) - würde deren Daten löschen."
                     shared.setdefault(_path_key(target["path"]), target["skip"])
             targets.append(target)
-    # Derselbe Ordner bei mehreren Speicherorten (z. B. Ordnerumleitung in den Basisordner): nur einmal aufnehmen -
-    # und gar nicht, wenn er bei einem der Speicherorte einem anderen Konto gehoert (Code-Audit 2026-11)
+    # The same folder for several storage locations (e.g. folder redirection into the home folder): include it only
+    # once - and not at all if it belongs to another account for any of the storage locations (code audit 2026-11)
     result, seen = [], set()
     for target in targets:
         if target["path"] and not target["skip"]:
@@ -339,10 +339,10 @@ MAX_OWNERSHIP_CHECKS = 50
 
 
 def inspect_target(backend, target, server_errors, takeover=False):
-    """Prueft einen Ordner lesend. status: found, takeover, missing, denied, error, skipped.
+    """Check a folder read-only. status: found, takeover, missing, denied, error, skipped.
 
-    takeover=True: fehlende Rechte gelten nicht als Hindernis, wenn der Besitz uebernommen werden koennte
-    (status 'takeover' bzw. takeoverNeeded > 0). Es wird dabei nichts veraendert.
+    takeover=True: missing permissions do not count as an obstacle if ownership could be taken over
+    (status 'takeover' or takeoverNeeded > 0). Nothing is changed in the process.
     """
     res: dict[str, Any] = dict(
         target,
@@ -432,7 +432,7 @@ def _missing_warnings(cfg, results, sam):
 
 
 # ---------------------------------------------------------------------------
-# Plaene (Simulation -> Loeschen): kurz gueltig, an Sitzung und Konto gebunden, einmal verwendbar
+# Plans (simulation -> deletion): short-lived, bound to session and account, single use
 # ---------------------------------------------------------------------------
 PLAN_TTL_SECONDS = 600
 _plans = {}
@@ -448,7 +448,7 @@ def store_plan(user, user_dn, sam, paths):
         for key in [k for k, v in _plans.items() if v["expires"] <= time.time()]:
             del _plans[key]
         for key in [k for k, v in _plans.items() if v["sid"] == user.get("sid") and v["dn"].lower() == user_dn.lower()]:
-            del _plans[key]  # je Sitzung und Konto gilt nur der neueste Plan
+            del _plans[key]  # only the newest plan per session and account is valid
         _plans[token] = {
             "sid": user.get("sid"),
             "dn": user_dn,
@@ -460,7 +460,7 @@ def store_plan(user, user_dn, sam, paths):
 
 
 def _prune_plans():
-    """Abgelaufene Plaene entfernen (sonst blieben sie bis zur naechsten Simulation im Speicher)."""
+    """Remove expired plans (otherwise they would stay in memory until the next simulation)."""
     now = time.time()
     for store in (_plans, _batch_plans):
         for key in [k for k, v in store.items() if v["expires"] <= now]:
@@ -489,8 +489,8 @@ def drop_plan(token):
 
 
 def consume_plan(token, store=None):
-    """Plan verbrauchen (unter der Sperre). Wer zweit kommt - z. B. eine doppelt abgeschickte Anfrage - bekommt
-    einen Fehler statt eines zweiten Loeschlaufs mit demselben Plan."""
+    """Consume the plan (under the lock). Whoever comes second - e.g. a request submitted twice - gets
+    an error instead of a second deletion run with the same plan."""
     with _plans_lock:
         plan = (store if store is not None else _plans).pop(token, None)
     if plan is None:
@@ -512,13 +512,13 @@ def store_batch_plan(user, items):
     expires = time.time() + PLAN_TTL_SECONDS
     with _plans_lock:
         for key in [k for k, v in _batch_plans.items() if v["expires"] <= time.time() or v["sid"] == user.get("sid")]:
-            del _batch_plans[key]  # je Sitzung gilt nur der neueste Sammelplan
+            del _batch_plans[key]  # only the newest batch plan per session is valid
         _batch_plans[token] = {"sid": user.get("sid"), "items": list(items), "expires": expires}
     return token, expires
 
 
 def take_batch_plan(user, token):
-    """Liefert den Sammelplan, ohne ihn zu verbrauchen."""
+    """Return the batch plan without consuming it."""
     with _plans_lock:
         plan = _batch_plans.get(token)
     if not plan or plan["expires"] <= time.time() or plan["sid"] != user.get("sid"):
@@ -534,7 +534,7 @@ def drop_batch_plan(token):
 
 
 # ---------------------------------------------------------------------------
-# Passwortbestaetigung: der angemeldete Administrator muss sein Passwort erneut eingeben
+# Password confirmation: the logged-on administrator must re-enter their password
 # ---------------------------------------------------------------------------
 PW_MAX_FAILS = 5
 PW_LOCK_SECONDS = 300
@@ -543,13 +543,13 @@ _pw_lock = threading.Lock()
 
 
 def verify_admin_password(user, password, action="deletion"):
-    """Prueft das Passwort gegen das der Sitzung und danach live die Rolle im AD. Nach zu vielen Fehlversuchen kurze
-    Sperre (je Sitzung). `action` benennt die Berichtseintraege (z. B. deletion, reports-delete)."""
+    """Check the password against the session's and then the role live in AD. After too many failed attempts, a short
+    lockout (per session). `action` names the report entries (e.g. deletion, reports-delete)."""
     sid = user.get("sid")
     now = time.time()
     with _pw_lock:
         for key in [k for k, v in _pw_failures.items() if not v or now - v[-1] >= PW_LOCK_SECONDS]:
-            del _pw_failures[key]  # alte Fehlversuche nicht ewig im Speicher halten
+            del _pw_failures[key]  # do not keep old failed attempts in memory forever
         recent = [t for t in _pw_failures.get(sid, []) if now - t < PW_LOCK_SECONDS]
         if len(recent) >= PW_MAX_FAILS:
             raise HTTPException(
@@ -570,11 +570,11 @@ def verify_admin_password(user, password, action="deletion"):
 
 
 def recheck_admin(user, action="deletion"):
-    """Vor endgueltigem Loeschen: Ist die Person laut AD (jetzt, nicht beim Anmelden) noch Administrator und gilt
-    ihr Passwort noch? Sonst koennte jemand, der inzwischen aus den Domaenen-Admins entfernt wurde, weiter loeschen."""
+    """Before final deletion: is the person still an administrator according to AD (now, not at logon) and is
+    their password still valid? Otherwise someone who has since been removed from Domain Admins could keep deleting."""
     search_base = base_dn(load_json(CONFIG_FILE, default_config)["domain"])
     try:
-        with ad_session(user) as conn:  # wirft 401, wenn das Passwort nicht mehr gilt
+        with ad_session(user) as conn:  # raises 401 if the password is no longer valid
             role = check_user_role(
                 conn, search_base, user.get("username", ""), user.get("bind_user", ""), raise_errors=True
             )[0]
@@ -589,10 +589,10 @@ def recheck_admin(user, action="deletion"):
 
 
 # ---------------------------------------------------------------------------
-# Gemeinsame Vorpruefung
+# Common pre-check
 # ---------------------------------------------------------------------------
 def load_account_and_targets(user, cfg, user_dn):
-    """Prueft das Konto (OU, deaktiviert, nicht man selbst) und liefert (Eintrag, sAMAccountName, Zielordner)."""
+    """Check the account (OU, disabled, not oneself) and return (entry, sAMAccountName, target folders)."""
     search_base = base_dn(load_json(CONFIG_FILE, default_config)["domain"])
     with ad_session(user) as conn:
         entry = resolve_account(
@@ -611,7 +611,7 @@ def load_account_and_targets(user, cfg, user_dn):
                 "profilePath",
             ],
         )
-        user_dn = entry.dn  # nur der DN, den der DC geliefert hat
+        user_dn = entry.dn  # only the DN returned by the DC
         sam = entry.text("sAMAccountName")
         operator_sam = user["username"].lower().split("\\")[-1].split("@")[0]
         if sam.lower() == operator_sam:
@@ -632,12 +632,12 @@ FOUND = ("found", "takeover")
 
 
 def _takeover(cfg, target):
-    """Ist fuer diesen Speicherort die Besitzuebernahme erlaubt?"""
+    """Is ownership takeover allowed for this storage location?"""
     return bool(cfg[target["kind"]].get("takeOwnership"))
 
 
 def _blockers(results):
-    """Gruende, warum nicht gelöscht werden darf (Zustand nicht eindeutig oder nicht vollstaendig loeschbar)."""
+    """Reasons why deletion is not allowed (state not unambiguous or not completely deletable)."""
     out = []
     for r in results:
         if r["status"] in ("denied", "error"):
@@ -648,7 +648,7 @@ def _blockers(results):
 
 
 def inspect_account(user, cfg, user_dn, backend, server_errors):
-    """Liest Konto und Zielordner (nur lesend). Liefert ein Dict mit Konto, Ergebnissen und Hindernissen."""
+    """Read the account and target folders (read-only). Returns a dict with account, results and obstacles."""
     entry, sam, targets = load_account_and_targets(user, cfg, user_dn)
     results = [inspect_target(backend, t, server_errors, _takeover(cfg, t)) for t in targets]
     found = [r for r in results if r["status"] in FOUND]
@@ -656,7 +656,7 @@ def inspect_account(user, cfg, user_dn, backend, server_errors):
 
 
 def simulation_payload(cfg, info):
-    """Darstellbare Daten einer Simulation (ohne Plan)."""
+    """Displayable data of a simulation (without the plan)."""
     entry, sam, results, found = info["entry"], info["sam"], info["results"], info["found"]
     return {
         "account": {
@@ -738,7 +738,7 @@ def simulate_deletion_batch(data: DeletionBatchSimulateModel, user: dict = Depen
                 item = {"dn": dn, "state": "blocked", "error": ""}
                 try:
                     info = inspect_account(user, cfg, dn, backend, server_errors)
-                except HTTPException as e:  # auch AdError (Unterklasse)
+                except HTTPException as e:  # also AdError (subclass)
                     item["error"] = str(e.detail)
                 else:
                     item.update(simulation_payload(cfg, info))
@@ -775,10 +775,10 @@ def simulate_deletion_batch(data: DeletionBatchSimulateModel, user: dict = Depen
 
 
 # ---------------------------------------------------------------------------
-# Loeschen
+# Deletion
 # ---------------------------------------------------------------------------
 def _verify_unchanged(cfg, plan, fresh):
-    """Vergleicht den aktuellen Zustand mit dem simulierten Plan. Liefert Abweichungen (leer = unveraendert)."""
+    """Compare the current state with the simulated plan. Returns deviations (empty = unchanged)."""
     problems = []
     planned = {p.lower() for p in plan["paths"]}
     seen = set()
@@ -804,7 +804,7 @@ def _notify_enabled(user):
 
 
 def _queue_mail(background, user, name, sam, results, account_deleted, ad_error=None):
-    """Legt (falls aktiviert) die Benachrichtigung an den angemeldeten Administrator in die Warteschlange."""
+    """Queue the notification to the logged-on administrator (if enabled)."""
     if not _notify_enabled(user):
         return
     failed = [r for r in results if r["status"] == "failed"]
@@ -835,8 +835,8 @@ def _queue_mail(background, user, name, sam, results, account_deleted, ad_error=
     body_text, body_html = render_mail(user["username"], title, accent, intro, rows)
     args = (user["email"], f"SAMONBOARDING - {title}: {name} ({sam})", body_text, body_html)
     if ad_error:
-        # Danach folgt eine Fehlermeldung (AdError) - Hintergrundaufgaben der Antwort liefen dann nie. Gerade diese
-        # Mail (Ordner weg, Konto noch da) muss ankommen: eigener Thread, mit der Sprache der Anfrage.
+        # An error (AdError) follows - background tasks of the response would then never run. This mail in
+        # particular (folders gone, account still there) must arrive: separate thread, in the request's language.
         ctx = contextvars.copy_context()
         threading.Thread(target=ctx.run, args=(send_notification_email, *args), daemon=True).start()
     else:
@@ -844,7 +844,7 @@ def _queue_mail(background, user, name, sam, results, account_deleted, ad_error=
 
 
 def _forget_offboarding(sam, dn):
-    """Ein geloeschtes Konto kann nicht mehr wiederhergestellt werden: gespeicherten Offboarding-Zustand entfernen."""
+    """A deleted account can no longer be restored: remove the saved offboarding state."""
     try:
         offboard_store.forget_account(sam=sam, dn=dn)
     except Exception as e:
@@ -855,11 +855,11 @@ TREE_DELETE_OID = "1.2.840.113556.1.4.805"
 
 
 def run_deletion(user, cfg, plan, mail=None, on_locked=None):
-    """Loescht ein Konto samt Ordnern gemaess Plan (Neupruefung, erst Ordner, dann AD-Konto, Audit).
+    """Delete an account including its folders according to the plan (re-check, folders first, then AD account, audit).
 
-    Liefert das Ergebnis (status success/partial). Fehler als HTTPException/AdError. mail(name, sam, results,
-    account_deleted, ad_error) wird bei Erfolg und bei teilweisem Ergebnis aufgerufen. on_locked() laeuft, sobald
-    die Sperre fuer das Konto gehalten wird (der Aufrufer verbraucht dort den Plan).
+    Returns the result (status success/partial). Errors as HTTPException/AdError. mail(name, sam, results,
+    account_deleted, ad_error) is called on success and on a partial result. on_locked() runs as soon as
+    the lock for the account is held (the caller consumes the plan there).
     """
     lock_key = plan["dn"].lower()
     with _running_lock:
@@ -958,8 +958,8 @@ def run_deletion(user, cfg, plan, mail=None, on_locked=None):
             try:
                 deleted = conn.delete(entry.dn)
                 if not deleted and (conn.result or {}).get("result") == 66:
-                    # notAllowedOnNonLeaf: das Konto hat Unterobjekte (z. B. ActiveSync-Geraete von Exchange) -
-                    # mit dem Tree-Delete-Control werden sie zusammen mit dem Konto entfernt
+                    # notAllowedOnNonLeaf: the account has child objects (e.g. Exchange ActiveSync devices) -
+                    # with the tree delete control they are removed together with the account
                     deleted = conn.delete(entry.dn, controls=[(TREE_DELETE_OID, True, None)])
                 ensure(conn, deleted, "AD-Konto löschen")
             except HTTPException as e:
@@ -1001,21 +1001,21 @@ def execute_deletion(data: DeletionExecuteModel, background: BackgroundTasks, us
     plan = get_plan(user, data.planId, data.userDn)
     if data.confirmSam.strip().lower() != plan["sam"].lower():
         raise HTTPException(status_code=400, detail="Die Bestätigung stimmt nicht mit dem Benutzernamen überein.")
-    verify_admin_password(user, data.password)  # erst danach wird der einmalige Plan verbraucht
+    verify_admin_password(user, data.password)  # only after this is the single-use plan consumed
     consume_plan(data.planId)
 
     def mail(name, sam, results, account_deleted, ad_error):
         _queue_mail(background, user, name, sam, results, account_deleted, ad_error)
 
-    # Plan ist einmalig - bei jedem Ausgang ist eine neue Simulation noetig
+    # The plan is single use - every outcome requires a new simulation
     return run_deletion(user, cfg, plan, mail, on_locked=lambda: drop_plan(data.planId))
 
 
 # ---------------------------------------------------------------------------
-# Sammel-Loeschen als Hintergrundauftrag
+# Batch deletion as a background job
 # ---------------------------------------------------------------------------
 def _batch_mail(user, job):
-    """Eine Zusammenfassung je Durchlauf statt einer Mail pro Konto."""
+    """One summary per run instead of one mail per account."""
     items = job["items"]
     deleted = [i for i in items if i["status"] == "success"]
     problem = [i for i in items if i["status"] != "success"]
@@ -1037,7 +1037,7 @@ def _batch_mail(user, job):
 
 
 def run_batch_job(job_id, user, cfg, items):
-    """Arbeitet die Konten nacheinander ab. Jedes Konto durchlaeuft denselben Ablauf wie das Einzellöschen."""
+    """Process the accounts one after another. Each account goes through the same flow as a single deletion."""
     job = _jobs[job_id]
     try:
         for index, plan in enumerate(items):
@@ -1047,9 +1047,9 @@ def run_batch_job(job_id, user, cfg, items):
             try:
                 result = run_deletion(user, cfg, plan)
                 entry.update(status=result["status"], message=result["message"], results=result["results"])
-            except HTTPException as e:  # auch AdError (Unterklasse)
+            except HTTPException as e:  # also AdError (subclass)
                 entry.update(status="error", message=str(e.detail))
-            except Exception as e:  # ein Konto darf den Rest nicht verhindern
+            except Exception as e:  # one account must not block the rest
                 log.exception("Sammellöschung: Fehler bei %s", plan["sam"])
                 entry.update(status="error", message=f"Unerwarteter Fehler: {e}")
             job["done"] = index + 1

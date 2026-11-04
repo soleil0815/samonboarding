@@ -1,4 +1,4 @@
-"""Szenario: Offboarding merkt sich OU, Gruppen und Status; Wiederherstellen, Vorschau, Fehlerfaelle, Loeschen."""
+"""Scenario: offboarding remembers OU, groups and status; restore, preview, error cases, deletion."""
 import os
 import uuid
 
@@ -25,7 +25,7 @@ bg = BackgroundTasks()
 store = M["offboard_store"] if "offboard_store" in M else __import__("samonboarding.offboard_store", fromlist=["x"])
 R = __import__("samonboarding.routers.restore", fromlist=["x"])
 
-# ---- Offboarding speichert den Zustand
+# ---- Offboarding stores the state
 M["execute_offboarding"](OB(userDn=ANNA), bg, adm)
 ARCH = "CN=Anna Berg,OU=Archive," + B
 check("Offboarding wie bisher: deaktiviert, ohne Gruppen, verschoben", ARCH in D and int(D[ARCH]["userAccountControl"][0]) & 2 and ARCH not in D["CN=VPN,OU=Groups," + B]["member"])
@@ -37,7 +37,7 @@ check("Kein Passwort gespeichert", "pwd" not in json.dumps(raw).lower() or "Pass
 check("Audit vermerkt Wiederherstellbarkeit", '"restorable": true' in M["audit_jsonl"]())
 rid = recs[0]["id"]
 
-# ---- Vorschau veraendert nichts und findet umbenannte Gruppen ueber die GUID
+# ---- Preview changes nothing and finds renamed groups via the GUID
 D["CN=Vertrieb Team,OU=Groups," + B] = D.pop("CN=Sales Team,OU=Groups," + B)
 before = json.dumps(D, sort_keys=True, default=str)
 pv = R.preview_restore(rid, "", op)
@@ -46,7 +46,7 @@ check("Vorschau: Ziel-OU, Verschieben, Aktivieren", pv["targetOu"] == "OU=Sales,
 gs = {g["name"]: g for g in pv["groups"]}
 check("Umbenannte Gruppe ueber GUID gefunden", gs["Sales Team"]["dn"] == "CN=Vertrieb Team,OU=Groups," + B and gs["Sales Team"]["status"] == "add", gs)
 
-# ---- Wiederherstellen
+# ---- Restore
 r = R.restore_account(rid, RM(), bg, op)
 check("Wiederhergestellt: zurueck in der alten OU", ANNA in D and ARCH not in D and r["dn"] == ANNA, r)
 check("Wieder in den Gruppen (auch der umbenannten)", ANNA in D["CN=Vertrieb Team,OU=Groups," + B]["member"] and ANNA in D["CN=VPN,OU=Groups," + B]["member"])
@@ -56,7 +56,7 @@ ok, _ = raises(lambda: R.restore_account(rid, RM(), bg, adm), 404)
 check("Zweites Wiederherstellen -> 404", ok)
 check("Audit-Eintrag der Wiederherstellung", '"offboarding-restore"' in M["audit_jsonl"]())
 
-# ---- Gruppe geloescht, OU geloescht -> andere OU waehlen
+# ---- Group deleted, OU deleted -> choose another OU
 M["execute_offboarding"](OB(userDn=ANNA), bg, adm)
 rid = R.list_records(adm)["records"][0]["id"]
 D.pop("CN=VPN,OU=Groups," + B)
@@ -71,7 +71,7 @@ r = R.restore_account(rid, RM(targetOu="OU=Staff," + B), bg, adm)
 NEW = "CN=Anna Berg,OU=Staff," + B
 check("Mit gewaehlter OU wiederhergestellt, Hinweis auf fehlende Gruppe", NEW in D and any("VPN" in w for w in r["warnings"]) and ANNA not in D, r)
 
-# ---- Gruppe kann nicht gesetzt werden (Rechte) -> Warnung, Rest klappt
+# ---- Group cannot be set (permissions) -> warning, the rest works
 M["execute_offboarding"](OB(userDn=NEW), bg, adm)
 rid = R.list_records(adm)["records"][0]["id"]
 STATE["deny"] = {"member"}
@@ -79,7 +79,7 @@ r = R.restore_account(rid, RM(), bg, op)
 STATE["deny"] = set()
 check("Fehlende Rechte fuer Gruppe -> Warnung, Konto trotzdem zurueck und aktiv", NEW in D and int(D[NEW]["userAccountControl"][0]) & 2 == 0 and any("Nicht wieder zugewiesen" in w for w in r["warnings"]), r)
 
-# ---- Konto war vorher schon deaktiviert -> bleibt deaktiviert
+# ---- Account was already disabled before -> stays disabled
 D[NEW]["userAccountControl"] = ["514"]
 M["execute_offboarding"](OB(userDn=NEW), bg, adm)
 rid = R.list_records(adm)["records"][0]["id"]
@@ -89,14 +89,14 @@ R.restore_account(rid, RM(), bg, adm)
 check("Bleibt deaktiviert", int(D[NEW]["userAccountControl"][0]) & 2)
 D[NEW]["userAccountControl"] = ["512"]
 
-# ---- Konto inzwischen anders verschoben -> ueber GUID gefunden
+# ---- Account moved elsewhere in the meantime -> found via GUID
 M["execute_offboarding"](OB(userDn=NEW), bg, adm)
 rid = R.list_records(adm)["records"][0]["id"]
 D["CN=Anna Berg,CN=Users," + B] = D.pop(ARCH)
 pv = R.preview_restore(rid, "", adm)
 check("Verschobenes Konto ueber GUID gefunden", pv["currentDn"] == "CN=Anna Berg,CN=Users," + B and pv["blockers"] == [], pv)
 
-# ---- Konto geloescht -> blockiert; Verwerfen nur Admin
+# ---- Account deleted -> blocked; discarding is admin only
 D.pop("CN=Anna Berg,CN=Users," + B)
 pv = R.preview_restore(rid, "", adm)
 check("Geloeschtes Konto blockiert", any("nicht gefunden" in b for b in pv["blockers"]))
@@ -105,7 +105,7 @@ check("Verwerfen nur fuer Administratoren", ok and R.list_records(adm)["records"
 R.dismiss_record(rid, adm)
 check("Verworfen und im Audit", R.list_records(adm)["records"] == [] and '"offboarding-record-dismiss"' in M["audit_jsonl"]())
 
-# ---- Gleichzeitiges Wiederherstellen wird verhindert
+# ---- Concurrent restore is prevented
 BOB = "CN=Bob Bauer,OU=Staff," + B
 add(BOB, objectClass=U, sAMAccountName="bbauer", displayName="Bob Bauer", userAccountControl="512")
 M["execute_offboarding"](OB(userDn=BOB), bg, adm)
@@ -115,22 +115,22 @@ ok, e = raises(lambda: R.restore_account(rid, RM(), bg, adm), 409)
 check("Laufende Wiederherstellung -> 409", ok)
 store.release(rid)
 
-# ---- Mehrfach-Offboarding merkt sich jedes Konto
+# ---- Batch offboarding remembers every account
 CARL = "CN=Carl Cord,OU=Staff," + B
 add(CARL, objectClass=U, sAMAccountName="ccord", displayName="Carl Cord", userAccountControl="512")
 M["execute_offboarding_batch"](M["OffboardBatchModel"](userDns=[CARL]), bg, adm)
 check("Batch-Offboarding gespeichert", {x["sam"] for x in R.list_records(adm)["records"]} == {"bbauer", "ccord"})
 
-# ---- Erneutes Offboarding desselben Kontos ersetzt den alten Eintrag
+# ---- Offboarding the same account again replaces the old record
 r = R.restore_account(rid, RM(), bg, adm)
 M["execute_offboarding"](OB(userDn=BOB), bg, adm)
 check("Pro Konto nur ein offener Eintrag", sorted(x["sam"] for x in R.list_records(adm)["records"]) == ["bbauer", "ccord"])
 
-# ---- Loeschen entfernt den Eintrag
+# ---- Deleting removes the record
 store.forget_account(sam="ccord", dn="CN=Carl Cord,OU=Archive," + B)
 check("Loeschen entfernt den Eintrag", [x["sam"] for x in R.list_records(adm)["records"]] == ["bbauer"])
 
-# ---- Fehlgeschlagenes Deaktivieren hinterlaesst keinen Eintrag
+# ---- Failed disabling leaves no record
 DAN = "CN=Dan Dorn,OU=Staff," + B
 add(DAN, objectClass=U, sAMAccountName="ddorn", displayName="Dan Dorn", userAccountControl="512")
 STATE["deny"] = {"userAccountControl"}
@@ -138,7 +138,7 @@ raises(lambda: M["execute_offboarding"](OB(userDn=DAN), bg, adm))
 STATE["deny"] = set()
 check("Nichts geaendert -> kein Eintrag", "ddorn" not in [x["sam"] for x in R.list_records(adm)["records"]] and DAN in D)
 
-# ---- Mail nach Wiederherstellung (wenn Offboarding-Mails an sind)
+# ---- Mail after restore (if offboarding mails are on)
 cfg = dict(M["default_smtp_config"], enabled=True, notifyOffboarding=True)
 M["save_json"]("data/smtp_config.json", cfg)
 adm["email"] = "admin@test.local"

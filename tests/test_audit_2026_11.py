@@ -1,4 +1,4 @@
-"""Code-Audit 2026-11: Regressionstests zu den bestaetigten Funden (ausser update.sh, siehe test_update_sh.py)."""
+"""Code audit 2026-11: regression tests for the confirmed findings (except update.sh, see test_update_sh.py)."""
 
 import os
 import shutil
@@ -13,7 +13,7 @@ import _paths
 
 try:
     import fastapi  # noqa: F401
-except ImportError:  # ohne installierte Pakete: Ersatzmodule der Szenarien verwenden
+except ImportError:  # without installed packages: use the scenario stub modules
     sys.path.insert(0, os.path.join(_paths.TESTS, "scenarios", "stubs"))
 
 import datetime as dt  # noqa: E402
@@ -23,9 +23,9 @@ from samonboarding import datastate, fileshare, i18n, ldap_client, privacy  # no
 
 
 class LdapsCertificateTests(unittest.TestCase):
-    """Ein abgelehntes Zertifikat auf 636 darf nie zum Klartext-Rueckfall auf 389 fuehren."""
+    """A rejected certificate on 636 must never lead to a plaintext fallback to 389."""
 
-    def test_kein_rueckfall_bei_abgelehntem_zertifikat(self):
+    def test_no_fallback_on_rejected_certificate(self):
         from ldap3.core.exceptions import LDAPSocketOpenError
 
         ports = []
@@ -53,7 +53,7 @@ class LdapsCertificateTests(unittest.TestCase):
                     pass
         self.assertEqual(ports, [636])
 
-    def test_rueckfall_bei_nicht_erreichbarem_ldaps_bleibt(self):
+    def test_fallback_on_unreachable_ldaps_remains(self):
         from ldap3.core.exceptions import LDAPSocketOpenError
 
         ports = []
@@ -88,7 +88,7 @@ def _row(dn, **attrs):
 class DeletionTargetTests(unittest.TestCase):
     OWN = "CN=Alt,OU=Disabled,DC=firma,DC=local"
 
-    def test_ordner_eines_anderen_kontos_innerhalb_des_ziels(self):
+    def test_folder_of_another_account_inside_the_target(self):
         from samonboarding.routers import deletion
 
         rows = [
@@ -103,7 +103,7 @@ class DeletionTargetTests(unittest.TestCase):
         self.assertEqual(others, ["mueller"])
         self.assertIn("(homeDirectory=*\\5cazubis\\5c*)", search.call_args[0][2])
 
-    def test_woertliches_username_im_attribut_wird_gefunden(self):
+    def test_literal_username_in_attribute_is_found(self):
         from samonboarding.routers import deletion
 
         rows = [_row("CN=C,OU=A,DC=firma,DC=local", sAMAccountName="chef", homeDirectory="\\\\fs01\\home$\\%username%")]
@@ -114,7 +114,7 @@ class DeletionTargetTests(unittest.TestCase):
         self.assertEqual(others, ["chef"])
         self.assertIn("(homeDirectory=*%username%*)", search.call_args[0][2])
 
-    def test_kurzname_im_pfad_wird_nicht_geloescht(self):
+    def test_short_name_in_path_is_not_deleted(self):
         cfg = {"enabled": True, "roots": ["\\\\fs01\\home$"], "useAdAttr": True}
         targets = fileshare.build_targets("home", cfg, "anna", "\\\\fs01\\home$\\CHEF~1\\anna")
         from_attr = [t for t in targets if t["source"] == "AD-Attribut"]
@@ -122,7 +122,7 @@ class DeletionTargetTests(unittest.TestCase):
         self.assertIn("~", from_attr[0]["skip"])
         self.assertEqual(i18n.tr(from_attr[0]["skip"], "en")[:20], "The path contains '~")
 
-    def test_gleicher_ordner_in_zwei_speicherorten_nur_einmal(self):
+    def test_same_folder_in_two_locations_only_once(self):
         from samonboarding.routers import deletion
 
         root = {"enabled": True, "roots": ["\\\\fs01\\users$"], "useAdAttr": True, "suffixes": []}
@@ -133,7 +133,7 @@ class DeletionTargetTests(unittest.TestCase):
         paths = [t["path"].lower() for t in targets if t["path"] and not t["skip"]]
         self.assertEqual(paths, ["\\\\fs01\\users$\\anna"])
 
-    def test_gleicher_ordner_mit_anderem_konto_bleibt_ueberall_stehen(self):
+    def test_same_folder_with_other_account_is_kept_everywhere(self):
         from samonboarding.routers import deletion
 
         root = {"enabled": True, "roots": ["\\\\fs01\\users$"], "useAdAttr": True, "suffixes": []}
@@ -146,13 +146,13 @@ class DeletionTargetTests(unittest.TestCase):
 
 
 class TranslationTests(unittest.TestCase):
-    def test_bestaetigung_ersetzter_objekte_englisch(self):
+    def test_confirmation_of_replaced_objects_english(self):
         text = (
             "Diese Objekte wurden gelöscht und unter gleichem Namen neu angelegt. Das neue Objekt übernehmen?\n\nCN=X"
         )
         self.assertTrue(i18n.tr(text, "en").startswith("These objects were deleted"))
 
-    def test_test_mail_meldung_englisch(self):
+    def test_test_mail_message_english(self):
         self.assertEqual(
             i18n.tr("Test-Mail erfolgreich an it@firma.local gesendet!", "en"), "Test mail sent to it@firma.local!"
         )
@@ -160,7 +160,7 @@ class TranslationTests(unittest.TestCase):
 
 @unittest.skipIf(os.name != "posix" or not shutil.which("sh"), "nur unter Linux mit sh")
 class HealthcheckTests(unittest.TestCase):
-    """Gesundheitscheck: leeres HTTPS_PORT= heisst 9500, und als root werden vorher alle Rechte abgegeben."""
+    """Health check: empty HTTPS_PORT= means 9500, and as root all privileges are dropped first."""
 
     def run_check(self, port_value):
         with tempfile.TemporaryDirectory() as tmp:
@@ -178,11 +178,11 @@ class HealthcheckTests(unittest.TestCase):
             self.assertEqual(done.returncode, 0, done.stderr)
             return log.read_text(encoding="utf-8")
 
-    def test_leerer_port_ist_standard(self):
+    def test_empty_port_is_default(self):
         self.assertIn("https://localhost:9500/api/public-config", self.run_check(""))
         self.assertIn("https://localhost:9443/api/public-config", self.run_check("9443"))
 
-    def test_als_root_ohne_rechte(self):
+    def test_as_root_without_privileges(self):
         calls = self.run_check("")
         if os.getuid() == 0:
             self.assertTrue(calls.startswith("setpriv --reuid=10001 --regid=10001 --clear-groups --inh-caps=-all --"))
@@ -193,9 +193,9 @@ class HealthcheckTests(unittest.TestCase):
 
 
 class MigrationLoopTests(unittest.TestCase):
-    """Eine abstuerzende Migration (Neustart in Schleife) darf die saubere Sicherung nicht wegkappen."""
+    """A crashing migration (restart loop) must not prune away the clean backup."""
 
-    def test_absturzschleife_behaelt_die_saubere_sicherung(self):
+    def test_crash_loop_keeps_the_clean_backup(self):
         with tempfile.TemporaryDirectory() as tmp:
             data = Path(tmp)
             datastate.prepare(data, "2.0.0", 1)
@@ -214,7 +214,7 @@ class MigrationLoopTests(unittest.TestCase):
                 member = tar.extractfile("config.json")
                 self.assertIsNotNone(member)
                 self.assertEqual(member.read() if member else b"", b'{"orig": true}')
-            # ist die Migration repariert, laeuft der Wechsel ohne weitere Sicherung durch
+            # once the migration is fixed, the upgrade goes through without another backup
             self.assertIn("2.0.0 -> 2.1.0", datastate.prepare(data, "2.1.0", 2, migrations={2: lambda d: None}))
             self.assertFalse((data / datastate.PENDING_NAME).exists())
             self.assertEqual(len(list((data / "backups").iterdir())), 1)
@@ -222,7 +222,7 @@ class MigrationLoopTests(unittest.TestCase):
 
 @unittest.skipUnless(shutil.which("node"), "Node.js nicht installiert")
 class UiTestRunnerTests(unittest.TestCase):
-    def test_fehlgeschlagener_assert_setzt_exit_code(self):
+    def test_failed_assert_sets_exit_code(self):
         loader = Path(_paths.TESTS) / "ui" / "load_script.js"
         with tempfile.TemporaryDirectory() as tmp:
             test = Path(tmp) / "x.test.js"
@@ -232,7 +232,7 @@ class UiTestRunnerTests(unittest.TestCase):
 
 
 class LoginMailTests(unittest.TestCase):
-    """Ohne mail-Attribut im AD keine erratene Adresse (Mails enthalten Startpasswoerter)."""
+    """Without a mail attribute in AD, no guessed address (mails contain initial passwords)."""
 
     def login_as(self, user_mail):
         from contextlib import nullcontext
@@ -259,17 +259,17 @@ class LoginMailTests(unittest.TestCase):
             auth.login(LoginModel(username="admin", password="x"), request, mock.Mock())
         return captured["email"]
 
-    def test_ohne_mail_attribut_keine_erratene_adresse(self):
+    def test_no_mail_attribute_no_guessed_address(self):
         self.assertEqual(self.login_as(""), "")
 
-    def test_mail_attribut_wird_verwendet(self):
+    def test_mail_attribute_is_used(self):
         self.assertEqual(self.login_as("it@firma.local"), "it@firma.local")
 
 
 class BackupRetentionTests(unittest.TestCase):
-    """Eigene Sicherungen halten die Fristen ein: weg, sobald sie aelter als die laengste Frist sind."""
+    """Own backups respect the retention periods: removed once they are older than the longest period."""
 
-    def test_alte_sicherungen_werden_entfernt(self):
+    def test_old_backups_are_removed(self):
         with tempfile.TemporaryDirectory() as tmp:
             folder = Path(tmp) / "backups"
             folder.mkdir()
@@ -284,9 +284,9 @@ class BackupRetentionTests(unittest.TestCase):
             self.assertEqual(privacy.purge_backups([365, 90, 180], now, tmp), 1)
             self.assertFalse(old.exists())
             self.assertTrue(new.exists())
-            self.assertTrue(other.exists())  # nur eigene Sicherungen
+            self.assertTrue(other.exists())  # only own backups
 
-    def test_unbegrenzte_frist_behaelt_sicherungen(self):
+    def test_unlimited_period_keeps_backups(self):
         with tempfile.TemporaryDirectory() as tmp:
             folder = Path(tmp) / "backups"
             folder.mkdir()
@@ -296,7 +296,7 @@ class BackupRetentionTests(unittest.TestCase):
             self.assertEqual(privacy.purge_backups([365, 0, 180], None, tmp), 0)
             self.assertTrue(old.exists())
 
-    def test_bereinigung_ruft_sicherungen_auf(self):
+    def test_cleanup_calls_backups(self):
         with (
             mock.patch.object(privacy, "purge_audit", return_value=0),
             mock.patch.object(privacy, "purge_log", return_value=0),
@@ -309,7 +309,7 @@ class BackupRetentionTests(unittest.TestCase):
 
 
 class OffboardStoreTests(unittest.TestCase):
-    def test_secure_delete_wie_dokumentiert(self):
+    def test_secure_delete_as_documented(self):
         from samonboarding import config, offboard_store
 
         with tempfile.TemporaryDirectory() as tmp:

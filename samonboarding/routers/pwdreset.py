@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 # Copyright (C) 2026 Die SAMONBOARDING-Autoren
-"""Passwort-Reset."""
+"""Password reset."""
 
 import ldap3
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
@@ -29,7 +29,7 @@ router = APIRouter()
 
 @router.get("/api/pwdreset/users")
 def get_pwdreset_users(user: dict = Depends(get_current_user), frisch: bool = False):
-    """Liste kurz zwischengespeichert (listcache); frisch=1 liest immer neu vom DC."""
+    """List briefly cached (listcache); frisch=1 always re-reads from the DC."""
     return listcache.cached(user, "pwdreset-users", lambda: _get_pwdreset_users(user), frisch)
 
 

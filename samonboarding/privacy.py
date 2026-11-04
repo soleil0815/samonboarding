@@ -1,19 +1,19 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 # Copyright (C) 2026 Die SAMONBOARDING-Autoren
-"""Datenschutz (DSGVO): Aufbewahrungsfristen und Auskunft.
+"""Data protection (GDPR): retention periods and data access requests.
 
-Personenbezogene Daten speichert die Anwendung nur in data/:
-  * reports.db, Tabelle audit   Aenderungen (wer hat wann was getan)  -> AUDIT_RETENTION_DAYS    (Standard 365)
-  * reports.db, Tabelle applog  Protokoll (Programm-Meldungen)        -> LOG_RETENTION_DAYS      (Standard 90)
-  * offboarding.db              Wiederherstellungs-Eintraege          -> OFFBOARD_RETENTION_DAYS (Standard 180)
-0 bedeutet: unbegrenzt aufbewahren. Die Bereinigung laeuft beim Start und danach einmal taeglich.
-Eigene Sicherungen (data/backups/vor-*.tar.gz) enthalten diese Daten ebenfalls: sie werden entfernt, sobald sie
-aelter als die laengste Frist sind (dann ist alles darin abgelaufen); ist eine Frist 0, bleiben sie.
-Manuell loeschen koennen Administratoren unter "Berichte".
+The application stores personal data only in data/:
+  * reports.db, table audit     changes (who did what and when)       -> AUDIT_RETENTION_DAYS    (default 365)
+  * reports.db, table applog    log (program messages)                -> LOG_RETENTION_DAYS      (default 90)
+  * offboarding.db              restore entries                       -> OFFBOARD_RETENTION_DAYS (default 180)
+0 means: keep indefinitely. The cleanup runs at startup and then once a day.
+The application's own backups (data/backups/vor-*.tar.gz) also contain this data: they are removed once they are
+older than the longest retention period (then everything in them has expired); if any period is 0, they are kept.
+Administrators can delete manually under "Berichte".
 
-Auskunft nach Art. 15 DSGVO (im Container; in der Oberflaeche unter "Datenschutz"):
+Data access request under Art. 15 GDPR (in the container; in the UI under "Datenschutz"):
     docker compose exec samonboarding python -m samonboarding.privacy auskunft <sAMAccountName>
-Bereinigung sofort ausfuehren:
+Run the cleanup immediately:
     docker compose exec samonboarding python -m samonboarding.privacy bereinigen
 """
 
@@ -36,23 +36,23 @@ def _cutoff_iso(days, now=None):
 
 
 def purge_audit(days, now=None):
-    """Entfernt Aenderungen, die aelter als `days` Tage sind. Liefert die Anzahl."""
+    """Removes changes older than `days` days. Returns the count."""
     return reports.delete_older_than("audit", _cutoff_iso(days, now)) if days > 0 else 0
 
 
 def purge_log(days, now=None):
-    """Entfernt Protokoll-Eintraege, die aelter als `days` Tage sind."""
+    """Removes log entries older than `days` days."""
     return reports.delete_older_than("applog", _cutoff_iso(days, now)) if days > 0 else 0
 
 
 def purge_offboarding(days, now=None):
-    """Entfernt Wiederherstellungs-Eintraege, die aelter als `days` Tage sind."""
+    """Removes restore entries older than `days` days."""
     return offboard_store.purge_older_than(_cutoff_iso(days, now)) if days > 0 else 0
 
 
 def purge_backups(days_list, now=None, data_dir=None):
-    """Entfernt eigene Sicherungen (data/backups/vor-*.tar.gz), die aelter als die laengste Frist sind - alles darin
-    ist dann abgelaufen. Ist eine Frist 0 (unbegrenzt), bleibt jede Sicherung. Liefert die Anzahl."""
+    """Removes the application's own backups (data/backups/vor-*.tar.gz) older than the longest retention period -
+    everything in them has expired by then. If any period is 0 (indefinite), every backup is kept. Returns the count."""
     if not days_list or any(d <= 0 for d in days_list):
         return 0
     folder = Path(data_dir or config.DATA_DIR) / datastate.BACKUP_DIR_NAME
@@ -69,7 +69,7 @@ def purge_backups(days_list, now=None, data_dir=None):
 
 
 def run_retention(now=None):
-    """Alle Fristen anwenden; Fehler werden protokolliert, nie geworfen."""
+    """Apply all retention periods; errors are logged, never raised."""
     result = {"audit": 0, "log": 0, "offboarding": 0, "backups": 0}
     jobs = (
         ("audit", purge_audit, config.AUDIT_RETENTION_DAYS),
@@ -97,7 +97,7 @@ def run_retention(now=None):
 
 
 def start_retention_thread():
-    """Bereinigung jetzt und danach taeglich im Hintergrund."""
+    """Clean up now and then daily in the background."""
     stop = threading.Event()
 
     def loop():
@@ -106,7 +106,7 @@ def start_retention_thread():
             try:
                 from . import tls
 
-                tls.check_expiry()  # Warnung ins Protokoll, wenn das HTTPS-Zertifikat bald ablaeuft
+                tls.check_expiry()  # log a warning if the HTTPS certificate expires soon
             except Exception as e:
                 log.error("Pruefung des HTTPS-Zertifikats fehlgeschlagen: %s", e)
             if stop.wait(INTERVAL_SECONDS):
@@ -117,7 +117,7 @@ def start_retention_thread():
 
 
 def subject_report(sam):
-    """Alles, was die Anwendung selbst ueber ein Konto gespeichert hat (Auskunft nach Art. 15 DSGVO)."""
+    """Everything the application itself has stored about an account (data access request under Art. 15 GDPR)."""
     needle = sam.strip()
     if not needle:
         raise ValueError("sAMAccountName fehlt")

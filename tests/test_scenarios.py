@@ -1,7 +1,7 @@
-"""Fuehrt die Szenario-Skripte (simuliertes AD und Dateiserver) als eigene Prozesse aus.
+"""Runs the scenario scripts (simulated AD and file server) as separate processes.
 
-Die Szenarien brauchen keine installierten Pakete: fastapi, ldap3 und pydantic werden durch kleine Ersatzmodule
-in tests/scenarios/stubs ersetzt. Sie pruefen die Anwendungslogik (Rollen, Onboarding, Loeschen usw.) im Ganzen.
+The scenarios need no installed packages: fastapi, ldap3 and pydantic are replaced by small stub modules
+in tests/scenarios/stubs. They check the application logic (roles, onboarding, deletion etc.) as a whole.
 """
 
 import glob

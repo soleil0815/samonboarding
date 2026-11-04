@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 # Copyright (C) 2026 Die SAMONBOARDING-Autoren
-"""Benutzerverwaltung: Benutzerliste, Verschieben und Gruppenmitgliedschaften."""
+"""User management: user list, moving and group memberships."""
 
 import logging
 
@@ -50,7 +50,7 @@ router = APIRouter()
 
 @router.get("/api/usermgmt/users")
 def get_usermgmt_users(user: dict = Depends(get_current_user), frisch: bool = False):
-    """Liste kurz zwischengespeichert (listcache); frisch=1 liest immer neu vom DC."""
+    """List briefly cached (listcache); frisch=1 always re-reads from the DC."""
     return listcache.cached(user, "usermgmt-users", lambda: _get_usermgmt_users(user), frisch)
 
 
@@ -97,7 +97,7 @@ def move_user_account(data: MoveUserActionModel, user: dict = Depends(get_curren
             entry = resolve_account(
                 conn, data.userDn, mgmt_cfg.get("sourceOus", []), "die Benutzer-Verwaltung", ["sAMAccountName"]
             )
-            info["sam"] = entry.text("sAMAccountName")  # fuer die Datenschutz-Auskunft
+            info["sam"] = entry.text("sAMAccountName")  # for the GDPR data access report
             require_not_protected_for_operator(conn, user, entry.dn, "verschoben")
             ok = conn.modify_dn(entry.dn, split_dn(entry.dn)[0], new_superior=target_ou)
             ensure(conn, ok, "Verschieben")
@@ -140,7 +140,7 @@ def update_user_groups(
     cfg = load_json(CONFIG_FILE, default_config)
     mgmt_cfg = load_json(USERMGMT_CONFIG_FILE, default_usermgmt_config)
     if len(data.addGroupDns) + len(data.removeGroupDns) > MAX_GROUP_CHANGES:
-        # jede Gruppe kostet mehrere AD-Abfragen - eine riesige Liste wuerde den Server minutenlang blockieren
+        # each group costs several AD queries - a huge list would block the server for minutes
         raise HTTPException(status_code=400, detail=f"Höchstens {MAX_GROUP_CHANGES} Gruppenänderungen auf einmal.")
 
     with audited(user, "update-groups", data.userDn) as info:
@@ -170,7 +170,7 @@ def update_user_groups(
             target_name = row_display_name(entry) or target_sam
 
             def checked_group(group_dn):
-                """Gruppe beim DC aufloesen und den echten DN pruefen; privilegierte Gruppen nur fuer Admins."""
+                """Resolve the group at the DC and check the real DN; privileged groups for admins only."""
                 group = get_object(conn, group_dn, ["cn"], flt="(objectClass=group)")
                 if not group or not dn_in_any(group.dn, group_scope):
                     raise HTTPException(

@@ -1,4 +1,4 @@
-# ---- Loeschen (Schritt 2) ----
+# ---- Deletion (step 2) ----
 import os
 DN_ALT = "CN=Alt\\, Anna,OU=Disabled," + B
 BG = {"last": None}
@@ -12,7 +12,7 @@ for fn, args in [(dele.execute_deletion, (exm("x", "y", "z"),))]:
     ok, _ = raises(lambda: X(*args, op), 403)
     check("Operator darf nicht loeschen (403)", ok)
 
-# Plan-Bindung
+# plan binding
 fs_a = mkfs(clean=True)
 s = sim(DN_ALT, fsobj=fs_a)
 pid = s["planId"]
@@ -26,7 +26,7 @@ ok, _ = raises(lambda: X(exm("CN=Zed Zora,OU=Disabled," + B, pid, "aalt"), adm),
 check("Plan ist an das Konto gebunden", ok)
 ok, e = raises(lambda: X(exm(DN_ALT, pid, "falsch"), adm), 400)
 check("Falsche Bestaetigung -> 400, nichts geloescht", ok and "Bestätigung" in e.detail and not writes(fs_a) and DN_ALT in D)
-# Plan ueberlebt Tippfehler
+# plan survives typos
 FSX["fs"] = fs_a
 M_plan = dict(dele._plans[pid])
 dele._plans[pid]["expires"] = time.time() - 1
@@ -34,7 +34,7 @@ ok, _ = raises(lambda: X(exm(DN_ALT, pid, "aalt"), adm), 400)
 check("Abgelaufener Plan -> 400 und aus dem Speicher entfernt", ok and not writes(fs_a) and DN_ALT in D and pid not in dele._plans)
 dele._plans[pid] = M_plan
 
-# Zustand hat sich geaendert (neuer Profilordner V6 entstanden) -> Abbruch ohne Aenderung
+# state has changed (new profile folder V6 appeared) -> abort without changes
 fs_b = mkfs(clean=True)
 s = sim(DN_ALT, fsobj=fs_b)
 fs_b.tree["\\\\fs1\\profiles$\\aalt.v6"] = ["x.txt"]
@@ -44,14 +44,14 @@ check("Neuer Ordner seit Simulation -> 409, nichts geloescht", ok and not writes
 ok, _ = raises(lambda: X(exm(DN_ALT, s["planId"], "aalt"), adm), 400)
 check("Plan ist nach Versuch verbraucht", ok)
 
-# Zugriff nach Simulation entzogen
+# access revoked after simulation
 fs_c = mkfs(clean=True)
 s = sim(DN_ALT, fsobj=fs_c)
 fs_c.denied.add("\\\\fs1\\redir$\\aalt")
 ok, e = raises(lambda: X(exm(DN_ALT, s["planId"], "aalt"), adm), 409)
 check("Zugriff entzogen -> 409, nichts geloescht", ok and not writes(fs_c) and DN_ALT in D)
 
-# AD-Attribut nach Simulation auf gemeinsamen Ordner umgebogen: geloescht wird nur, was simuliert war
+# AD attribute redirected to a shared folder after simulation: only what was simulated is deleted
 fs_d = mkfs(clean=True)
 s = sim(DN_ALT, fsobj=fs_d)
 D[DN_ALT]["homeDirectory"] = ["\\\\fs1\\home$\\Abteilung"]
@@ -60,7 +60,7 @@ check("Umgebogenes Home-Attribut: Abteilungsordner bleibt unberuehrt", r["status
 add("CN=Alt\\, Anna,OU=Disabled," + B, objectClass=u, sAMAccountName="aalt", displayName="Alt, Anna", userAccountControl="514",
     profilePath="\\\\fs1\\profiles$\\%username%", homeDirectory="\\\\fs1\\home$\\aalt")
 
-# Erfolgreicher Lauf
+# successful run
 fs_e = mkfs(clean=True)
 s = sim(DN_ALT, fsobj=fs_e)
 before_other = dict((k, v) for k, v in fs_e.tree.items() if "other.v2" in k or k.endswith("home$\\abteilung") or "abteilung" in k)
@@ -79,7 +79,7 @@ check("Audit-Eintrag mit Ordnerdetails, ohne Passwort", last["ok"] is True and l
 ok, _ = raises(lambda: X(exm(DN_ALT, s["planId"], "aalt"), adm), 400)
 check("Zweites Loeschen mit altem Plan -> 400", ok)
 
-# Teilweise fehlgeschlagen: Datei gesperrt -> Konto bleibt
+# partially failed: file locked -> account stays
 add("CN=Alt\\, Anna,OU=Disabled," + B, objectClass=u, sAMAccountName="aalt", displayName="Alt, Anna", userAccountControl="514",
     profilePath="\\\\fs1\\profiles$\\%username%", homeDirectory="\\\\fs1\\home$\\aalt")
 fs_f = mkfs(clean=True, locked={"\\\\fs1\\profiles$\\aalt.V2\\NTUSER.DAT"})
@@ -91,14 +91,14 @@ check("Nur der Profilordner ist fehlgeschlagen, Rest geloescht", len(bad) == 1 a
 check("Fehlerdetail nennt die Datei", any("NTUSER.DAT" in e for e in bad[0]["errors"]))
 last = [json.loads(l) for l in M["audit_jsonl"]().splitlines() if "deletion-execute" in l][-1]
 check("Audit: partial -> ok false", last["ok"] is False and "AD-Konto bleibt" in last["error"])
-# erneute Simulation + Ausfuehrung nach Behebung (nur noch Rest)
+# new simulation + run after the fix (only the remainder)
 fs_f.locked.clear()
 s = sim(DN_ALT, fsobj=fs_f)
 check("Nach Teilloeschung: nur noch Profilordner gefunden", [x["kind"] for x in s["targets"] if x["status"] == "found"] == ["profile"])
 r = X(exm(DN_ALT, s["planId"], "aalt"), adm)
 check("Zweiter Anlauf loescht Rest + Konto", r["status"] == "success" and DN_ALT not in D)
 
-# Konto ohne Ordner: nur AD-Konto
+# account without folders: AD account only
 add("CN=Leer Lars,OU=Disabled," + B, objectClass=u, sAMAccountName="llar", userAccountControl="514")
 add("CN=ExchangeActiveSyncDevices,CN=Leer Lars,OU=Disabled," + B, objectClass=["top", "msExchActiveSyncDevices"])
 s = sim("CN=Leer Lars,OU=Disabled," + B, fsobj=mkfs(clean=True))
@@ -106,17 +106,17 @@ check("Konto ohne Ordner: Plan ohne Pfade", s["planId"] and s["summary"]["folder
 FSX["fs"].calls.clear()
 r = X(exm("CN=Leer Lars,OU=Disabled," + B, s["planId"], "llar"), adm)
 check("Nur AD-Konto geloescht, keine Schreibzugriffe im FS", r["status"] == "success" and "CN=Leer Lars,OU=Disabled," + B not in D and not writes(FSX["fs"]))
-# Konto mit Unterobjekt (z. B. ActiveSync-Geraet von Exchange): wird mit Tree-Delete samt Unterobjekt geloescht
+# account with a child object (e.g. Exchange ActiveSync device): deleted with tree delete including the child
 check("Unterobjekt-Konten werden mit Tree-Delete geloescht", "CN=ExchangeActiveSyncDevices,CN=Leer Lars,OU=Disabled," + B not in D)
 
-# Konto wurde nach Simulation wieder aktiviert
+# account was re-enabled after simulation
 add("CN=Flip Flo,OU=Disabled," + B, objectClass=u, sAMAccountName="fflo", userAccountControl="514")
 s = sim("CN=Flip Flo,OU=Disabled," + B, fsobj=mkfs(clean=True))
 D["CN=Flip Flo,OU=Disabled," + B]["userAccountControl"] = ["512"]
 ok, e = raises(lambda: X(exm("CN=Flip Flo,OU=Disabled," + B, s["planId"], "fflo"), adm), 400)
 check("Zwischenzeitlich aktiviertes Konto -> 400", ok and "Flip Flo" not in "".join(map(str, writes(FSX["fs"]))) and "CN=Flip Flo,OU=Disabled," + B in D)
 
-# Parallel-Sperre
+# parallel lock
 add("CN=Par Paul,OU=Disabled," + B, objectClass=u, sAMAccountName="ppau", userAccountControl="514")
 s = sim("CN=Par Paul,OU=Disabled," + B, fsobj=mkfs(clean=True))
 dele._running.add("cn=par paul,ou=disabled," + B.lower())
@@ -124,7 +124,7 @@ ok, _ = raises(lambda: X(exm("CN=Par Paul,OU=Disabled," + B, s["planId"], "ppau"
 dele._running.clear()
 check("Parallele Ausfuehrung -> 409", ok)
 
-# AD-Konto loeschen scheitert (z. B. Schutz vor versehentlichem Loeschen) nachdem Ordner weg sind
+# deleting the AD account fails (e.g. protection from accidental deletion) after the folders are gone
 add("CN=Prot Pia,OU=Disabled," + B, objectClass=u, sAMAccountName="ppia", userAccountControl="514")
 fs_g = mkfs(clean=True)
 fs_g.tree["\\\\fs1\\redir$"].append("ppia"); fs_g.tree["\\\\fs1\\redir$\\ppia"] = []

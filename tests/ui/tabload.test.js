@@ -1,4 +1,4 @@
-// Nur der geoeffnete Bereich laedt seine Kontoliste; "Aktualisieren" (force) liest frisch (?frisch=1)
+// Only the opened section loads its account list; "Aktualisieren" (force) reads fresh (?frisch=1)
 const src = require('./load_script.js');
 const calls = [];
 const names = ['loadInfrastructure', 'loadTemplates', 'loadExchangeConfig', 'loadOffboardingConfig', 'loadPwdResetConfig',
@@ -30,7 +30,7 @@ const lists = ['loadUserMgmtUsers', 'loadOffboardingUsers', 'loadPwdResetUsers',
   await api.refreshAllLdapData(true);
   console.assert(calls.find(([n]) => n === 'loadDeletionUsers')[1] === true, 'Aktualisieren liest die Liste frisch');
   console.assert(calls.find(([n]) => n === 'loadInfrastructure')[1] === true, 'Aktualisieren liest OUs/Gruppen frisch');
-  // Klick-Ereignis als Argument darf nicht als "frisch" gelten
+  // a click event as the argument must not count as "fresh"
   calls.length = 0;
   await api.refreshAllLdapData({type: 'click'});
   console.assert(calls.every(([, force]) => force !== true), 'nur true erzwingt frisches Lesen');

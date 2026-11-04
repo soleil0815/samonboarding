@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 # Copyright (C) 2026 Die SAMONBOARDING-Autoren
-"""Onboarding-Templates: anlegen, bearbeiten, duplizieren, loeschen."""
+"""Onboarding templates: create, edit, duplicate, delete."""
 
 from fastapi import APIRouter, Depends, HTTPException
 
@@ -55,7 +55,7 @@ TEMPLATE_TEXT_FIELDS = [
     "homeDrive",
 ]
 
-# AD begrenzt diese Attribute auf 260 Zeichen
+# AD limits these attributes to 260 characters
 PATH_FIELDS = {"profilePath": "Profilpfad", "scriptPath": "Anmeldeskript", "homeDirectory": "Basisordner"}
 
 
@@ -71,7 +71,7 @@ def safe_sort_templates(tmpls):
 
 
 def template_mail_mode(tmpl):
-    """E-Mail-Modus eines Templates. Aeltere Templates ohne Angabe erben den frueher global gespeicherten Wert."""
+    """Email mode of a template. Older templates without a value inherit the formerly global setting."""
     mode = tmpl.get("mailMode") if isinstance(tmpl, dict) else None
     if mode in MAIL_MODES:
         return mode
@@ -81,7 +81,7 @@ def template_mail_mode(tmpl):
 
 
 def sanitize_template(raw):
-    """Uebernimmt nur bekannte Felder mit den richtigen Typen."""
+    """Accepts only known fields with the correct types."""
     if not isinstance(raw, dict):
         raise HTTPException(status_code=400, detail="Ungültige Template-Daten.")
     tmpl = {}
@@ -100,7 +100,7 @@ def sanitize_template(raw):
         tmpl["homeDrive"] = normalize_home_drive(tmpl["homeDrive"])
     except ValueError as e:
         raise HTTPException(status_code=400, detail=f"Basisordner: {e}") from e
-    # Wie in RSAT ("Verbinden von"): Laufwerk nur mit Netzwerkpfad.
+    # As in RSAT ("Verbinden von"/"Connect"): drive only with a network path.
     if tmpl["homeDrive"] and not tmpl["homeDirectory"].startswith("\\\\"):
         raise HTTPException(
             status_code=400,
@@ -140,7 +140,7 @@ def get_templates(user: dict = Depends(get_current_user)):
         if isinstance(t, dict)
     ]
     if user.get("role") != "Administrator":
-        # Statische Passwoerter sind nur fuer Administratoren sichtbar.
+        # Static passwords are visible to administrators only.
         tmpls = [{k: v for k, v in t.items() if k != "staticPwd"} for t in tmpls]
     return tmpls
 

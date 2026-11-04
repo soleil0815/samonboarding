@@ -1,7 +1,7 @@
-"""Gemeinsame Testumgebung: simuliertes AD (ldap3-Ersatz), App aus dem Projekt geladen.
+"""Shared test environment: simulated AD (ldap3 stand-in), app loaded from the project.
 
-Wird von den Szenario-Skripten per exec eingebunden. Benoetigt keine installierten Pakete (fastapi, ldap3, pydantic
-werden durch kleine Ersatzmodule in tests/scenarios/stubs ersetzt).
+Included by the scenario scripts via exec. Needs no installed packages (fastapi, ldap3, pydantic
+are replaced by small stub modules in tests/scenarios/stubs).
 """
 import atexit
 import json
@@ -17,7 +17,7 @@ sys.path.insert(0, os.path.join(HERE, "stubs"))
 import ldap3  # noqa: E402
 from ldap3.core.exceptions import LDAPBindError, LDAPCommunicationError, LDAPOperationResult  # noqa: E402
 
-# ---------------- Fake-Verzeichnis ----------------
+# ---------------- Fake directory ----------------
 B = "DC=test,DC=local"
 D = {}
 
@@ -109,9 +109,9 @@ def ev(node, dn):
     if attr.startswith("member:"):
         return dn in member_chain(unesc(val))
     val = unesc(val)
-    if val == "*":  # Praesenzfilter (objectClass=*)
+    if val == "*":  # presence filter (objectClass=*)
         return bool(vals(dn, attr))
-    # Binaerwerte (objectGUID) wie im echten AD als escapte Bytes vergleichen
+    # compare binary values (objectGUID) as escaped bytes, like the real AD
     return any((v.decode("latin-1") == val) if isinstance(v, bytes) else (str(v).lower() == val.lower()) for v in vals(dn, attr))
 
 
@@ -153,7 +153,7 @@ class FakeConn:
             if under(dn, base, search_scope) and ev(tree, dn):
                 yield {"type": "searchResEntry", "dn": dn, "attributes": view(dn, attributes or [])}
         yield {"type": "searchResRef", "uri": ["ldap://x"]}
-        self.result = {"result": 0}  # wie ldap3: Ergebnis der letzten Suche
+        self.result = {"result": 0}  # like ldap3: result of the last search
 
     def search(self, dn, flt, scope, attributes=None):
         if dn not in D:
@@ -228,13 +228,13 @@ class FakeConn:
 ldap3.Server = FakeServer
 ldap3.Connection = FakeConn
 
-# ---------------- App laden ----------------
+# ---------------- Load the app ----------------
 tmp = tempfile.mkdtemp(prefix="samonboarding-test-")
 atexit.register(shutil.rmtree, tmp, True)
 os.chdir(tmp)
 os.environ["AD_DOMAIN"] = "test.local"
 os.environ["LOGIN_MAX_ATTEMPTS"] = "3"
-os.environ["LDAP_ALLOW_PLAIN"] = "true"  # Fallback-Logik wird ausdruecklich mitgetestet
+os.environ["LDAP_ALLOW_PLAIN"] = "true"  # the fallback logic is deliberately tested too
 os.environ["DATA_DIR"] = tmp + "/data"
 
 sys.path.insert(0, ROOT)

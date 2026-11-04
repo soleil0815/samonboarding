@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 # Copyright (C) 2026 Die SAMONBOARDING-Autoren
-"""Offboarding: Konto deaktivieren, aus Gruppen entfernen und in die Ziel-OU verschieben."""
+"""Offboarding: disable the account, remove it from groups and move it to the target OU."""
 
 import logging
 
@@ -36,7 +36,7 @@ router = APIRouter()
 
 @router.get("/api/offboarding/users")
 def get_offboarding_users(user: dict = Depends(get_current_user), frisch: bool = False):
-    """Liste kurz zwischengespeichert (listcache); frisch=1 liest immer neu vom DC."""
+    """List cached briefly (listcache); frisch=1 always reads fresh from the DC."""
     return listcache.cached(user, "offboarding-users", lambda: _get_offboarding_users(user), frisch)
 
 
@@ -69,7 +69,7 @@ MAX_BATCH = 25
 
 
 def remember_state(conn, user, entry, sam, name):
-    """Speichert OU, Gruppen und Kontostatus vor dem Offboarding. Fehler verhindern das Offboarding nicht."""
+    """Save OU, groups and account status before offboarding. Errors do not prevent the offboarding."""
     try:
         groups = [
             {"dn": g, "guid": read_guid(conn, g, "(objectClass=group)"), "name": rdn_label(g)}
@@ -105,8 +105,8 @@ def note_current_dn(record_id, dn):
 
 
 def offboard_account(user, off_cfg, user_dn):
-    """Deaktiviert ein Konto, entfernt es aus allen Gruppen und verschiebt es in die Ziel-OU (mit Audit-Eintrag).
-    Liefert {'sam', 'name', 'removed', 'failed'}; Fehler kommen als HTTPException/AdError."""
+    """Disable an account, remove it from all groups and move it to the target OU (with an audit entry).
+    Returns {'sam', 'name', 'removed', 'failed'}; errors are raised as HTTPException/AdError."""
     target_ou = off_cfg.get("targetOu")
     if not target_ou:
         raise HTTPException(status_code=400, detail="Keine Ziel-OU für deaktivierte Benutzer konfiguriert.")
@@ -121,7 +121,7 @@ def offboard_account(user, off_cfg, user_dn):
                 "das Offboarding",
                 ["sAMAccountName", "displayName", "cn", "userAccountControl", "memberOf"],
             )
-            user_dn = entry.dn  # ab hier nur noch der DN, den der DC geliefert hat
+            user_dn = entry.dn  # from here on, only the DN returned by the DC
 
             target_sam = entry.text("sAMAccountName").lower()
             target_name = row_display_name(entry) or target_sam
@@ -137,8 +137,8 @@ def offboard_account(user, off_cfg, user_dn):
                 info["protected"] = reason
                 raise HTTPException(status_code=403, detail=protected_message(reason, "offgeboardet"))
 
-            # Vorher pruefen, ob das Verschieben klappen kann: steht in der Ziel-OU schon ein gleichnamiges Objekt
-            # (z. B. ein Namensvetter), nichts veraendern - sonst bliebe das Konto halb offgeboardet zurueck
+            # Check beforehand whether the move can succeed: if the target OU already holds an object with the same
+            # name (e.g. a namesake), change nothing - otherwise the account would be left half offboarded
             new_dn = split_dn(user_dn)[0] + "," + target_ou
             if dn_norm(new_dn) != dn_norm(user_dn) and get_object(conn, new_dn, ["cn"], "(objectClass=*)"):
                 raise HTTPException(
@@ -147,7 +147,7 @@ def offboard_account(user, off_cfg, user_dn):
                     "Bitte das Konto zuerst umbenennen (z. B. in RSAT) - es wurde nichts verändert.",
                 )
 
-            # Vorher festhalten, wo das Konto war - fuer eine spaetere Wiederherstellung
+            # Record beforehand where the account was - for a later restore
             record_id = remember_state(conn, user, entry, target_sam, target_name)
             info["restorable"] = bool(record_id)
 
@@ -160,7 +160,7 @@ def offboard_account(user, off_cfg, user_dn):
                 )
             except Exception:
                 if record_id:
-                    forget_record(record_id)  # es wurde nichts veraendert
+                    forget_record(record_id)  # nothing was changed
                 raise
 
             for group_dn in entry.list("memberOf"):
@@ -171,7 +171,7 @@ def offboard_account(user, off_cfg, user_dn):
                     failed_groups.append(f"{rdn_label(group_dn)} ({ldap_error_text(conn)})")
 
             if dn_norm(new_dn) == dn_norm(user_dn):
-                pass  # liegt schon in der Ziel-OU
+                pass  # already in the target OU
             elif not conn.modify_dn(user_dn, split_dn(user_dn)[0], new_superior=target_ou):
                 raise AdError(
                     "Das Konto wurde deaktiviert, konnte aber nicht in die Ziel-OU verschoben werden: "
@@ -242,7 +242,7 @@ def execute_offboarding(data: OffboardActionModel, background: BackgroundTasks, 
 def execute_offboarding_batch(
     data: OffboardBatchModel, background: BackgroundTasks, user: dict = Depends(get_current_user)
 ):
-    """Mehrere Konten nacheinander offboarden. Ein Fehler (z. B. geschuetztes Konto) stoppt die anderen nicht."""
+    """Offboard several accounts one after another. An error (e.g. a protected account) does not stop the others."""
     dns = list(dict.fromkeys(data.userDns))
     if not dns:
         raise HTTPException(status_code=400, detail="Keine Konten ausgewählt.")

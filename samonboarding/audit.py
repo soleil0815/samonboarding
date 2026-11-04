@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 # Copyright (C) 2026 Die SAMONBOARDING-Autoren
-"""Aenderungen (Audit, ohne Passwoerter): wer hat wann welche Aktion ausgefuehrt. Gespeichert in SQLite (reports.py)."""
+"""Changes (audit, without passwords): who performed which action and when. Stored in SQLite (reports.py)."""
 
 import logging
 from contextlib import contextmanager
@@ -13,7 +13,7 @@ log = logging.getLogger(__name__)
 
 
 def audit(actor, action, target="", ok=True, **details):
-    listcache.invalidate()  # jede Aktion kann Konten veraendert haben - Listen neu lesen
+    listcache.invalidate()  # any action may have changed accounts - re-read the lists
     clean = {k: v for k, v in details.items() if v not in (None, "", [])}
     try:
         reports.write_audit(actor, action, target, ok, clean)
@@ -27,7 +27,7 @@ def actor_name(user):
 
 @contextmanager
 def audited(user, action, target="", **details):
-    """Protokolliert Erfolg oder Fehlschlag einer Aktion in den Berichten."""
+    """Records success or failure of an action in the reports."""
     info = dict(details)
     try:
         yield info

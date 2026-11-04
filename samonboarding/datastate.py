@@ -1,17 +1,17 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 # Copyright (C) 2026 Die SAMONBOARDING-Autoren
-"""Datenstand: Sicherung vor einem Versionswechsel, Migrationen und Schutz vor einer aelteren Programmversion.
+"""Data state: backup before a version change, migrations and protection against an older program version.
 
-data/datenstand.json haelt fest, welche Programmversion die Daten zuletzt benutzt hat und welchen Datenstand
-(Format der Dateien und Datenbanken) sie haben:  {"datenstand": 1, "version": "2.0.0", "seit": "..."}
+data/datenstand.json records which program version last used the data and which data state
+(format of the files and databases) it has:  {"datenstand": 1, "version": "2.0.0", "seit": "..."}
 
-Beim Start (vor dem Server):
-  - neue Installation (data/ leer): Datenstand eintragen, nichts weiter
-  - andere Programmversion als zuletzt: erst data/ sichern nach data/backups/vor-<Version>-<Zeitpunkt>.tar.gz,
-    dann die Migrationen bis zum aktuellen Datenstand ausfuehren
-  - Daten von einer NEUEREN Version (hoeherer Datenstand): Start abbrechen, mit Meldung, welche Sicherung
-    zurueckzuspielen ist - statt mit Folgefehlern weiterzulaufen
-Sicherheitsupdates (<Version>-s<Zaehler>) sind dasselbe Programm: VERSION bleibt gleich, also keine Sicherung.
+At startup (before the server):
+  - new installation (data/ empty): record the data state, nothing else
+  - different program version than last time: first back up data/ to data/backups/vor-<version>-<timestamp>.tar.gz,
+    then run the migrations up to the current data state
+  - data from a NEWER version (higher data state): abort startup with a message saying which backup to
+    restore - instead of carrying on with follow-up errors
+Security updates (<version>-s<counter>) are the same program: VERSION stays the same, so no backup.
 """
 
 import datetime as dt
@@ -26,18 +26,18 @@ from .config import DATA_DIR, VERSION
 
 log = logging.getLogger(__name__)
 
-DATA_STATE = 1  # aktueller Datenstand; bei einer Format-Aenderung erhoehen und eine Migration eintragen
-# Migrationen: {n: funktion(data_dir)} bringt die Daten von Stand n-1 auf Stand n
+DATA_STATE = 1  # current data state; increase on a format change and register a migration
+# Migrations: {n: function(data_dir)} brings the data from state n-1 to state n
 MIGRATIONS = {}
 STATE_NAME = "datenstand.json"
 BACKUP_DIR_NAME = "backups"
 KEEP_BACKUPS = 10
-PENDING_NAME = ".wechsel-laeuft"  # Versionswechsel begonnen (Sicherung angelegt), Migrationen noch nicht fertig
+PENDING_NAME = ".wechsel-laeuft"  # version change started (backup created), migrations not yet finished
 _BACKUP_RE = re.compile(r"^vor-(.+)-(\d{8}-\d{6})\.tar\.gz$")
 
 
 class DataTooNew(Exception):
-    """Die Daten stammen von einer neueren Programmversion - Start abbrechen."""
+    """The data comes from a newer program version - abort startup."""
 
 
 def _version_key(text):
@@ -67,13 +67,13 @@ def write_state(data_dir, version, data_state, now=None):
 
 
 def _has_data(data_dir):
-    """Gibt es schon Daten (auch von einer Version vor 2.0, die noch keinen Datenstand kannte)?"""
+    """Is there existing data (including from a version before 2.0 that had no data state yet)?"""
     skip = {BACKUP_DIR_NAME, ".schreibtest", PENDING_NAME}
     return any(p.name not in skip for p in Path(data_dir).iterdir())
 
 
 def backup(data_dir, version, now=None, keep=KEEP_BACKUPS):
-    """data/ (ohne die Sicherungen selbst) nach data/backups/vor-<version>-<zeit>.tar.gz; alte Sicherungen kappen."""
+    """Back up data/ (except the backups themselves) to data/backups/vor-<version>-<time>.tar.gz; prune old ones."""
     now = now or dt.datetime.now()
     data_dir = Path(data_dir)
     target_dir = data_dir / BACKUP_DIR_NAME
@@ -96,7 +96,7 @@ def backup(data_dir, version, now=None, keep=KEEP_BACKUPS):
 
 
 def find_backup(data_dir, version):
-    """Neueste Sicherung, die beim Umstieg auf <version> angelegt wurde (der Datenstand davor)."""
+    """Newest backup created when switching to <version> (the data state before it)."""
     folder = Path(data_dir) / BACKUP_DIR_NAME
     if not folder.is_dir():
         return None
@@ -105,7 +105,7 @@ def find_backup(data_dir, version):
 
 
 def prepare(data_dir=DATA_DIR, version=VERSION, data_state=DATA_STATE, migrations=None, now=None):
-    """Beim Start aufrufen. Gibt eine kurze Beschreibung zurueck; wirft DataTooNew bei Daten einer neueren Version."""
+    """Call at startup. Returns a short description; raises DataTooNew for data from a newer version."""
     migrations = MIGRATIONS if migrations is None else migrations
     data_dir = Path(data_dir)
     state = read_state(data_dir)
@@ -113,7 +113,7 @@ def prepare(data_dir=DATA_DIR, version=VERSION, data_state=DATA_STATE, migration
         if not _has_data(data_dir):
             write_state(data_dir, version, data_state, now)
             return "neue Installation"
-        state = {"datenstand": 1, "version": "vor 2.0"}  # Daten einer Version ohne Datenstand (bis 1.48)
+        state = {"datenstand": 1, "version": "vor 2.0"}  # data from a version without data state (up to 1.48)
     stored, stored_version = state["datenstand"], str(state.get("version") or "?")
     if stored > data_state:
         found = find_backup(data_dir, stored_version)
@@ -130,9 +130,9 @@ def prepare(data_dir=DATA_DIR, version=VERSION, data_state=DATA_STATE, migration
         )
     if stored_version == version and stored == data_state:
         return "unverändert"
-    # Ist ein Wechsel auf diese Version schon begonnen, aber nicht fertig geworden (Migration abgestuerzt, Neustart in
-    # Schleife), bleibt es bei der Sicherung von damals: sonst wuerden halb migrierte Daten gesichert und nach
-    # KEEP_BACKUPS Neustarts die saubere Sicherung gekappt
+    # If a switch to this version was started but never finished (migration crashed, restart loop), keep the
+    # backup from back then: otherwise half-migrated data would be backed up and, after KEEP_BACKUPS restarts,
+    # the clean backup would be pruned
     pending = data_dir / PENDING_NAME
     try:
         pending_version = pending.read_text(encoding="utf-8").strip()
@@ -161,14 +161,14 @@ def prepare(data_dir=DATA_DIR, version=VERSION, data_state=DATA_STATE, migration
 
 
 # ---------------------------------------------------------------------------------------------------------------------
-# Kennung der docker-compose.yml: die Datei setzt SAMONBOARDING_COMPOSE. Ist sie aelter als hier verlangt, zeigt die
-# Oberflaeche Administratoren einen Hinweis (Vorgaben stehen im Programm, die Datei aendert sich nur selten).
+# Revision of docker-compose.yml: the file sets SAMONBOARDING_COMPOSE. If it is older than required here, the UI
+# shows administrators a notice (defaults live in the program, the file changes only rarely).
 # ---------------------------------------------------------------------------------------------------------------------
 COMPOSE_REQUIRED = 2
 
 
 def compose_notice(env=None):
-    """None, wenn die docker-compose.yml aktuell ist; sonst {"have": n, "need": m}."""
+    """None if docker-compose.yml is up to date; otherwise {"have": n, "need": m}."""
     env = os.environ if env is None else env
     raw = str(env.get("SAMONBOARDING_COMPOSE", "")).strip()
     have = int(raw) if raw.isdigit() else 0

@@ -1,4 +1,4 @@
-"""scripts/pins.py: Versionsgrenzen, Nummern der Sicherheitsupdates, Plan, Trivy (nachgestellt) und Unterbau-Warnung."""
+"""scripts/pins.py: version limits, security update numbering, plan, Trivy (simulated) and base end-of-life warning."""
 
 import datetime as dt
 import io
@@ -42,7 +42,7 @@ def run_main(*argv):
 
 
 class LimitTests(unittest.TestCase):
-    def test_grenzen_innerhalb_der_hauptversion(self):
+    def test_limits_within_major_version(self):
         allowed = [("2.9.1", "2.9.2"), ("2.9.1", "2.99.0"), ("1.14.0", "1.17.0"), ("50.0.2", "50.1.0")]
         forbidden = [("2.9.1", "3.0.0"), ("1.14.0", "2.0.0")]
         for old, new in allowed:
@@ -50,7 +50,7 @@ class LimitTests(unittest.TestCase):
         for old, new in forbidden:
             self.assertFalse(pins.within_limit(old, new), (old, new))
 
-    def test_vor_1_0_innerhalb_der_unterversion(self):
+    def test_before_1_0_within_minor_version(self):
         self.assertTrue(pins.within_limit("0.54.0", "0.54.9"))
         self.assertTrue(pins.within_limit("0.162.0", "0.162.3"))
         self.assertFalse(pins.within_limit("0.54.0", "0.55.0"))
@@ -58,15 +58,15 @@ class LimitTests(unittest.TestCase):
         self.assertEqual(pins.upper_bound("0.54.0"), "0.55")
         self.assertEqual(pins.upper_bound("2.9.1"), "3")
 
-    def test_kalenderversionen_ohne_grenze(self):
-        """Stammzertifikate (certifi) und Zeitzonen-Daten (tzdata) duerfen immer auf den neuesten Stand."""
+    def test_calendar_versions_without_limit(self):
+        """Root certificates (certifi) and time zone data (tzdata) may always be updated to the latest version."""
         self.assertTrue(pins.within_limit("2026.6.17", "2026.10.23"))
         self.assertTrue(pins.within_limit("2025.2", "2026.1"))
         self.assertIsNone(pins.upper_bound("2026.10.23"))
         self.assertTrue(pins.is_calendar("2025.2"))
         self.assertFalse(pins.is_calendar("50.0.2"))
 
-    def test_python_grenzen_aus_der_sperrliste(self):
+    def test_python_limits_from_lock_file(self):
         text = "# Kopf\ncertifi==2026.10.23\nldap3==2.9.1\nuvicorn==0.54.0\npydantic_core==2.50.1\n"
         constraints = pins.python_constraints(text).splitlines()
         self.assertEqual(
@@ -74,11 +74,11 @@ class LimitTests(unittest.TestCase):
             ["certifi>=2026.10.23", "ldap3>=2.9.1,<3", "uvicorn>=0.54.0,<0.55", "pydantic_core>=2.50.1,<3"],
         )
 
-    def test_npm_bereiche(self):
+    def test_npm_ranges(self):
         self.assertEqual(pins.npm_range("3.4.17"), "^3.4.17")
         self.assertEqual(pins.npm_range("0.3.2"), "~0.3.2")
 
-    def test_basis_images_bleiben_in_ihrer_reihe(self):
+    def test_base_images_stay_in_their_series(self):
         py_tags = ["3.13.16-slim-trixie", "3.13.17-slim-trixie", "3.13.9-slim-trixie", "3.14.1-slim-trixie",
                    "3.13.18-slim-bookworm", "3.13-slim-trixie", "3.13.18rc1-slim-trixie", "3.13.17-trixie"]  # fmt: skip
         self.assertEqual(pins.newest_python_tag(("3", "13", "trixie"), py_tags), "3.13.17-slim-trixie")
@@ -88,11 +88,11 @@ class LimitTests(unittest.TestCase):
         with self.assertRaises(pins.PinError):
             pins.newest_python_tag(("3", "13", "trixie"), ["3.14.1-slim-trixie"])
 
-    def test_tag_ohne_patch_version_wird_als_reihe_verstanden(self):
+    def test_tag_without_patch_version_is_read_as_series(self):
         self.assertEqual(pins.python_series("3.13-slim-trixie"), ("3", "13", "trixie"))
         self.assertEqual(pins.node_series("24-trixie-slim"), ("24", "trixie"))
         with self.assertRaises(pins.PinError):
-            pins.python_series("3.13-trixie")  # kein slim-Image
+            pins.python_series("3.13-trixie")  # not a slim image
 
 
 class CompareTests(unittest.TestCase):
@@ -104,22 +104,22 @@ class CompareTests(unittest.TestCase):
             "package-lock.json": npm_lock(tailwindcss="3.4.17"),
         }
 
-    def test_debian_pakete_je_architektur(self):
-        """Debian baut manche Pakete nur fuer eine Architektur neu (+b1) - beide Staende werden gefuehrt."""
+    def test_debian_packages_per_architecture(self):
+        """Debian rebuilds some packages for only one architecture (+b1) - both versions are tracked."""
         text = "# Kopf\namd64 grep=3.11-4\narm64 grep=3.11-4+b1\namd64 bash=5.2\narm64 bash=5.2\n"
         self.assertEqual(pins.parse_os_lock(text), {"bash": "5.2", "grep": "amd64 3.11-4, arm64 3.11-4+b1"})
         self.assertEqual(pins.parse_os_lock_archs(text)["arm64"]["grep"], "3.11-4+b1")
         written = pins.os_lock_text(pins.parse_os_lock_archs(text), "20261025T040000Z")
         self.assertEqual(pins.parse_os_lock_archs(written), pins.parse_os_lock_archs(text))
 
-    def test_nur_neuer_snapshot_ist_keine_aenderung(self):
+    def test_only_new_snapshot_is_no_change(self):
         old = self.base()
         new = dict(old, **{"images.lock": lock(snapshot="20261102T040000Z")})
         changes, violations = pins.compare(old, new)
         self.assertEqual(violations, [])
         self.assertFalse(pins.has_changes(changes))
 
-    def test_erlaubte_aenderungen_mit_liste(self):
+    def test_allowed_changes_with_list(self):
         old = self.base()
         new = {
             "images.lock": lock(py="python:3.13.17-slim-trixie@sha256:" + "c" * 64),
@@ -137,7 +137,7 @@ class CompareTests(unittest.TestCase):
                      "uvicorn `0.54.0` → `0.54.3`", "certifi", "tailwindcss", "nicht im Image"):  # fmt: skip
             self.assertIn(text, md)
 
-    def test_verletzte_grenzen_stoppen(self):
+    def test_violated_limits_stop(self):
         old = self.base()
         cases = {
             "Python image leaves": lock(py="python:3.14.1-slim-trixie@sha256:" + "c" * 64),
@@ -168,18 +168,18 @@ class TagTests(unittest.TestCase):
         text = "# Changelog\n\nIntro.\n\n" + entries + "## 1.48.0 – 2026-10-26\n- Neu\n\n## 1.47.1 – 2026-10-25\n- x\n"
         (self.root / "CHANGELOG.de.md").write_text(text, encoding="utf-8")
 
-    def test_zaehler_beginnt_bei_eins_und_steigt(self):
+    def test_counter_starts_at_one_and_increases(self):
         self.assertEqual(pins.next_tag(self.root), "1.48.0-s1")
         self.assertEqual(pins.current_tag(self.root), "1.48.0")
         self.changelog("## 1.48.0-s2 – 2026-11-09\n- Sicherheit: x\n\n## 1.48.0-s1 – 2026-11-02\n- Sicherheit: x\n\n")
         self.assertEqual(pins.next_tag(self.root), "1.48.0-s3")
         self.assertEqual(pins.current_tag(self.root), "1.48.0-s2")
 
-    def test_neue_programmversion_setzt_den_zaehler_zurueck(self):
-        self.changelog("## 1.47.1-s4 – 2026-11-02\n- Sicherheit: x\n\n")  # gehoert zur alten Version
+    def test_new_program_version_resets_the_counter(self):
+        self.changelog("## 1.47.1-s4 – 2026-11-02\n- Sicherheit: x\n\n")  # belongs to the old version
         self.assertEqual(pins.next_tag(self.root), "1.48.0-s1")
 
-    def test_reihenfolge_der_versionen(self):
+    def test_version_order(self):
         order = ["1.47.1", "1.47.1-s1", "1.47.1-s2", "1.47.1-s10", "1.48.0", "1.48.0-s1", "1.49.0"]
         keys = [pins.tag_key(t) for t in order]
         self.assertEqual(keys, sorted(keys))
@@ -194,36 +194,36 @@ class TagTests(unittest.TestCase):
             (result["action"], result["tag"], result["latest"], result["commit"]), ("publish", "1.48.0", True, False)
         )
         result = pins.plan("release", False, ["1.48.0", "1.47.1"], self.root)
-        self.assertEqual(result["action"], "skip")  # veroeffentlicht wird nie ueberschrieben
+        self.assertEqual(result["action"], "skip")  # a published tag is never overwritten
 
-    def test_plan_sicherheitsupdate(self):
+    def test_plan_security_update(self):
         result = pins.plan("security-update", True, ["1.48.0"], self.root)
         self.assertEqual(
             (result["action"], result["tag"], result["commit"], result["latest"]), ("publish", "1.48.0-s1", True, True)
         )
-        # Registry ist weiter als das Changelog (z. B. nach einem abgebrochenen Lauf): trotzdem nie ueberschreiben
+        # registry is ahead of the changelog (e.g. after an aborted run): still never overwrite
         self.assertEqual(pins.plan("security-update", True, ["1.48.0", "1.48.0-s1"], self.root)["tag"], "1.48.0-s2")
 
-    def test_plan_ohne_aenderung(self):
+    def test_plan_without_change(self):
         self.assertEqual(pins.plan("security-update", False, ["1.48.0"], self.root)["action"], "nothing")
         self.changelog("## 1.48.0-s1 – 2026-11-02\n- Sicherheit: x\n\n")
-        # Eintrag schon committet, Image aber nicht veroeffentlicht (Push fehlgeschlagen): jetzt nachholen
+        # entry already committed but image not published (push failed): catch up now
         result = pins.plan("security-update", False, ["1.48.0"], self.root)
         self.assertEqual((result["action"], result["tag"], result["commit"]), ("publish", "1.48.0-s1", False))
 
-    def test_tag_x_y_fuer_die_neueste_der_reihe(self):
+    def test_tag_x_y_for_newest_of_series(self):
         result = pins.plan("security-update", True, ["1.48.0"], self.root)
         self.assertEqual((result["minor"], result["minor_latest"]), ("1.48", True))
-        # ein Sicherheitsupdate fuer eine aeltere Reihe bekommt "1.47" - aber nur, wenn es dort das neueste ist
+        # a security update for an older series gets "1.47" - but only if it is the newest there
         self.assertTrue(pins.plan("release", False, ["1.49.0", "1.47.1"], self.root)["minor_latest"])
-        self.assertFalse(pins.plan("release", False, ["1.48.0"], self.root)["minor_latest"])  # skip: nichts
+        self.assertFalse(pins.plan("release", False, ["1.48.0"], self.root)["minor_latest"])  # skip: nothing
 
-    def test_latest_nur_fuer_die_hoechste_version(self):
+    def test_latest_only_for_highest_version(self):
         result = pins.plan("security-update", True, ["1.48.0", "1.49.0"], self.root)
         self.assertEqual(result["action"], "publish")
         self.assertFalse(result["latest"])
 
-    def test_release_text_aus_dem_changelog(self):
+    def test_release_text_from_changelog(self):
         changes = {"images": [], "debian": {"changed": [["openssl", "3.5.1-1", "3.5.4-1"]], "added": [], "removed": []},
                    "python": {"changed": [], "added": [], "removed": []}, "npm": {"changed": [], "added": [], "removed": []}}  # fmt: skip
         for lang, name in pins.CHANGELOGS.items():
@@ -240,13 +240,13 @@ class TagTests(unittest.TestCase):
         self.assertIn("Sicherheit: Sicherheitsupdate ohne Programmänderung", notes)
         self.assertIn("Security: security update without program changes", notes)
         self.assertIn("`ghcr.io/x/y:1.48.0-s1`", notes)
-        self.assertNotIn("## 1.48.0 ", notes)  # nur der eigene Eintrag
+        self.assertNotIn("## 1.48.0 ", notes)  # only its own entry
         self.assertIn("New program version", pins.release_notes("1.48.0", "ghcr.io/x/y", self.root))
         with self.assertRaises(pins.PinError):
             pins.release_notes("1.48.0-s2", "ghcr.io/x/y", self.root)
         self.assertEqual(pins.changelog_section("## 1.4.10 – x\n- a\n## 1.4.1 – y\n- b\n", "1.4.1"), "- b")
 
-    def test_changelog_eintrag_wird_als_sicherheitsupdate_angezeigt(self):
+    def test_changelog_entry_shown_as_security_update(self):
         changes = {"images": [], "debian": {"changed": [["openssl", "3.5.1-1", "3.5.4-1"]], "added": [], "removed": []},
                    "python": {"changed": [], "added": [], "removed": []}, "npm": {"changed": [], "added": [], "removed": []}}  # fmt: skip
         text = (self.root / "CHANGELOG.de.md").read_text(encoding="utf-8")
@@ -278,14 +278,14 @@ FINDINGS = {
 
 
 class TrivyTests(unittest.TestCase):
-    def test_nur_hoch_kritisch_mit_korrektur_zaehlt(self):
+    def test_only_high_critical_with_fix_counts(self):
         found = pins.trivy_findings(FINDINGS)
         self.assertEqual(len(found), 2)
         self.assertTrue(found[0].startswith("HIGH CVE-1 openssl 1 -> 2"))
         self.assertTrue(found[1].startswith("CRITICAL CVE-4 libz 1 -> 3"))
         self.assertEqual(pins.trivy_findings({"Results": [{"Target": "x"}]}), [])
 
-    def test_trivyignore_braucht_grund_und_ablaufdatum(self):
+    def test_trivyignore_needs_reason_and_expiry(self):
         today = dt.date(2026, 10, 25)
         good = (
             "# Kopf\n\n# libfoo: nur im Druckdienst, der nie laeuft - geprueft 2026-10-25\nCVE-2026-1 exp:2027-01-31\n"
@@ -301,7 +301,7 @@ class TrivyTests(unittest.TestCase):
         self.assertIn("more than a year", problems[2])
 
     def fake_trivy(self, report, code=0):
-        """Nachgestelltes Trivy: schreibt den Bericht dorthin, wohin --output zeigt."""
+        """Simulated Trivy: writes the report to wherever --output points."""
         bindir = Path(self.tmp.name) / "bin"
         bindir.mkdir(exist_ok=True)
         (Path(self.tmp.name) / "report.json").write_text(json.dumps(report), encoding="utf-8")
@@ -325,11 +325,11 @@ class TrivyTests(unittest.TestCase):
         self.tmp.cleanup()
 
     @unittest.skipIf(os.name != "posix", "nur unter Linux")
-    def test_ablauf_mit_nachgestelltem_trivy(self):
+    def test_flow_with_simulated_trivy(self):
         os.environ["PATH"] = self.fake_trivy(FINDINGS) + os.pathsep + self.path
         code, out, err = run_main("scan", "samonboarding:test", "--label", "1.48.0-s1 amd64", "--hint", "Abhilfe: X")
-        self.assertEqual(code, 1)  # Release gestoppt
-        self.assertIn("Trivy found 2 vulnerabilities", out)  # Ursache lesbar am Lauf
+        self.assertEqual(code, 1)  # release stopped
+        self.assertIn("Trivy found 2 vulnerabilities", out)  # cause readable in the run
         self.assertIn("CVE-4", err)
         self.assertIn("Abhilfe: X", err)
 
@@ -342,13 +342,13 @@ class TrivyTests(unittest.TestCase):
 
         os.environ["PATH"] = self.fake_trivy({}, code=2) + os.pathsep + self.path
         code, _, err = run_main("scan", "samonboarding:test")
-        self.assertEqual(code, 1)  # Trivy selbst gescheitert: auch dann nichts veroeffentlichen
+        self.assertEqual(code, 1)  # Trivy itself failed: publish nothing in that case either
         self.assertIn("could not scan", err)
 
 
 class RunTests(unittest.TestCase):
     @unittest.skipIf(os.name != "posix", "nur unter Linux")
-    def test_fehlerursache_lesbar_am_lauf(self):
+    def test_failure_cause_readable_in_run(self):
         code, out, err = run_main(
             "run", "Build amd64", "--", "sh", "-c", "echo step 1; echo 'E: Unable to locate package x'; exit 2"
         )
@@ -359,13 +359,13 @@ class RunTests(unittest.TestCase):
 
 
 class EolTests(unittest.TestCase):
-    def test_stufen(self):
+    def test_levels(self):
         today = dt.date(2026, 10, 25)
         self.assertEqual(pins.eol_level("2028-08-09", today)[0], "ok")
-        self.assertEqual(pins.eol_level("2027-08-01", today), ("warning", 280))  # unter 12 Monaten: Hinweis
-        self.assertEqual(pins.eol_level("2027-03-01", today)[0], "error")  # unter 6 Monaten: roter Lauf
+        self.assertEqual(pins.eol_level("2027-08-01", today), ("warning", 280))  # under 12 months: notice
+        self.assertEqual(pins.eol_level("2027-03-01", today)[0], "error")  # under 6 months: failed run
 
-    def test_unterbau_aus_images_lock(self):
+    def test_base_from_images_lock(self):
         self.assertEqual(
             [c[:2] for c in pins.base_cycles(lock())], [("debian", "13"), ("python", "3.13"), ("nodejs", "24")]
         )
@@ -383,7 +383,7 @@ class EolTests(unittest.TestCase):
         finally:
             pins.read_text = old
 
-    def test_warnung_und_roter_lauf(self):
+    def test_warning_and_failed_run(self):
         today = dt.date(2026, 10, 25)
         error, _ = self.run_eol({"debian": "2028-08-09", "python": "2029-10-31", "nodejs": "2028-04-30"}, today)
         self.assertIsNone(error)
@@ -392,7 +392,7 @@ class EolTests(unittest.TestCase):
         self.assertIn("plan the change", out)
         error, _ = self.run_eol({"debian": "2027-03-01", "python": "2029-10-31", "nodejs": "2028-04-30"}, today)
         self.assertIn("raise the base now", error)
-        error, out = self.run_eol({}, today)  # endoflife.date nicht erreichbar: gespeicherte Daten, mit Hinweis
+        error, out = self.run_eol({}, today)  # endoflife.date not reachable: stored data, with a notice
         self.assertIsNone(error)
         self.assertIn("not reachable", out)
 

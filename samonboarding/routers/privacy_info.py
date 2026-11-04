@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 # Copyright (C) 2026 Die SAMONBOARDING-Autoren
-"""Datenschutz in der Oberflaeche: Fristen anzeigen (oeffentlich), Auskunft nach Art. 15 DSGVO (nur Admins)."""
+"""Data protection in the UI: show retention periods (public), data access request under Art. 15 GDPR (admins only)."""
 
 from fastapi import APIRouter, Depends, HTTPException
 
@@ -14,7 +14,7 @@ router = APIRouter()
 
 @router.get("/api/privacy-info")
 def privacy_info():
-    """Nur Einstellungen, keine personenbezogenen Daten - daher auch vor der Anmeldung abrufbar."""
+    """Settings only, no personal data - therefore available before login as well."""
     return {
         "auditDays": config.AUDIT_RETENTION_DAYS,
         "logDays": config.LOG_RETENTION_DAYS,

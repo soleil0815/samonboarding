@@ -1,4 +1,4 @@
-// Offboarding rueckgaengig machen: Liste, Vorschau, OU-Wechsel, Ausfuehren
+// Undo offboarding: list, preview, OU change, execute
 const src = require('./load_script.js');
 const els = {};
 const el = id => els[id] || (els[id] = {id, innerHTML: '', textContent: '', value: '', checked: false, disabled: false, focus() {},
@@ -18,7 +18,7 @@ return {loadOffboardRecords, openRestore, executeRestore, onRestoreOuChange, dis
 (async () => {
   const api = f(doc, {}, {language: 'de'}, m => alerts.push(m), fetchStub, () => { confirms++; return true; });
   let refreshed = 0; api.stubRefresh(async () => { refreshed++; });
-  // Liste
+  // List
   await api.loadOffboardRecords();
   console.assert(els['off-restore-list'].innerHTML.includes('Keine offgeboardeten Konten') && els['off-restore-count'].textContent === '0 Konten', 'Leere Liste mit Hinweis');
   records = [{id: 3, sam: 'aberg', name: '<b>Anna</b>', originalOu: 'OU=Sales,DC=x', groups: ['VPN'], offboardedAt: '2026-10-16T10:00:00+00:00', offboardedBy: 'op'}];
@@ -28,36 +28,36 @@ return {loadOffboardRecords, openRestore, executeRestore, onRestoreOuChange, dis
   console.assert(els['off-restore-count'].textContent === '1 Konto', 'Zaehler');
   api.setRole('Administrator'); await api.loadOffboardRecords();
   console.assert(els['off-restore-list'].innerHTML.includes('dismissRecord(3)'), 'Admin kann verwerfen');
-  // Vorschau ohne Hindernis
+  // Preview without an obstacle
   preview = {id: 3, sam: 'aberg', name: 'Anna', offboardedAt: '2026-10-16T10:00:00+00:00', offboardedBy: 'op', originalOu: 'OU=Sales,DC=x', targetOu: 'OU=Sales,DC=x', ouOptions: ['OU=Staff,DC=x'], enable: true,
     groups: [{name: 'VPN', status: 'add'}, {name: 'Alt', status: 'missing'}], blockers: [], notes: ['Nicht mehr vorhanden: Alt']};
   await api.openRestore(3);
   h = els['restore-body'].innerHTML;
   console.assert(els['restore-modal'].classList._h === false && els['restore-exec-btn'].disabled === false, 'Dialog offen, Knopf frei');
   console.assert(h.includes('wird wieder zugewiesen') && h.includes('gibt es nicht mehr') && h.includes('wieder aktiviert') && h.includes('(vorher)'), 'Plan sichtbar');
-  // OU wechseln -> neue Vorschau mit targetOu
+  // change OU -> new preview with targetOu
   els['restore-ou'] = Object.assign(el('restore-ou'), {value: 'OU=Staff,DC=x'});
   calls.length = 0; await api.onRestoreOuChange();
   console.assert(calls.some(c => c[0] === '/api/offboarding/records/3/preview?targetOu=' + encodeURIComponent('OU=Staff,DC=x')), 'Vorschau mit gewaehlter OU');
-  // Hindernis sperrt den Knopf
+  // an obstacle locks the button
   preview = Object.assign({}, preview, {blockers: ['Die OU gibt es nicht mehr.']});
   await api.openRestore(3);
   console.assert(els['restore-exec-btn'].disabled === true && els['restore-body'].innerHTML.includes('gibt es nicht mehr'), 'Hindernis sperrt');
   calls.length = 0; await api.executeRestore();
   console.assert(!calls.some(c => c[0].endsWith('/restore')), 'Kein Request bei Hindernis');
-  // Fehler vom Server: Dialog bleibt, Knopf wieder frei
+  // error from the server: dialog stays, button enabled again
   preview = Object.assign({}, preview, {blockers: [], targetOu: 'OU=Staff,DC=x'});
   await api.openRestore(3);
   restoreResp = {ok: false, body: {detail: 'Fehler beim Verschieben.'}};
   alerts.length = 0; await api.executeRestore();
   console.assert(alerts[0] === 'Fehler beim Verschieben.' && els['restore-modal'].classList._h === false && els['restore-exec-btn'].disabled === false, 'Fehler: Dialog bleibt');
-  // Erfolg mit Hinweis
+  // success with a note
   restoreResp = {ok: true, body: {message: 'Anna wurde wiederhergestellt und ist wieder aktiv.', warnings: ['Nicht wieder zugewiesen: X']}};
   alerts.length = 0; calls.length = 0; await api.executeRestore();
   const body = JSON.parse(calls.find(c => c[0] === '/api/offboarding/records/3/restore')[1]);
   console.assert(body.targetOu === 'OU=Staff,DC=x', 'gewaehlte OU gesendet');
   console.assert(alerts[0].includes('wiederhergestellt') && alerts[0].includes('Nicht wieder zugewiesen') && els['restore-modal'].classList._h === true && refreshed === 1, 'Erfolg: Meldung, Dialog zu, neu geladen');
-  // Verwerfen mit Rueckfrage
+  // discard with confirmation
   calls.length = 0; await api.dismissRecord(3);
   console.assert(confirms === 1 && calls.some(c => c[0] === '/api/offboarding/records/3/dismiss'), 'Verwerfen mit Rueckfrage');
   console.log('Restore-UI-Tests fertig');

@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 # Copyright (C) 2026 Die SAMONBOARDING-Autoren
-"""Handbuch fuer die Hilfe in der Oberflaeche (Markdown, wird im Browser dargestellt)."""
+"""Manual for the help in the UI (Markdown, rendered in the browser)."""
 
 from fastapi import APIRouter, Depends
 from fastapi.responses import PlainTextResponse
@@ -16,7 +16,7 @@ FILES = {"de": "HANDBUCH.md", "en": "MANUAL.en.md"}
 
 @router.get("/api/manual", response_class=PlainTextResponse)
 def manual(lang: str = "de", user: dict = Depends(get_current_user)):
-    name = FILES.get(lang, FILES["de"])  # nur die zwei festen Dateien, kein Pfad aus der Anfrage
+    name = FILES.get(lang, FILES["de"])  # only the two fixed files, no path from the request
     try:
         text = (MANUAL_DIR / name).read_text(encoding="utf-8")
     except OSError:

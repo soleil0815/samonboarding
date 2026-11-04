@@ -1,4 +1,4 @@
-"""README: Bilder vorhanden, mit Beschreibung, klein genug, nicht im Image."""
+"""README: images present, with descriptions, small enough, not in the image."""
 
 import re
 import unittest
@@ -11,7 +11,7 @@ IMAGE_RE = re.compile(r"!\[([^\]]*)\]\(([^)]+)\)")
 
 
 class ReadmeImageTests(unittest.TestCase):
-    def test_bilder_in_beiden_sprachen(self):
+    def test_images_in_both_languages(self):
         for name, suffix in (("README.de.md", ""), ("README.md", "-en")):
             text = (ROOT / name).read_text(encoding="utf-8")
             images = IMAGE_RE.findall(text)
@@ -21,13 +21,13 @@ class ReadmeImageTests(unittest.TestCase):
                 name,
             )
             for alt, path in images:
-                self.assertGreater(len(alt), 20, path)  # Beschreibung fuer Screenreader
+                self.assertGreater(len(alt), 20, path)  # description for screen readers
                 file = ROOT / path
                 self.assertTrue(file.exists(), path)
                 self.assertTrue(file.read_bytes().startswith(b"\x89PNG"), path)
                 self.assertLess(file.stat().st_size, 500_000, path)
 
-    def test_bilder_nicht_im_image(self):
+    def test_images_not_in_docker_image(self):
         self.assertIn("docs/", (ROOT / ".dockerignore").read_text(encoding="utf-8").split())
 
 

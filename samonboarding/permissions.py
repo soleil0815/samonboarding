@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 # Copyright (C) 2026 Die SAMONBOARDING-Autoren
-"""Berechtigungen: Rollenpruefung beim Login und serverseitige Pruefung der freigegebenen OUs."""
+"""Permissions: role check at login and server-side check of the allowed OUs."""
 
 import logging
 
@@ -20,9 +20,9 @@ def require_admin(user, message):
         raise HTTPException(status_code=403, detail=message)
 
 
-# Rollen werden an den festen SIDs der Gruppen erkannt, nie am Namen: Auf deutschen DCs heissen die Gruppen
-# "Administratoren"/"Domänen-Admins"; die englischen Namen waeren dort frei und koennten von jedem, der Gruppen
-# anlegen darf, mit einer eigenen Gruppe belegt werden.
+# Roles are recognized by the well-known SIDs of the groups, never by name: on German DCs the groups are called
+# "Administratoren"/"Domänen-Admins"; the English names would be unused there and could be taken by anyone
+# allowed to create groups.
 ADMIN_SIDS = {"S-1-5-32-544"}  # BUILTIN\Administrators
 ADMIN_DOMAIN_RIDS = {512, 519}  # Domain Admins, Enterprise Admins
 OPERATOR_SIDS = {"S-1-5-32-548"}  # BUILTIN\Account Operators
@@ -54,8 +54,8 @@ def _domain_of(search_base):
 
 
 def _configuration_nc(conn, search_base):
-    """Konfigurationsbereich laut RootDSE. In einer Unterdomaene liegt er unter der Gesamtstruktur-Wurzel, nicht
-    unter der eigenen Domaene; ohne Antwort wird die Annahme fuer eine einzelne Domaene verwendet."""
+    """Configuration partition according to the RootDSE. In a child domain it is under the forest root, not
+    under the domain itself; without an answer, the single-domain assumption is used."""
     try:
         if conn.search("", "(objectClass=*)", ldap3.BASE, attributes=["configurationNamingContext"]):
             for entry in conn.response or []:
@@ -70,7 +70,7 @@ def _configuration_nc(conn, search_base):
 
 
 def _own_names(conn, search_base):
-    """(Namen, unter denen sich ein Konto DIESER Domaene anmelden kann, NetBIOS-Name bekannt?)."""
+    """(Names under which an account of THIS domain can log in, NetBIOS name known?)."""
     dns = _domain_of(search_base).lower()
     names = {dns, dns.split(".")[0]} - {""}
     netbios = set()
@@ -82,13 +82,13 @@ def _own_names(conn, search_base):
             ["nETBIOSName"],
         )
         netbios = {r.text("nETBIOSName").lower() for r in rows if r.text("nETBIOSName")}
-    except Exception as e:  # Konfigurationsbereich nicht lesbar: dann bleibt es beim DNS-Namen
+    except Exception as e:  # configuration partition not readable: keep the DNS name
         log.debug("NetBIOS-Name nicht lesbar: %s", type(e).__name__)
     return names | netbios, bool(netbios)
 
 
 def _whoami(conn):
-    """(Domaene, Kontoname) laut DC ('u:DOMAIN\\name'); (None, None), wenn der DC das nicht beantwortet."""
+    """(domain, account name) according to the DC ('u:DOMAIN\\name'); (None, None) if the DC does not answer."""
     try:
         who = conn.extend.standard.who_am_i() or ""
     except Exception:
@@ -105,10 +105,10 @@ def _whoami(conn):
 
 
 def _find_self(conn, search_base, username, bind_user):
-    """Sucht das Konto, mit dem tatsaechlich angemeldet wurde (UPN exakt, sonst sAMAccountName).
+    """Finds the account that was actually used to log in (exact UPN, otherwise sAMAccountName).
 
-    Der sAMAccountName wird nur verwendet, wenn die Anmeldung zu dieser Domaene gehoert - sonst koennte
-    'administrator@fremde-domaene' oder 'FREMD\\administrator' (Vertrauensstellung) als lokaler Administrator gelten.
+    The sAMAccountName is used only if the login belongs to this domain - otherwise
+    'administrator@fremde-domaene' or 'FREMD\\administrator' (trust) could count as the local administrator.
     """
     flt_user = "(&(objectClass=user)(!(objectClass=computer))"
     own, netbios_known = _own_names(conn, search_base)
@@ -128,7 +128,7 @@ def _find_self(conn, search_base, username, bind_user):
             return None
         if len(rows) == 1:
             dom, name = _whoami(conn)
-            foreign = netbios_known and dom not in own  # ohne bekannten NetBIOS-Namen nur den Kontonamen pruefen
+            foreign = netbios_known and dom not in own  # without a known NetBIOS name, check only the account name
             if name and (name != rows[0].text("sAMAccountName").lower() or foreign):
                 log.warning("Anmeldung: DC meldet '%s\\%s', gefunden wurde '%s' - abgelehnt", dom, name, rows[0].dn)
                 return None
@@ -139,14 +139,14 @@ def _find_self(conn, search_base, username, bind_user):
 
 
 class RoleCheckError(Exception):
-    """Die Rolle konnte aus technischen Gruenden nicht bestimmt werden (DC beschaeftigt, Zeitlimit ...)."""
+    """The role could not be determined for technical reasons (DC busy, time limit ...)."""
 
 
 def check_user_role(conn, search_base, username, bind_user="", raise_errors=False):
-    """Liefert (Rolle, Fehlermeldung, Mail, sAMAccountName) fuer das angemeldete Konto.
+    """Returns (role, error message, mail, sAMAccountName) for the logged-in account.
 
-    raise_errors=True: technische Fehler als RoleCheckError melden statt als "keine Rolle" - damit ein kurzer
-    DC-Aussetzer nicht wie ein Entzug der Administratorrechte aussieht."""
+    raise_errors=True: report technical errors as RoleCheckError instead of "no role" - so that a brief
+    DC outage does not look like a revocation of administrator rights."""
     try:
         me = _find_self(conn, search_base, username, bind_user or username)
         if me is None:
@@ -154,10 +154,10 @@ def check_user_role(conn, search_base, username, bind_user="", raise_errors=Fals
         user_mail = me.text("mail")
         sam = me.text("sAMAccountName") or username
 
-        # 1. tokenGroups: alle Gruppen inkl. verschachtelter und primaerer Gruppe, als SID
+        # 1. tokenGroups: all groups incl. nested and primary group, as SIDs
         sids, _ok = protection.read_sids(conn, me.dn, "tokenGroups")
         sids = set(sids)
-        # 2. verschachtelte Gruppensuche: liefert Namen (fuer CUSTOM_OPERATOR_GROUP) und zusaetzlich die SIDs
+        # 2. nested group search: returns names (for CUSTOM_OPERATOR_GROUP) and additionally the SIDs
         groups = ldap_search(
             conn,
             search_base,
@@ -199,8 +199,8 @@ def is_admin(user):
 
 
 def reject_special_dn(dn):
-    """AD und Samba akzeptieren auch <GUID=...>/<SID=...> als DN. Solche Formen umgehen eine Pruefung am Text des DN
-    und werden deshalb abgelehnt (die Oberflaeche sendet immer normale DNs)."""
+    """AD and Samba also accept <GUID=...>/<SID=...> as DN. Such forms bypass a check on the DN text
+    and are therefore rejected (the UI always sends normal DNs)."""
     text = str(dn or "").strip()
     if not text or text.startswith("<") or "\x00" in text:
         raise HTTPException(status_code=400, detail="Ungültiger DN.")
@@ -208,7 +208,7 @@ def reject_special_dn(dn):
 
 
 def require_user_in_ous(user_dn, ous, what):
-    """Serverseitige Pruefung: Das Ziel-Konto muss in einer konfigurierten Quell-OU liegen."""
+    """Server-side check: the target account must be in a configured source OU."""
     reject_special_dn(user_dn)
     ous = [o for o in ous if o]
     if not ous:
@@ -220,12 +220,12 @@ def require_user_in_ous(user_dn, ous, what):
 
 
 def resolve_account(conn, user_dn, ous, what, attrs):
-    """Liest das Konto beim DC und prueft die Quell-OU am DN, den der DC zurueckliefert (nicht nur am uebergebenen
-    Text). Weitere Aktionen sollen entry.dn verwenden."""
+    """Reads the account from the DC and checks the source OU against the DN returned by the DC (not just the
+    text passed in). Further actions should use entry.dn."""
     from .ldap_client import get_object
 
     require_user_in_ous(user_dn, ous, what)
-    entry = get_object(conn, user_dn, attrs, USER_FILTER)  # nur Benutzer - keine Computer- oder Dienstkonten (gMSA)
+    entry = get_object(conn, user_dn, attrs, USER_FILTER)  # users only - no computer or service accounts (gMSA)
     if not entry:
         raise HTTPException(status_code=404, detail="Benutzer im AD nicht gefunden.")
     require_user_in_ous(entry.dn, ous, what)
@@ -233,7 +233,7 @@ def resolve_account(conn, user_dn, ous, what, attrs):
 
 
 def require_not_protected_for_operator(conn, user, entry_dn, action):
-    """Geschuetzte Konten (Domaenen-Admins & Co.) duerfen nur Administratoren bearbeiten."""
+    """Only administrators may edit protected accounts (Domain Admins & co.)."""
     if is_admin(user):
         return ""
     reason = protection.privileged_reason(conn, entry_dn)

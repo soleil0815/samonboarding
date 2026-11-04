@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 # Copyright (C) 2026 Die SAMONBOARDING-Autoren
-"""AD-Infrastruktur (OUs, Gruppen, Benutzer, Laender) fuer die Auswahllisten der Oberflaeche."""
+"""AD infrastructure (OUs, groups, users, countries) for the UI selection lists."""
 
 import logging
 
@@ -20,7 +20,7 @@ router = APIRouter()
 
 @router.get("/api/ad/infrastructure")
 def get_ad_infrastructure(user: dict = Depends(get_current_user), frisch: bool = False):
-    """Liste kurz zwischengespeichert (listcache); frisch=1 liest immer neu vom DC."""
+    """List briefly cached (listcache); frisch=1 always re-reads from the DC."""
     return listcache.cached(user, "infrastructure", lambda: _get_ad_infrastructure(user), frisch)
 
 

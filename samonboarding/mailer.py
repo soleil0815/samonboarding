@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 # Copyright (C) 2026 Die SAMONBOARDING-Autoren
-"""E-Mail-Benachrichtigungen: HTML-/Text-Vorlage und SMTP-Versand."""
+"""Email notifications: HTML/text template and SMTP delivery."""
 
 import contextlib
 import html
@@ -19,8 +19,8 @@ from .storage import load_json
 log = logging.getLogger(__name__)
 
 
-# Nur diese festen Woerter werden in Werten uebersetzt. Alles andere sind Daten (Namen, Gruppen, Passwoerter) und
-# bleibt unveraendert - ein Passwort darf nie durch das Woerterbuch laufen.
+# Only these fixed words are translated inside values. Everything else is data (names, groups, passwords) and
+# stays unchanged - a password must never go through the dictionary.
 TRANSLATABLE_VALUES = {"Ja", "Nein", "Keine", "offgeboardet"}
 TRANSLATABLE_PREFIXES = ("NICHT offgeboardet - ",)
 
@@ -31,7 +31,7 @@ def _translate_value(value, kind):
     if value in TRANSLATABLE_VALUES:
         return translate(value)
     if value.startswith(TRANSLATABLE_PREFIXES):
-        return translate(value)  # Muster "NICHT offgeboardet - {0}" (Fehlermeldung, keine Daten)
+        return translate(value)  # pattern "NICHT offgeboardet - {0}" (error message, not data)
     return value
 
 
@@ -46,9 +46,9 @@ MAIL_VALUE_STYLES = {
 
 
 def render_mail(operator, title, accent, intro, rows):
-    """Baut Text- und HTML-Variante einer Benachrichtigung. rows = [(Label, Wert, Stil), ...]
+    """Builds the text and HTML variant of a notification. rows = [(label, value, style), ...]
 
-    Texte werden in die Sprache der Oberflaeche uebersetzt (i18n.tr; Deutsch bleibt unveraendert)."""
+    Texts are translated into the UI language (i18n.tr; German stays unchanged)."""
     title, intro = translate(title), translate(intro)
     rows = [(translate(label), _translate_value(value, kind), kind) for label, value, kind in rows]
     greeting = translate(f"Hallo {operator},") if operator else translate("Hallo,")
@@ -95,7 +95,7 @@ def render_mail(operator, title, accent, intro, rows):
 
 
 def smtp_send(cfg, recipient_email, subject, body_text, body_html=None):
-    """Versendet eine Mail und wirft bei Fehlern. Beachtet 'enabled' bewusst nicht."""
+    """Sends an email and raises on errors. Deliberately ignores 'enabled'."""
     cc_list = [e.strip() for e in (cfg.get("ccRecipients") or "").replace(";", ",").split(",") if e.strip()]
 
     msg = EmailMessage()
@@ -103,7 +103,7 @@ def smtp_send(cfg, recipient_email, subject, body_text, body_html=None):
     display_name = cfg.get("displayName")
     msg["From"] = formataddr((display_name, cfg["fromEmail"])) if display_name else cfg["fromEmail"]
     msg["To"] = recipient_email
-    msg["Date"] = formatdate(localtime=True)  # Ortszeit des Containers (TZ)
+    msg["Date"] = formatdate(localtime=True)  # container local time (TZ)
     if cc_list:
         msg["Cc"] = ", ".join(cc_list)
     msg.set_content(body_text)
@@ -125,8 +125,8 @@ def smtp_send(cfg, recipient_email, subject, body_text, body_html=None):
             server.starttls(context=ssl.create_default_context())
             server.ehlo()
         elif mode == "Auto":
-            # Kein STARTTLS (oder von einem Angreifer im Netz unterdrueckt): nichts im Klartext senden - die Mails
-            # enthalten z. B. Startpasswoerter, dazu kaeme das SMTP-Passwort
+            # No STARTTLS (or stripped by a network attacker): send nothing in plain text - the emails contain
+            # e.g. initial passwords, plus the SMTP password would be exposed
             raise smtplib.SMTPException(
                 f"Der SMTP-Server {host} bietet keine Verschlüsselung (STARTTLS) an - es wird nichts unverschlüsselt "
                 "gesendet. TLS-Modus 'SSL/TLS' wählen, den Server prüfen oder (nur für ein internes Relay) "

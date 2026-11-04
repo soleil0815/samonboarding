@@ -1,4 +1,4 @@
-"""HTTPS (Zertifikat, Start nur mit TLS), Sitzungen (30 Minuten Inaktivitaet) und Berichte-API."""
+"""HTTPS (certificate, start only with TLS), sessions (30 minutes of inactivity) and the reports API."""
 
 import asyncio
 import os
@@ -13,7 +13,7 @@ import _paths
 
 try:
     import fastapi  # noqa: F401
-except ImportError:  # ohne installierte Pakete: Ersatzmodule der Szenarien verwenden
+except ImportError:  # without installed packages: use the scenario stub modules
     sys.path.insert(0, os.path.join(_paths.TESTS, "scenarios", "stubs"))
 
 from fastapi import HTTPException  # noqa: E402
@@ -51,7 +51,7 @@ class CertificateTests(unittest.TestCase):
             p.stop()
         self.tmp.cleanup()
 
-    def test_selbstsigniert_erzeugen_und_wiederverwenden(self):
+    def test_create_and_reuse_self_signed(self):
         from cryptography import x509
 
         cert, key, self_signed = tls.ensure_certificate()
@@ -64,9 +64,9 @@ class CertificateTests(unittest.TestCase):
         self.assertEqual([str(i) for i in san.get_values_for_type(x509.IPAddress)], ["10.0.10.20"])
         before = Path(cert).read_bytes()
         tls.ensure_certificate()
-        self.assertEqual(Path(cert).read_bytes(), before)  # vorhandenes Zertifikat bleibt
+        self.assertEqual(Path(cert).read_bytes(), before)  # existing certificate is kept
 
-    def test_nur_eine_datei_ist_ein_fehler(self):
+    def test_only_one_file_is_an_error(self):
         os.makedirs(os.path.dirname(self.cert))
         open(self.cert, "w").close()
         with self.assertRaises(SystemExit):
@@ -74,7 +74,7 @@ class CertificateTests(unittest.TestCase):
 
 
 class ServeTests(unittest.TestCase):
-    def test_data_nicht_beschreibbar_bricht_ab(self):
+    def test_data_not_writable_aborts(self):
         from samonboarding import serve
 
         with tempfile.TemporaryDirectory() as tmp, mock.patch.object(config, "DATA_DIR", Path(tmp) / "fehlt"):
@@ -84,7 +84,7 @@ class ServeTests(unittest.TestCase):
             self.assertTrue(serve.data_writable())
             self.assertEqual(os.listdir(tmp), [])
 
-    def test_start_nur_mit_tls(self):
+    def test_start_only_with_tls(self):
         from samonboarding import serve
 
         fake_uvicorn = mock.MagicMock()
@@ -101,54 +101,58 @@ class ServeTests(unittest.TestCase):
         self.assertFalse(kwargs["access_log"])
         server_config = fake_uvicorn.Config.return_value
         server_config.load.assert_called_once()
-        activate.assert_called_once_with(server_config.ssl)  # Austausch im laufenden Betrieb angehaengt
+        activate.assert_called_once_with(server_config.ssl)  # live replacement hooked in
         fake_uvicorn.Server.return_value.run.assert_called_once()
 
-    def test_docker_startet_https(self):
+    def test_docker_starts_https(self):
         docker = (ROOT / "Dockerfile").read_text(encoding="utf-8")
         compose = (ROOT / "docker-compose.yml").read_text(encoding="utf-8")
         self.assertIn('CMD ["python", "-m", "samonboarding.serve"]', docker)
         self.assertIn("EXPOSE 9500", docker)
         self.assertIn('"${HTTPS_PORT:-9500}:${HTTPS_PORT:-9500}"', compose)
-        self.assertIn('CMD ["/app/docker-entrypoint.sh", "healthcheck"]', docker)  # Gesundheitscheck im Image
+        self.assertIn('CMD ["/app/docker-entrypoint.sh", "healthcheck"]', docker)  # health check in the image
         self.assertNotIn("8000", compose)
 
 
 class EnvFileTests(unittest.TestCase):
-    """Eigene Einstellungen stehen in .env (wird bei Updates nicht ersetzt), nicht in docker-compose.yml."""
+    """Own settings live in .env (not replaced on updates), not in docker-compose.yml."""
 
-    def test_compose_liest_env_und_enthaelt_keine_eigenen_werte(self):
+    def test_compose_reads_env_and_contains_no_own_values(self):
         compose = (ROOT / "docker-compose.yml").read_text(encoding="utf-8")
         self.assertIn("    env_file:\n      - .env", compose)
-        # keine Schreibweisen, die erst neuere Docker-Compose-Versionen kennen (Synology & Co.)
+        # no syntax that only newer Docker Compose versions understand (Synology & co.)
         self.assertNotIn("required:", compose)
         self.assertNotIn("path:", compose)
-        # environment nur fuer die Kennung der Datei, keine Einstellungen
+        # environment only for the file marker, no settings
         env_block = compose[compose.index("environment:") :].split("\n    ports:")[0]
         self.assertEqual(env_block.count(":"), 2, env_block)
         for key in ("AD_DOMAIN", "AD_DC_IP", "CUSTOM_OPERATOR_GROUP"):
             self.assertNotIn(key, compose)
 
-    def test_beispiel_enthaelt_alle_einstellungen(self):
+    def test_example_contains_all_settings(self):
         import re
 
         example = (ROOT / ".env.example").read_text(encoding="utf-8")
         keys = set()
         for line in example.splitlines():
             if line and not line.startswith("#"):
-                # keine Kommentare hinter Werten (nicht jede Docker-Version wertet das gleich aus)
+                # no comments after values (not every Docker version parses them the same way)
                 self.assertRegex(line, r"^[A-Z_]+=[^#\s]*$")
                 keys.add(line.split("=", 1)[0])
         documented = set(re.findall(r"^  ([A-Z_]{4,})\b", (ROOT / "samonboarding" / "config.py").read_text(), re.M))
         documented |= {"AD_DOMAIN", "AD_DC_IP", "CUSTOM_OPERATOR_GROUP", "TZ", "DOCKER_SUBNET"}
-        documented -= {"DATA_DIR", "TLS_CERT_FILE", "TLS_KEY_FILE"}  # Pfade im Container, bewusst nicht in .env
+        documented -= {
+            "DATA_DIR",
+            "TLS_CERT_FILE",
+            "TLS_KEY_FILE",
+        }  # paths inside the container, deliberately not in .env
         self.assertEqual(documented - keys, set())
 
-    def test_env_nicht_im_image_und_nicht_im_git(self):
+    def test_env_not_in_image_and_not_in_git(self):
         self.assertIn(".env", (ROOT / ".dockerignore").read_text(encoding="utf-8").split())
         self.assertIn(".env", (ROOT / ".gitignore").read_text(encoding="utf-8").split())
 
-    def test_leere_werte_ergeben_standard(self):
+    def test_empty_values_give_default(self):
         from samonboarding.config import _env_bool, _env_int
 
         with mock.patch.dict(os.environ, {"X_BOOL": "", "X_INT": " "}):
@@ -179,7 +183,7 @@ class HttpsMiddlewareTests(unittest.TestCase):
         with mock.patch.dict(os.environ, env or {}, clear=False):
             return asyncio.run(mw(Request(scheme=scheme, path="/api/me"), nxt))
 
-    def test_http_wird_abgewiesen(self):
+    def test_http_is_rejected(self):
         if not hasattr(self.app, "middlewares"):
             self.skipTest("nur mit Ersatzmodulen pruefbar")
         mw = self._mw("_https_only")
@@ -203,7 +207,7 @@ class HttpsMiddlewareTests(unittest.TestCase):
             )
         )
 
-    def test_ohne_laenge_und_range(self):
+    def test_without_length_and_range(self):
         if not hasattr(self.app, "middlewares"):
             self.skipTest("nur mit Ersatzmodulen pruefbar")
         own = {"host": "srv:9500", "origin": "https://srv:9500"}
@@ -224,7 +228,7 @@ class HttpsMiddlewareTests(unittest.TestCase):
         asyncio.run(self._mw("_request_guard")(req, nxt))
         self.assertNotIn(b"range", [k for k, _ in seen["headers"]])  # CVE-2025-62727
 
-    def test_fremde_seite_und_zu_grosse_anfragen(self):
+    def test_foreign_site_and_oversized_requests(self):
         if not hasattr(self.app, "middlewares"):
             self.skipTest("nur mit Ersatzmodulen pruefbar")
         own = {"host": "srv:9500", "origin": "https://srv:9500"}
@@ -239,12 +243,12 @@ class HttpsMiddlewareTests(unittest.TestCase):
         )
         self.assertEqual(self._guard(headers=dict(own, **{"content-length": str(50 * 1024 * 1024)})).status_code, 413)
 
-    def test_keine_api_doku_ohne_anmeldung(self):
+    def test_no_api_docs_without_login(self):
         main = (ROOT / "samonboarding" / "main.py").read_text(encoding="utf-8")
         for needed in ("docs_url=None", "redoc_url=None", "openapi_url=None"):
             self.assertIn(needed, main)
 
-    def test_hsts_nur_mit_eigenem_zertifikat(self):
+    def test_hsts_only_with_own_certificate(self):
         if not hasattr(self.app, "middlewares"):
             self.skipTest("nur mit Ersatzmodulen pruefbar")
         mw = self._mw("_security_headers")
@@ -258,11 +262,11 @@ class SessionTests(unittest.TestCase):
     def tearDown(self):
         sessions.active_sessions.clear()
 
-    def test_inaktivitaet_beendet_sitzung_aktivitaet_verlaengert(self):
+    def test_inactivity_ends_session_activity_extends_it(self):
         token = sessions.create_session({"username": "admin"})
         s = sessions.active_sessions[token]
         self.assertAlmostEqual(s["expires"], time.time() + config.SESSION_IDLE_SECONDS, delta=5)
-        s["expires"] = time.time() + 10  # fast abgelaufen
+        s["expires"] = time.time() + 10  # almost expired
         sessions.get_current_user(token)
         self.assertGreater(sessions.active_sessions[token]["expires"], time.time() + config.SESSION_IDLE_SECONDS - 5)
         sessions.active_sessions[token]["expires"] = time.time() - 1
@@ -271,7 +275,7 @@ class SessionTests(unittest.TestCase):
         self.assertEqual(ctx.exception.status_code, 401)
         self.assertNotIn(token, sessions.active_sessions)
 
-    def test_oberflaeche_meldet_ab(self):
+    def test_ui_logs_out(self):
         html = (ROOT / "samonboarding" / "web" / "index.html").read_text(encoding="utf-8")
         for needed in (
             "function startIdleWatch",
@@ -290,7 +294,7 @@ class ReportsApiTests(unittest.TestCase):
         self.tmp = tempfile.TemporaryDirectory()
         self.p = mock.patch.object(config, "REPORTS_DB_FILE", os.path.join(self.tmp.name, "reports.db"))
         self.p.start()
-        # Rolle wird beim Loeschen live im AD geprueft - hier ohne DC: als weiterhin Administrator annehmen
+        # the role is checked live in AD on deletion - here without a DC: assume still Administrator
         from samonboarding.routers import deletion
 
         self.recheck = mock.patch.object(deletion, "recheck_admin")
@@ -301,7 +305,7 @@ class ReportsApiTests(unittest.TestCase):
         self.p.stop()
         self.tmp.cleanup()
 
-    def test_nur_fuer_admins(self):
+    def test_admins_only(self):
         for fn in (
             lambda: self.rr.reports_summary(OPERATOR),
             lambda: self.rr.reports_audit(user=OPERATOR),
@@ -311,7 +315,7 @@ class ReportsApiTests(unittest.TestCase):
                 fn()
             self.assertEqual(ctx.exception.status_code, 403)
 
-    def test_lesen(self):
+    def test_read(self):
         reports.write_audit("admin", "login")
         reports.write_log("ERROR", "x", "kaputt")
         self.assertEqual(self.rr.reports_audit(user=ADMIN)["entries"][0]["action"], "login")
@@ -324,7 +328,7 @@ class ReportsApiTests(unittest.TestCase):
 
         return self.rr.reports_delete(ReportsDeleteModel(**kw), ADMIN)
 
-    def test_loeschen_mit_passwort_und_nachweis(self):
+    def test_delete_with_password_and_audit_trail(self):
         from datetime import datetime, timedelta, timezone
 
         reports.write_audit("admin", "alt", ts=datetime.now(timezone.utc) - timedelta(days=40))
@@ -335,11 +339,11 @@ class ReportsApiTests(unittest.TestCase):
         out = self._delete(kind="audit", olderThanDays=30, password=ADMIN["password"])
         self.assertEqual(out["removed"], 1)
         actions = [e["action"] for e in reports.query_audit()[0]]
-        self.assertIn("reports-delete", actions)  # das Loeschen selbst ist vermerkt
+        self.assertIn("reports-delete", actions)  # the deletion itself is recorded
         self.assertIn("neu", actions)
         self.assertNotIn("alt", actions)
 
-    def test_alles_loeschen_und_ungueltige_angaben(self):
+    def test_delete_all_and_invalid_input(self):
         reports.write_log("INFO", "x", "a")
         self.assertEqual(self._delete(kind="log", olderThanDays=0, password=ADMIN["password"])["removed"], 1)
         for kw in ({"kind": "foo"}, {"kind": "log", "olderThanDays": -1}):

@@ -1,11 +1,11 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 # Copyright (C) 2026 Die SAMONBOARDING-Autoren
-"""Sprache der Oberflaeche (Deutsch/Englisch).
+"""UI language (German/English).
 
-Die Anwendung ist auf Deutsch geschrieben. Fuer Englisch uebersetzt tr() Texte ueber samonboarding/web/i18n.json:
-'exact' (ganzer Text) und 'patterns' (Texte mit Platzhaltern {0}, {1} ...; Platzhalter werden ihrerseits
-uebersetzt, falls sie bekannt sind). Dieselbe Datei nutzt die Oberflaeche im Browser. Auf dem Server wird nur fuer
-E-Mails uebersetzt; die Sprache kommt per Header X-UI-Lang aus der Oberflaeche.
+The application is written in German. For English, tr() translates texts via samonboarding/web/i18n.json:
+'exact' (whole text) and 'patterns' (texts with placeholders {0}, {1} ...; placeholders are themselves
+translated if known). The UI in the browser uses the same file. On the server, only emails are translated;
+the language comes from the UI via the X-UI-Lang header.
 """
 
 import contextvars
@@ -82,7 +82,7 @@ def _core(text, depth):
 
 
 def _fallback(text, depth):
-    """Zusammengesetzte Zeilen: '- Punkt', 'A · B', 'Name: Meldung' (der linke Teil bleibt, wenn unbekannt)."""
+    """Composite lines: '- item', 'A · B', 'name: message' (the left part stays if unknown)."""
     if text.startswith("- "):
         rest = _core(text[2:], depth + 1)
         return None if rest is None else "- " + rest
@@ -101,7 +101,7 @@ def _fallback(text, depth):
 
 
 def tr(text, lang=None):
-    """Uebersetzt einen Text ins Englische, wenn die Sprache Englisch ist; sonst unveraendert."""
+    """Translates a text into English if the language is English; otherwise unchanged."""
     if (lang or _lang.get()) != "en" or text is None:
         return text
     text = str(text)
@@ -110,7 +110,7 @@ def tr(text, lang=None):
     if "\n" in text:
         return "\n".join(tr(line, "en") for line in text.split("\n"))
     m = re.match(r"^(\s*)([\s\S]*?)(\s*)$", text)
-    if m is None:  # passt immer; nur fuer die Typpruefung
+    if m is None:  # always matches; only for type checking
         return text
     out = _core(m.group(2), 0)
     return text if out is None else m.group(1) + out + m.group(3)

@@ -1,5 +1,5 @@
-"""Code-Pruefung: ruff mit Sicherheits- und Fehlerregeln, Typpruefung mit pyright im Workflow - beides vor dem Bau,
-mit festen Versionen."""
+"""Code checks: ruff with security and bug rules, type checking with pyright in the workflow - both before the build,
+with pinned versions."""
 
 import re
 import unittest
@@ -22,14 +22,14 @@ def lint_step():
 
 
 class RuffTests(unittest.TestCase):
-    def test_regeln(self):
+    def test_rules(self):
         lint = pyproject()["tool"]["ruff"]["lint"]
-        for rule in ("E", "F", "I", "W", "S", "B", "UP", "SIM"):  # S = Sicherheitsmuster, B = typische Fehler
+        for rule in ("E", "F", "I", "W", "S", "B", "UP", "SIM"):  # S = security patterns, B = common bugs
             self.assertIn(rule, lint["select"])
         self.assertIn("fastapi.Depends", lint["flake8-bugbear"]["extend-immutable-calls"])
 
-    def test_sicherheitsregeln_im_programm_nicht_pauschal_aus(self):
-        """Ausnahmen gelten nur fuer Tests und Bau-Skripte; im Programm steht jede Ausnahme mit Grund an der Zeile."""
+    def test_security_rules_not_disabled_wholesale_in_program(self):
+        """Exemptions only for tests and build scripts; in the program each exemption is on its line with a reason."""
         for pattern, rules in pyproject()["tool"]["ruff"]["lint"]["per-file-ignores"].items():
             if pattern.startswith("samonboarding"):
                 self.assertFalse([r for r in rules if r.startswith("S") or r.startswith("B")], pattern)
@@ -38,7 +38,7 @@ class RuffTests(unittest.TestCase):
                 if "# noqa" in line:
                     self.assertRegex(line, r"# noqa: [A-Z]+\d+", f"{path.name}:{number} ohne Regel")
 
-    def test_kein_sql_mit_fremden_tabellennamen(self):
+    def test_no_sql_with_foreign_table_names(self):
         from samonboarding import reports
 
         with self.assertRaises(ValueError):
@@ -46,15 +46,15 @@ class RuffTests(unittest.TestCase):
 
 
 class PyrightTests(unittest.TestCase):
-    def test_konfiguration(self):
+    def test_configuration(self):
         conf = pyproject()["tool"]["pyright"]
         self.assertEqual(conf["include"], ["samonboarding", "app.py", "scripts"])
         self.assertEqual(conf["typeCheckingMode"], "basic")
         image = (ROOT / "images.lock").read_text(encoding="utf-8")
         version = re.search(r"PYTHON_IMAGE=python:(\d+\.\d+)\.", image).group(1)
-        self.assertEqual(conf["pythonVersion"], version)  # gleiche Python-Version wie im Image
+        self.assertEqual(conf["pythonVersion"], version)  # same Python version as in the image
 
-    def test_im_workflow_mit_den_paketen_des_images(self):
+    def test_in_workflow_with_the_image_packages(self):
         step = lint_step()
         self.assertIn("pip install --quiet --disable-pip-version-check --no-deps -r requirements.txt", step)
         self.assertIn("\"pyright==$(sed -n 's/^pyright==//p' requirements-dev.txt)\"", step)

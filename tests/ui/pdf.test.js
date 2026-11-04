@@ -1,4 +1,4 @@
-// Zugangsdaten drucken: ein Pop-up-Blocker (window.open liefert null) darf nicht ohne Hinweis abstuerzen
+// Print credentials: a pop-up blocker (window.open returns null) must not crash without a message
 const src = require('./load_script.js');
 const doc = {getElementById: () => null, querySelectorAll: () => [], querySelector: () => null, addEventListener() {}};
 const alerts = [];
@@ -11,7 +11,7 @@ let crashed = null;
 try { api.generatePDF(); } catch (e) { crashed = e; }
 console.assert(crashed === null, 'kein Absturz bei blockiertem Pop-up: ' + crashed);
 console.assert(alerts.length === 1 && alerts[0].includes('blockiert'), 'Hinweis an den Benutzer');
-// mit Fenster: Inhalt wird geschrieben
+// with a window: content is written
 let written = '';
 win.open = () => ({document: {write: h => { written += h; }, close() {}}});
 api.generatePDF();

@@ -1,4 +1,4 @@
-"""Szenario: Kernfunktionen (Anmeldung, Rollen, Onboarding, Offboarding, Gruppen, Einstellungen, Mail, Audit)."""
+"""Scenario: core functions (login, roles, onboarding, offboarding, groups, settings, mail, audit)."""
 import os
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -8,7 +8,7 @@ exec(compile(open(os.path.join(HERE, "harness.py"), encoding="utf-8").read(), "h
 reset()
 VER = M["VERSION"]
 
-# ---- 1. Hilfsfunktionen
+# ---- 1. Helper functions
 check("split_dn mit escaped Komma", M["split_dn"]("CN=Meier\\, Hans,OU=A,DC=x") == ["CN=Meier\\, Hans", "OU=A", "DC=x"])
 check("rdn_label unescaped", M["rdn_label"]("CN=Meier\\, Hans,OU=A") == "Meier, Hans")
 check("escape_rdn_value", M["escape_rdn_value"]('Meier, Hans+"x"') == 'Meier\\, Hans\\+\\"x\\"')
@@ -45,14 +45,14 @@ out, op, _ = login("op", "Pass2")
 check("Operator-Login", out["role"] == "Account Operator")
 ok, _ = raises(lambda: login("nobody", "Pass3"), 403)
 check("Benutzer ohne Gruppe -> 403", ok)
-# Rolle nach SID, nicht nach Namen: eine selbst angelegte Gruppe "Domain Admins"/"Administrators" (auf deutschen DCs
-# sind diese Namen frei) darf keine Administrator-Rolle geben
+# role by SID, not by name: a self-created group "Domain Admins"/"Administrators" (on German DCs
+# these names are free) must not grant the administrator role
 add("CN=Fake Admins,OU=Groups," + B, objectClass=["top", "group"], sAMAccountName="Administrators", objectSid="S-1-5-21-1-2-3-4711", member=["CN=Nobody,OU=Staff," + B])
 add("CN=Fake DA,OU=Groups," + B, objectClass=["top", "group"], sAMAccountName="Domain Admins x", objectSid="S-1-5-21-1-2-3-4712", member=["CN=Nobody,OU=Staff," + B])
 ok, _ = raises(lambda: login("nobody", "Pass3"), 403)
 check("Gruppe mit Admin-Namen, aber fremder SID -> keine Rolle", ok)
 del D["CN=Fake Admins,OU=Groups," + B], D["CN=Fake DA,OU=Groups," + B]
-# deutsche Gruppennamen werden ueber die SID erkannt
+# German group names are recognized via the SID
 M["_login_failures"].clear()
 D["CN=Domain Admins,CN=Users," + B]["sAMAccountName"] = ["Domänen-Admins"]
 out, _, _ = login("admin", "Pass1")
@@ -82,7 +82,7 @@ check("Logout entfernt Sitzung", tok not in M["active_sessions"])
 out, op, _ = login("op", "Pass2")
 check("me liefert Sitzungsdaten", M["get_me"](op)["user"] == "op")
 
-# ---- 3. Konfiguration + Listen
+# ---- 3. Configuration + lists
 CFG = M["OffboardingConfigModel"](sourceOus=["OU=Staff," + B, "OU=Staff," + B], targetOu="OU=Archive," + B)
 M["save_offboarding_config"](CFG, adm)
 ok, _ = raises(lambda: M["save_offboarding_config"](CFG, op), 403)
@@ -120,7 +120,7 @@ ok, _ = raises(lambda: M["save_smtp_config"](SM(**dict(_smtp, displayName="IT\r\
 check("SMTP: Zeilenumbruch in Kopfzeilen -> 400", ok)
 check("public-config", M["get_public_config"]()["domain"] == "test.local")
 
-# ---- 4. Gruppen
+# ---- 4. Groups
 MAX = "CN=Mustermann\\, Max,OU=Staff," + B
 bg = BackgroundTasks()
 r = M["update_user_groups"](M["UpdateUserGroupsModel"](userDn=MAX, addGroupDns=["CN=VPN,OU=Groups," + B], removeGroupDns=["CN=Printers,OU=Groups," + B]), bg, adm)
@@ -149,7 +149,7 @@ check("Move mit Komma im CN", "CN=Mustermann\\, Max,OU=Archive," + B in D)
 D["CN=Mustermann\\, Max,OU=Staff," + B] = D.pop("CN=Mustermann\\, Max,OU=Archive," + B)
 D["CN=Nobody,OU=Staff," + B] = D.pop("CN=Nobody,OU=Archive," + B)
 
-# ---- 6. Passwort-Reset
+# ---- 6. Password reset
 PR = M["PwdResetActionModel"]
 bg = BackgroundTasks()
 STATE["pwd_fail"] = True
@@ -192,7 +192,7 @@ D["CN=VPN,OU=Groups," + B]["member"].append("CN=Namensvetter,OU=Staff," + B)
 ok, _ = raises(lambda: M["execute_offboarding"](OB(userDn="CN=Namensvetter,OU=Staff," + B), bg, adm), 409, "schon ein Objekt")
 check("Gleichnamiges Objekt in der Ziel-OU -> 409, nichts veraendert", ok and D["CN=Namensvetter,OU=Staff," + B]["userAccountControl"] == ["512"] and "CN=Namensvetter,OU=Staff," + B in D["CN=VPN,OU=Groups," + B]["member"])
 
-# Geschuetzte Konten (Domaenen-Admins & Co.) lassen sich nicht offboarden
+# protected accounts (Domain Admins and similar) cannot be offboarded
 UCLS = ["top", "person", "organizationalPerson", "user"]
 def mkuser(cn, sam, groups, admin_count=None):
     attrs = dict(objectClass=UCLS, sAMAccountName=sam, displayName=cn, userAccountControl="512", tokenGroups=groups,
@@ -203,9 +203,9 @@ def mkuser(cn, sam, groups, admin_count=None):
     return f"CN={cn},OU=Staff," + B
 DOMAIN_USERS = "S-1-5-21-1-2-3-513"
 dom = mkuser("Dom Admin", "domadm", ["S-1-5-21-1-2-3-512", DOMAIN_USERS], "1")
-blt = mkuser("Builtin Admin", "bltadm", ["S-1-5-32-544", DOMAIN_USERS])           # adminCount noch nicht gesetzt
-ent = mkuser("Org Admin", "entadm", ["S-1-5-21-9-9-9-519", DOMAIN_USERS], "1")  # Organisations-Admin aus anderer Domaene
-exa = mkuser("Ex Admin", "exadm", [DOMAIN_USERS], "1")                          # adminCount veraltet, aber keine Mitgliedschaft mehr
+blt = mkuser("Builtin Admin", "bltadm", ["S-1-5-32-544", DOMAIN_USERS])           # adminCount not set yet
+ent = mkuser("Org Admin", "entadm", ["S-1-5-21-9-9-9-519", DOMAIN_USERS], "1")  # Enterprise Admin from another domain
+exa = mkuser("Ex Admin", "exadm", [DOMAIN_USERS], "1")                          # adminCount stale, but no membership anymore
 nor = mkuser("Normal User", "normal", [DOMAIN_USERS])
 lst = {x["sam"]: x for x in M["get_offboarding_users"](adm)["users"]}
 check("Liste markiert Domaenen-Admin als geschuetzt", "Domänen-Admins" in lst["domadm"]["protected"] and "Organisations-Admins" in lst["entadm"]["protected"], lst["domadm"])
@@ -223,7 +223,7 @@ M["execute_offboarding"](OB(userDn=exa), bg, adm)
 M["execute_offboarding"](OB(userDn=nor), bg, adm)
 check("Ehemalige Admins und normale Konten lassen sich offboarden", f"CN=Ex Admin,OU=Archive," + B in D and f"CN=Normal User,OU=Archive," + B in D)
 
-# Mehrfach-Offboarding
+# batch offboarding
 OBB = M["OffboardBatchModel"]
 b1 = mkuser("Batch Eins", "bat1", [DOMAIN_USERS])
 b2 = mkuser("Batch Zwei", "bat2", [DOMAIN_USERS])
@@ -242,7 +242,7 @@ n_before = sum(1 for k in D if k.endswith("OU=Archive," + B))
 r = M["execute_offboarding_batch"](OBB(userDns=["CN=Batch Eins,OU=Archive," + B]), bg, adm)
 check("Batch: Konto ausserhalb der Quell-OU -> einzeln abgelehnt", len(r["failed"]) == 1 and not r["done"] and sum(1 for k in D if k.endswith("OU=Archive," + B)) == n_before, r)
 
-# Exchange-Einstellungen: nur Administratoren, Eingaben werden geprueft
+# Exchange settings: administrators only, input is validated
 XCM = M["ExchangeConfigModel"]
 ok, _ = raises(lambda: M["save_exchange_config"](XCM(enabled=True, server="exch01"), op), 403)
 check("Exchange-Einstellung nur fuer Administratoren", ok)
@@ -312,7 +312,7 @@ check("Pflichtfelder -> 400", ok)
 ok, _ = raises(lambda: M["execute_onboard"](OBM(firstName="A", lastName="B", templateId=42, customMail="a@b"), bg, adm), 400)
 check("Unbekanntes Template -> 400", ok)
 
-# E-Mail-Modus beim Onboarding: je Template (eigener Mailserver / Exchange im eigenen Haus / Microsoft 365)
+# e-mail mode during onboarding: per template (own mail server / on-premises Exchange / Microsoft 365)
 ok, _ = raises(lambda: M["execute_onboard"](OBM(firstName="Mia", lastName="Ohnemail", templateId=1), bg, adm), 400, "E-Mail")
 check("Standard-Template: E-Mail ist Pflicht", ok and M["get_templates"](op)[0]["mailMode"] == "required")
 def mail_tpl(mode, name):
@@ -331,7 +331,7 @@ r = M["execute_onboard"](OBM(firstName="Nina", lastName="Cloud", templateId=t_cl
 nina = find_sam(r)
 check("Microsoft 365: E-Mail wird ignoriert und nicht gesetzt", r["mail"] == "" and nina and "mail" not in nina[0], r)
 check("Microsoft 365: kein Exchange-Aufruf, keine Warnung zum Postfach", not any("Postfach" in w for w in r["warnings"]), r["warnings"])
-# Aeltere Templates ohne mailMode erben den frueher global gespeicherten Wert
+# older templates without mailMode inherit the previously globally stored value
 legacy = M["load_json"]("data/templates.json", [])
 for t in legacy:
     t.pop("mailMode", None)
@@ -355,7 +355,7 @@ M["save_json"]("data/templates.json", t)
 ok, _ = raises(lambda: M["execute_onboard"](OBM(firstName="A", lastName="B", templateId=1, customMail="a@b.de"), bg, adm), 400, "kein")
 check("Static-PW-Template ohne PW -> 400 (kein Hardcode-Fallback)", ok)
 
-# ---- 10. JSON-Speicher
+# ---- 10. JSON storage
 open("data/bad.json", "w").write("{kaputt")
 check("Defektes JSON -> Default + Datei gesichert", M["load_json"]("data/bad.json", {"x": 1}) == {"x": 1} and any(f.startswith("bad.json.corrupt-") for f in os.listdir("data")))
 M["save_json"]("data/ok.json", {"a": "ä"})
@@ -364,7 +364,7 @@ mut = M["load_json"]("data/none.json", M["default_usermgmt_config"])
 mut["sourceOus"].append("x")
 check("Default wird nicht mutiert", M["default_usermgmt_config"]["sourceOus"] == [])
 
-# ---- 11. Mail, Oberflaeche, Audit, Header
+# ---- 11. Mail, UI, audit, headers
 txt, htm = M["render_mail"]("Op", "T", "#000", "Hi <b>", [("Name:", "<script>alert(1)</script>", "bold")])
 check("Mail: HTML wird escaped", "<script>" not in htm and "&lt;script&gt;" in htm and "&lt;b&gt;" in htm)
 page = M["serve_gui"]()
@@ -391,7 +391,7 @@ r_api = asyncio.run(mw(Request(path="/api/me"), _next))
 r_static = asyncio.run(mw(Request(path="/static/app.css"), _next))
 check("Security-Header + no-store fuer API", r_api.headers.get("X-Frame-Options") == "DENY" and r_api.headers.get("Cache-Control") == "no-store")
 check("Cache-Header fuer /static", r_static.headers.get("Cache-Control") == "public, max-age=86400")
-# Sprache der Oberflaeche: gilt nur waehrend der Anfrage
+# UI language: applies only during the request
 lang_mw = [m for m in M["app"].middlewares if m.__name__ == "_ui_language"][0]
 import samonboarding.i18n as I18  # noqa: E402
 seen = []
@@ -405,7 +405,7 @@ async def _next_lang(req):
 asyncio.run(lang_mw(Request(path="/api/x", headers={"x-ui-lang": "en"}), _next_lang))
 asyncio.run(lang_mw(Request(path="/api/x"), _next_lang))
 check("Sprache je Anfrage aus dem Header, danach wieder Deutsch", seen == ["en", "de"] and I18.current_lang() == "de", seen)
-# --- Haertung: DN-Sonderformen, geschuetzte Konten und privilegierte Gruppen nur fuer Administratoren
+# --- Hardening: special DN forms, protected accounts and privileged groups for administrators only
 M["_login_failures"].clear()
 _, op2, _ = login("op", "Pass2")
 _, adm2, _ = login("admin", "Pass1")

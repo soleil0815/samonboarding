@@ -1,4 +1,4 @@
-"""Gemeinsame Pfade der Tests; sorgt dafuer, dass das Projekt importierbar ist."""
+"""Shared test paths; makes sure the project is importable."""
 
 import os
 import sys

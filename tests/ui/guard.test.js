@@ -1,4 +1,4 @@
-// Doppelklick-Schutz: eine laufende Aktion wird nicht ein zweites Mal gestartet; verspaetete Gruppen-Antworten verworfen
+// Double-click protection: a running action is not started a second time; late group responses are discarded
 const src = require('./load_script.js');
 const f = new Function('document', 'window', 'navigator', 'fetch',
   src.replace(/document\.addEventListener\("DOMContentLoaded"[\s\S]*?\}\);\s*\n/, '') + `
@@ -17,13 +17,13 @@ const api = f({getElementById: el, querySelector: () => null, querySelectorAll: 
   let runs = 0;
   const job = () => new Promise(r => { runs++; release = r; });
   const first = api.guarded('x', job);
-  await api.guarded('x', job);  // zweiter Klick waehrend der erste laeuft: nichts passiert
+  await api.guarded('x', job);  // second click while the first is running: nothing happens
   console.assert(runs === 1, 'Aktion laeuft nur einmal');
   release(); await first;
   await api.guarded('x', async () => { runs++; });
   console.assert(runs === 2 && !api.busyActions.has('x'), 'danach wieder moeglich');
   for (const [name, fn] of Object.entries(api.src)) console.assert(/guarded\('/.test(String(fn)), name + ' ist geschuetzt');
-  // Gruppen: A (langsam) anklicken, dann B - am Ende muss B mit B's Gruppen im Fenster stehen
+  // Groups: click A (slow), then B - in the end B with B's groups must be in the window
   const a = api.openUserGroupsModal('CN=A', 'a');
   await api.openUserGroupsModal('CN=B', 'b');
   slow.get('A')(); await a;

@@ -1,4 +1,4 @@
-"""Sortierung der Benutzerlisten gegen das simulierte AD (mit eigenen Minimal-Daten)."""
+"""Sorting of the user lists against the simulated AD (with its own minimal data)."""
 import os
 import sys
 import tempfile
@@ -19,8 +19,8 @@ assert got[:3] == ["adam, Bert", "Ärmel, Anna", "Bauer"] and got[-2:] == ["ZED"
 assert got.index("Mueller, Max") < got.index("Müller, Max") < got.index("Öztürk, Can")
 assert got.index("Öztürk, Can") < got.index("Ünal, Ali")
 
-# collect_users: mehrere OUs, doppelte DNs, Sortierung ueber alle OUs hinweg
-class R:  # minimale Row
+# collect_users: several OUs, duplicate DNs, sorting across all OUs
+class R:  # minimal Row
     def __init__(s, dn, name, sam): s.dn, s.n, s.s = dn, name, sam
 rows = {"OU=A": [R("cn=1,OU=A", "Zeta", "z"), R("cn=2,OU=A", "ärger", "a1")],
         "OU=B": [R("cn=3,OU=B", "Beta", "b"), R("cn=2,OU=A", "ärger", "a1"), R("cn=4,OU=B", "alpha", "al")]}

@@ -7,6 +7,9 @@ Update on the server: `sudo sh update.sh` or `docker compose pull && docker comp
 
 Entries starting with "Security:" or "Fixed:" are marked accordingly in the interface.
 
+## 2.0.3 – 2026-11-04
+- English is now the default language of the project files: README, changelog, data protection documentation and release pages appear in English first, the German versions are in `README.de.md`, `CHANGELOG.de.md` and `DATENSCHUTZ.de.md`. Comments in the source code are in English. The interface, the manual and the behaviour are unchanged.
+
 ## 2.0.2 – 2026-11-03
 - New logo: two people instead of a shield – shows at a glance that this is about managing user accounts. Applies to sign-in, sidebar, mobile view and the icon in the browser tab.
 

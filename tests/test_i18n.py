@@ -1,4 +1,4 @@
-"""Englische Oberflaeche: Woerterbuch (i18n.json), Uebersetzer auf dem Server, Mails in der gewaehlten Sprache."""
+"""English UI: dictionary (i18n.json), server-side translator, mails in the chosen language."""
 
 import ast
 import glob
@@ -20,14 +20,14 @@ ROOT = _paths.ROOT
 
 
 class DictionaryTests(unittest.TestCase):
-    def test_datei_gueltig(self):
+    def test_file_valid(self):
         data = json.load(open(os.path.join(ROOT, "samonboarding", "web", "i18n.json"), encoding="utf-8"))
         self.assertGreater(len(data["exact"]), 500)
         for de, en in data["patterns"]:
             self.assertEqual(sorted(set(_ph(de))), sorted(set(_ph(en))), de)
 
-    def test_alle_fehlermeldungen_der_api_uebersetzt(self):
-        """Jede feste Fehlermeldung (HTTPException detail) hat eine englische Fassung."""
+    def test_all_api_error_messages_translated(self):
+        """Every fixed error message (HTTPException detail) has an English version."""
         missing = []
         for path in glob.glob(os.path.join(ROOT, "samonboarding", "routers", "*.py")) + [
             os.path.join(ROOT, "samonboarding", "permissions.py"),
@@ -55,11 +55,11 @@ def _ph(text):
 
 
 class TranslateTests(unittest.TestCase):
-    def test_deutsch_bleibt(self):
+    def test_german_stays(self):
         self.assertEqual(i18n.tr("Konto gelöscht", "de"), "Konto gelöscht")
         self.assertEqual(i18n.current_lang(), "de")
 
-    def test_exakt_muster_verschachtelt(self):
+    def test_exact_pattern_nested(self):
         self.assertEqual(i18n.tr("Konto gelöscht", "en"), "Account deleted")
         self.assertEqual(
             i18n.tr("SAMONBOARDING - Offboarding für Anna (ab)", "en"), "SAMONBOARDING - Offboarding of Anna (ab)"
@@ -69,17 +69,17 @@ class TranslateTests(unittest.TestCase):
             "Group 'VPN' could not be assigned: insufficientAccessRights",
         )
 
-    def test_zeilen_aufzaehlung_name(self):
+    def test_lines_list_name(self):
         text = "NICHT offgeboardet:\n- Anna: Benutzer im AD nicht gefunden."
         self.assertEqual(i18n.tr(text, "en"), "NOT offboarded:\n- Anna: User not found in AD.")
 
-    def test_daten_bleiben(self):
+    def test_data_stays(self):
         for text in ("Hans von Berg", "OU=Vertrieb,DC=firma,DC=local", "\\\\fs01\\home$\\anna", "1234"):
             self.assertEqual(i18n.tr(text, "en"), text)
 
 
 class MailTests(unittest.TestCase):
-    def test_mail_auf_englisch(self):
+    def test_mail_in_english(self):
         token = i18n.set_lang("en")
         try:
             text, html = mailer.render_mail(
@@ -98,7 +98,7 @@ class MailTests(unittest.TestCase):
         self.assertIn('<html lang="en">', html)
         self.assertIn("Account deleted", html)
 
-    def test_mail_auf_deutsch_unveraendert(self):
+    def test_mail_in_german_unchanged(self):
         text, html = mailer.render_mail("admin", "Konto gelöscht", "#000", "Intro", [("Mitarbeiter:", "Anna", "bold")])
         self.assertIn("Hallo admin,", text)
         self.assertIn("Mit freundlichen Grüßen", text)

@@ -1,11 +1,11 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 # Copyright (C) 2026 Die SAMONBOARDING-Autoren
-"""Berichte in SQLite (data/reports.db): Aenderungen (Audit) und Protokoll (Programm-Meldungen).
+"""Reports in SQLite (data/reports.db): changes (audit) and log (program messages).
 
-  audit   wer hat wann was getan (ohne Passwoerter)       -> AUDIT_RETENTION_DAYS (Standard 365)
-  applog  Meldungen des Programms ab Stufe INFO           -> LOG_RETENTION_DAYS   (Standard 90)
+  audit   who did what and when (without passwords)       -> AUDIT_RETENTION_DAYS (default 365)
+  applog  program messages from level INFO upwards        -> LOG_RETENTION_DAYS   (default 90)
 
-Geloeschte Eintraege werden in der Datei ueberschrieben (PRAGMA secure_delete), damit sie nicht wiederherstellbar sind.
+Deleted entries are overwritten in the file (PRAGMA secure_delete) so they cannot be recovered.
 """
 
 import json
@@ -56,7 +56,7 @@ MAX_MESSAGE = 4000
 def _db():
     with _lock:
         outer_busy = getattr(_state, "busy", False)
-        _state.busy = True  # Meldungen waehrend eines Datenbankzugriffs nicht erneut in die Datenbank schreiben
+        _state.busy = True  # do not write messages raised during a database access back into the database
         conn = sqlite3.connect(config.REPORTS_DB_FILE, timeout=10)
         restrict(config.REPORTS_DB_FILE)
         try:
@@ -74,7 +74,7 @@ def _db():
 
 
 def _stamp(ts=None):
-    """(Ortszeit mit Zeitzone fuer die Anzeige, UTC fuer Fristen und Sortierung)."""
+    """(Local time with time zone for display, UTC for retention periods and sorting)."""
     ts = ts or datetime.now(timezone.utc)
     if ts.tzinfo is None:
         ts = ts.replace(tzinfo=timezone.utc)
@@ -82,7 +82,7 @@ def _stamp(ts=None):
 
 
 # ---------------------------------------------------------------------------
-# Schreiben
+# Writing
 # ---------------------------------------------------------------------------
 def write_audit(actor, action, target="", ok=True, details=None, ts=None):
     local, utc = _stamp(ts)
@@ -102,7 +102,7 @@ def write_audit(actor, action, target="", ok=True, details=None, ts=None):
 
 
 def _shorten(message):
-    """Lange Meldungen (Fehlerverlauf) kuerzen; Anfang und Ende bleiben, am Ende steht die eigentliche Ursache."""
+    """Shorten long messages (tracebacks); start and end are kept, since the actual cause is at the end."""
     message = str(message)
     if len(message) <= MAX_MESSAGE:
         return message
@@ -120,13 +120,13 @@ def write_log(level, source, message, ts=None):
 
 
 class DbLogHandler(logging.Handler):
-    """Schreibt Programm-Meldungen (ab INFO) in die Tabelle applog. Fehler hier landen nie in einer Endlosschleife."""
+    """Writes program messages (INFO and above) to the applog table. Errors here never end up in an endless loop."""
 
     def __init__(self, level=logging.INFO):
         super().__init__(level)
 
     def emit(self, record):
-        if getattr(_state, "busy", False):  # waehrend eines Datenbankzugriffs (verhindert Endlosschleifen)
+        if getattr(_state, "busy", False):  # during a database access (prevents endless loops)
             return
         _state.busy = True
         try:
@@ -135,7 +135,7 @@ class DbLogHandler(logging.Handler):
                 message += "\n" + _FORMATTER.formatException(record.exc_info)
             ts = datetime.fromtimestamp(record.created, timezone.utc)
             write_log(record.levelname, record.name, message, ts=ts)
-        except Exception:  # noqa: S110 - Protokollieren darf das Programm nie stoeren (kein Log im Log-Handler)
+        except Exception:  # noqa: S110 - logging must never disrupt the program (no logging inside the log handler)
             pass
         finally:
             _state.busy = False
@@ -146,18 +146,18 @@ _FORMATTER = logging.Formatter()
 
 
 def install_log_handler():
-    """Haengt den Datenbank-Handler einmalig an den Root-Logger."""
+    """Attaches the database handler to the root logger (once)."""
     global _handler
     if _handler is None:
         _handler = DbLogHandler()
         logging.getLogger().addHandler(_handler)
-        # Unerwartete Fehler (HTTP 500) meldet uvicorn ueber einen eigenen Logger, der nicht beim Root-Logger ankommt
+        # uvicorn reports unexpected errors (HTTP 500) via its own logger, which does not propagate to the root logger
         logging.getLogger("uvicorn.error").addHandler(DbLogHandler(logging.WARNING))
     return _handler
 
 
 # ---------------------------------------------------------------------------
-# Lesen
+# Reading
 # ---------------------------------------------------------------------------
 def _audit_row(r):
     try:
@@ -184,7 +184,7 @@ def _like(q):
 
 
 def query_audit(q="", result="all", before=None, limit=100):
-    """Neueste zuerst. `before` = id fuer 'mehr laden'. Liefert (Eintraege, naechstes before oder None)."""
+    """Newest first. `before` = id for 'load more'. Returns (entries, next before or None)."""
     where, args = [], []
     if q:
         where.append(
@@ -217,7 +217,7 @@ def _page(table, where, args, before, limit, convert):
     if before:
         where = where + ["id < ?"]
         args = args + [int(before)]
-    # Tabelle nur aus TABLES, Bedingungen nur feste Texte mit "?" - alle Werte gehen als Parameter
+    # Table only from TABLES, conditions only fixed texts with "?" - all values are passed as parameters
     sql = f"SELECT * FROM {table}"  # noqa: S608
     if where:
         sql += " WHERE " + " AND ".join(where)
@@ -239,14 +239,14 @@ def counts():
 
 
 def _mention_re(sam):
-    """Der Kontoname als ganzes Wort: 'max' passt zu 'max', 'MAX@firma.local', '\\\\fs\\home$\\max' und 'max.V6',
-    aber nicht zu 'maximilian' oder 'max.mustermann' (Auskunft darf keine Daten anderer enthalten)."""
+    """The account name as a whole word: 'max' matches 'max', 'MAX@firma.local', '\\\\fs\\home$\\max' and 'max.V6',
+    but not 'maximilian' or 'max.mustermann' (a data access report must not contain other people's data)."""
     word = re.escape(sam.strip())
     return re.compile(rf"(?<![A-Za-z0-9._-]){word}(?![A-Za-z0-9_-])(?!\.(?!V\d)[A-Za-z0-9])", re.IGNORECASE)
 
 
 def _account_dns(rows, sam):
-    """DNs, unter denen das Konto in den Aenderungen vorkommt (Eintraege mit sam im Detail und einem DN als Ziel)."""
+    """DNs under which the account appears in the changes (entries with sam in the details and a DN as target)."""
     key = sam.strip().casefold()
     dns = set()
     for r in rows:
@@ -266,17 +266,17 @@ def _audit_matches(r, word, sam, dns):
     target = str(r["target"] or "")
     if target.casefold() in dns or target.casefold() == sam.casefold():
         return True
-    # Ein DN als Ziel enthaelt den Anzeigenamen, nicht den Kontonamen - darin nicht suchen ('muster' passt sonst
-    # zu 'CN=Erika Muster', also zu einer anderen Person)
+    # A DN as target contains the display name, not the account name - do not search in it ('muster' would
+    # otherwise match 'CN=Erika Muster', i.e. a different person)
     if not target.lower().startswith("cn=") and word.search(target):
         return True
     return bool(word.search(str(r["actor"] or "")) or word.search(str(r["details"] or "")))
 
 
 def audit_for_account(sam):
-    """Alle Aenderungen zu einem Konto (Auskunft nach Art. 15 DSGVO), aelteste zuerst: als Ausfuehrender, als Ziel
-    (Kontoname oder einer seiner DNs) oder in den Details. Vergleich in Python, damit auch Umlaute in Gross-/
-    Kleinschreibung passen (SQLite vergleicht nur ASCII ohne Gross-/Kleinschreibung)."""
+    """All changes concerning an account (data access request under Art. 15 GDPR), oldest first: as actor, as target
+    (account name or one of its DNs) or in the details. Compared in Python so that umlauts also match
+    case-insensitively (SQLite compares case-insensitively only for ASCII)."""
     with _db() as conn:
         rows = conn.execute("SELECT * FROM audit ORDER BY id").fetchall()
     word = _mention_re(sam)
@@ -290,7 +290,7 @@ def account_dns(sam):
 
 
 def log_for_account(sam, dns=None):
-    """Protokoll-Eintraege, in denen der Kontoname oder einer seiner DNs vorkommt (Auskunft), aelteste zuerst."""
+    """Log entries mentioning the account name or one of its DNs (data access report), oldest first."""
     dns = account_dns(sam) if dns is None else dns
     with _db() as conn:
         rows = conn.execute("SELECT * FROM applog ORDER BY id").fetchall()
@@ -305,7 +305,7 @@ def log_for_account(sam, dns=None):
 
 
 def audit_jsonl():
-    """Alle Aenderungen als JSON-Zeilen wie im frueheren audit.log (fuer Tests und Export)."""
+    """All changes as JSON lines like in the former audit.log (for tests and export)."""
     with _db() as conn:
         rows = conn.execute("SELECT * FROM audit ORDER BY id").fetchall()
     lines = []
@@ -318,7 +318,7 @@ def audit_jsonl():
 
 
 # ---------------------------------------------------------------------------
-# Loeschen
+# Deleting
 # ---------------------------------------------------------------------------
 def delete_older_than(table, cutoff_utc_iso):
     if table not in TABLES:
@@ -335,16 +335,16 @@ def delete_all(table):
 
 
 # ---------------------------------------------------------------------------
-# Uebernahme des alten audit.log (bis Version 1.22)
+# Import of the old audit.log (up to version 1.22)
 # ---------------------------------------------------------------------------
 def _legacy_files():
     base = config.AUDIT_LOG_FILE
-    rotated = [f"{base}.{n}" for n in range(9, 0, -1)]  # aelteste zuerst
+    rotated = [f"{base}.{n}" for n in range(9, 0, -1)]  # oldest first
     return [p for p in [*rotated, base] if os.path.isfile(p)]
 
 
 def import_legacy_audit():
-    """Uebernimmt audit.log (+ .1 ... ) in die Datenbank und entfernt die Dateien danach. Liefert die Anzahl."""
+    """Imports audit.log (+ .1 ... ) into the database and removes the files afterwards. Returns the count."""
     files = _legacy_files()
     if not files:
         return 0

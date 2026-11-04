@@ -1,4 +1,4 @@
-// Menue je Rolle: Punkte, deren Daten der Server nur Administratoren gibt, sind fuer Operatoren ausgeblendet
+// Menu per role: items whose data the server gives only to administrators are hidden for operators
 const src = require('./load_script.js');
 const els = {};
 const el = id => els[id] || (els[id] = {id, style: {}, disabled: false, classList: {add() {}, remove() {}, toggle() {}}});

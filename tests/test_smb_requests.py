@@ -1,6 +1,6 @@
-"""Prueft mit den ECHTEN Klassen von smbprotocol, dass Berechtigungs-Anfragen korrekt gebaut und gelesen werden.
+"""Checks with the REAL smbprotocol classes that permission requests are built and parsed correctly.
 
-Ohne installiertes smbprotocol werden die Tests uebersprungen. Eine echte SMB-Verbindung wird nicht aufgebaut.
+Without smbprotocol installed the tests are skipped. No real SMB connection is made.
 """
 
 import types
@@ -16,7 +16,7 @@ try:
 
     fs._lib()
     HAVE_SMB = True
-except Exception:  # Paket fehlt oder nicht importierbar
+except Exception:  # package missing or not importable
     HAVE_SMB = False
 
 SD = None
@@ -37,7 +37,7 @@ class FakeFd:
 
 
 class FakeRaw:
-    """Ersatz fuer SMBDirectoryIO/SMBFileIO: merkt sich nur, womit geoeffnet werden sollte."""
+    """Stand-in for SMBDirectoryIO/SMBFileIO: only records what it was supposed to open with."""
 
     opened = []
 
@@ -109,19 +109,19 @@ class SmbRequestTests(unittest.TestCase):
     def tearDown(self):
         fs._lib = self._real
 
-    def test_lesen_baut_korrekte_anfrage_und_liefert_deskriptor(self):
+    def test_read_builds_correct_request_and_returns_descriptor(self):
         got = self.backend.get_security("\\\\fs\\share\\dir", True)
         self.assertEqual(bytes(got), SD)
         _name, _packed, message = FakeTransaction.sent[0]
         self.assertEqual(message["info_type"].get_value(), 3)  # SMB2_0_INFO_SECURITY
-        self.assertEqual(message["additional_information"].get_value(), 7)  # Besitzer | Gruppe | DACL
+        self.assertEqual(message["additional_information"].get_value(), 7)  # owner | group | DACL
         self.assertEqual(message["file_info_class"].get_value(), 0)
         path, kwargs = FakeRaw.opened[0]
         self.assertEqual(kwargs["desired_access"], 0x20000)  # READ_CONTROL
         self.assertEqual(kwargs["share_access"], "rwd")
         self.assertEqual(kwargs["connection_cache"], {})
 
-    def test_schreiben_besitzer_und_dacl(self):
+    def test_write_owner_and_dacl(self):
         owner_only = acl.build_sd(owner=acl.SID_ADMINISTRATORS)
         self.backend.set_security("\\\\fs\\share\\dir", True, owner_only, acl.SECINFO_OWNER, lambda a: a.WRITE_OWNER)
         _name, _packed, message = FakeTransaction.sent[-1]
@@ -133,19 +133,19 @@ class SmbRequestTests(unittest.TestCase):
         self.backend.set_security("\\\\fs\\share\\f.txt", False, owner_only, acl.SECINFO_DACL, lambda a: a.WRITE_DAC)
         self.assertEqual(FakeRaw.opened[-1][1]["desired_access"], 0x40000)  # WRITE_DAC
 
-    def test_zugriff_vergeben_schreibt_nur_bei_aenderung(self):
+    def test_grant_access_writes_only_on_change(self):
         sid = "S-1-5-21-1-2-3-1105"
         calls = []
         self.backend.get_security = lambda *_a, **_k: SD
         self.backend.set_security = lambda *a: calls.append(a)
-        with self.assertRaises(fs.FsError):  # Rueckpruefung scheitert, weil der Fake-Server nichts speichert
+        with self.assertRaises(fs.FsError):  # verification fails because the fake server stores nothing
             self.backend.grant_access("\\\\fs\\share\\dir", True, sid)
         self.assertEqual(len(calls), 1)
         written = acl.parse_sd(calls[0][2])
         self.assertTrue(acl.has_allow_ace(written, sid))
         self.assertEqual(calls[0][3], acl.SECINFO_DACL)
 
-    def test_bibliothek_stellt_benoetigte_teile_bereit(self):
+    def test_library_provides_required_parts(self):
         lib = self._real()
         self.assertEqual(int(lib.access.READ_CONTROL), 0x20000)
         self.assertEqual(int(lib.access.WRITE_DAC), 0x40000)

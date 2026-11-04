@@ -1,10 +1,10 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 # Copyright (C) 2026 Die SAMONBOARDING-Autoren
-"""Offboarding rueckgaengig machen: Konto zurueck in die alte OU, wieder in die alten Gruppen, wieder aktiv.
+"""Undo an offboarding: account back into its old OU, back into its old groups, enabled again.
 
-Grundlage ist der beim Offboarding gespeicherte Zustand (offboard_store). Konto und Gruppen werden ueber ihre feste
-Kennung (objectGUID) gesucht, damit sie auch nach Umbenennen oder Verschieben gefunden werden. Wie beim Loeschen gibt
-es erst eine Vorschau, dann die Ausfuehrung. Wer offboarden darf, darf auch wiederherstellen (gleiche Quell-OUs).
+It is based on the state saved during offboarding (offboard_store). The account and groups are looked up by their
+stable identifier (objectGUID) so they are found even after being renamed or moved. As with deletion, there is
+first a preview, then the execution. Whoever may offboard may also restore (same source OUs).
 """
 
 import logging
@@ -65,14 +65,14 @@ def _search_base():
 
 
 def locate_account(conn, rec):
-    """Sucht das Konto: zuerst am zuletzt bekannten Ort, dann ueber die GUID, zuletzt ueber den Anmeldenamen."""
+    """Find the account: first at its last known location, then by GUID, finally by logon name."""
     entry = get_object(conn, rec["current_dn"], USER_ATTRS)
     if entry and entry.text("sAMAccountName").lower() == rec["sam"].lower():
         guid = read_guid(conn, entry.dn, "(objectClass=user)")
         if not rec["user_guid"] or not guid or guid == rec["user_guid"]:
             return entry
-    # Verschoben oder umbenannt: nur ueber die feste Kennung (GUID). Ein Konto mit demselben Anmeldenamen kann ein
-    # anderes, neueres Konto sein - es bekaeme sonst die Gruppen des alten.
+    # Moved or renamed: only via the stable identifier (GUID). An account with the same logon name may be a
+    # different, newer account - it would otherwise receive the old account's groups.
     if rec["user_guid"]:
         rows = ldap_search(conn, _search_base(), f"(&(objectClass=user){guid_filter(rec['user_guid'])})", USER_ATTRS)
         if rows:
@@ -81,7 +81,7 @@ def locate_account(conn, rec):
 
 
 def locate_group(conn, group):
-    """Liefert den aktuellen DN einer gespeicherten Gruppe oder '' (geloescht)."""
+    """Return the current DN of a saved group, or '' (deleted)."""
     found = get_object(conn, group["dn"], ["cn"], flt="(objectClass=group)")
     if found:
         guid = read_guid(conn, found.dn, "(objectClass=group)")
@@ -95,7 +95,7 @@ def locate_group(conn, group):
 
 
 def build_plan(conn, rec, off_cfg, target_ou=None, admin=True):
-    """Was bei der Wiederherstellung passieren wuerde. Veraendert nichts."""
+    """What the restore would do. Changes nothing."""
     sources = [o for o in off_cfg.get("sourceOus", []) if o]
     entry = locate_account(conn, rec)
     target = reject_special_dn(target_ou) if target_ou else rec["original_ou"].strip()
@@ -103,7 +103,7 @@ def build_plan(conn, rec, off_cfg, target_ou=None, admin=True):
 
     ou_entry = get_object(conn, target, ["ou"], flt=CONTAINER_FILTER) if target else None
     if ou_entry:
-        target = ou_entry.dn  # der DN, den der DC liefert, wird geprueft und verwendet
+        target = ou_entry.dn  # the DN returned by the DC is checked and used
     ou_exists = bool(ou_entry)
     ou_allowed = dn_in_any(target, sources)
     if not entry:
@@ -113,9 +113,9 @@ def build_plan(conn, rec, off_cfg, target_ou=None, admin=True):
         and not (off_cfg.get("targetOu") and dn_in_any(entry.dn, [off_cfg["targetOu"]]))
         and not dn_in_any(entry.dn, sources)
     ):
-        # Operatoren: nur aus der OU der offgeboardeten Konten (oder ein abgebrochener Versuch, der das Konto schon in
-        # eine Quell-OU zurueckgebracht hat). Liegt es woanders, hat ein Administrator es dorthin verschoben (z. B. zum
-        # Loeschen) - nicht ueberstimmen. Ohne eingestellte Ziel-OU gilt das ebenso.
+        # Operators: only from the OU of offboarded accounts (or an aborted attempt that already moved the account back
+        # into a source OU). If it is somewhere else, an administrator moved it there (e.g. for deletion) - do not
+        # override that. The same applies when no target OU is configured.
         blockers.append(
             "Das Konto liegt nicht mehr in der OU der offgeboardeten Konten. Nur Administratoren können es "
             "von dort wiederherstellen."
@@ -237,18 +237,18 @@ def restore_account(
                 dn = entry.dn
                 require_not_protected_for_operator(conn, user, dn, "wiederhergestellt")
 
-                # 1. zurueck in die OU (danach gilt der neue DN fuer die Gruppen)
+                # 1. back into the OU (afterwards the new DN applies to the groups)
                 if plan["move"]:
                     rdn = split_dn(dn)[0]
                     if not conn.modify_dn(dn, rdn, new_superior=plan["targetOu"]):
                         raise AdError("Das Konto konnte nicht verschoben werden: " + ldap_error_text(conn))
                     dn = rdn + "," + plan["targetOu"]
-                    try:  # bricht ein spaeterer Schritt ab, findet ein neuer Versuch das Konto am neuen Ort
+                    try:  # if a later step fails, a new attempt finds the account at its new location
                         offboard_store.update_current_dn(record_id, dn)
                     except Exception as e:
                         log.warning("Neuer Ort von %s nicht gespeichert: %s", dn, e)
 
-                # 2. Gruppen
+                # 2. groups
                 added, failed = [], []
                 for g in plan["groups"]:
                     if g["status"] == "missing":
@@ -266,7 +266,7 @@ def restore_account(
                     warnings.append("Nicht wieder zugewiesen: " + "; ".join(failed))
                 warnings.extend(plan["notes"])
 
-                # 3. wieder aktivieren (nur wenn das Konto vor dem Offboarding aktiv war)
+                # 3. enable again (only if the account was enabled before offboarding)
                 if plan["enable"]:
                     fresh = get_object(conn, dn, ["userAccountControl"])
                     uac = row_uac(fresh) if fresh else row_uac(entry)
@@ -291,7 +291,7 @@ def restore_account(
 
 @router.post("/api/offboarding/records/{record_id}/dismiss")
 def dismiss_record(record_id: int, user: dict = Depends(get_current_user)):
-    """Eintrag verwerfen (z. B. Konto wurde von Hand zurueckgeholt). Nur Administratoren."""
+    """Discard an entry (e.g. the account was brought back by hand). Administrators only."""
     require_admin(user, "Nur Administratoren dürfen Einträge verwerfen.")
     rec = _record_or_404(record_id)
     offboard_store.remove(record_id)
