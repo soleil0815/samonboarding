@@ -7,6 +7,9 @@ Update on the server: `sudo sh update.sh` or `docker compose pull && docker comp
 
 Entries starting with "Security:" or "Fixed:" are marked accordingly in the interface.
 
+## 2.0.4 – 2026-11-04
+- New: a "Buy me a coffee" button at the end of the menu for administrators – for anyone who wants to support the development. It is a plain link to buymeacoffee.com; nothing is loaded from there and operators do not see it.
+
 ## 2.0.3 – 2026-11-04
 - English is now the default language of the project files: README, changelog, data protection documentation and release pages appear in English first, the German versions are in `README.de.md`, `CHANGELOG.de.md` and `DATENSCHUTZ.de.md`. Comments in the source code are in English. The interface, the manual and the behaviour are unchanged.
 

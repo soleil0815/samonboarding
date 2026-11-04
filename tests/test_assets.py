@@ -48,6 +48,7 @@ class ThemeTests(unittest.TestCase):
 
 HOMEPAGE = "https://helfi.space"
 SOURCE = "https://github.com/soleil0815/samonboarding"  # source code link (AGPL section 13)
+SUPPORT = "https://buymeacoffee.com/soleil0815v"  # support link, administrators only
 
 
 class NoInternetTests(unittest.TestCase):
@@ -55,7 +56,7 @@ class NoInternetTests(unittest.TestCase):
         texts = [(WEB / "index.html").read_text(encoding="utf-8"), Path(ui.__file__).read_text(encoding="utf-8")]
         for text in texts:
             found = [u for u in re.findall(r"https?://[^\s\"'<>)]+", text) if "www.w3.org" not in u]
-            self.assertEqual(set(found) - {HOMEPAGE, SOURCE}, set())
+            self.assertEqual(set(found) - {HOMEPAGE, SOURCE, SUPPORT}, set())
 
     def test_homepage_only_as_link(self):
         """The author's website is only a link (opens only on click, in a new tab) - nothing is loaded."""
@@ -121,6 +122,33 @@ class LogoTests(unittest.TestCase):
         self.assertIsNotNone(icon)
         svg = icon.group(1) if icon else ""
         self.assertEqual(re.findall(r"https?://[^'\s]+", svg), ["http://www.w3.org/2000/svg"])  # only the namespace
+
+
+class SupportLinkTests(unittest.TestCase):
+    """'Buy me a coffee': a plain link for administrators only, nothing loaded from the internet."""
+
+    def test_link_hidden_until_administrator(self):
+        html = (WEB / "index.html").read_text(encoding="utf-8")
+        links = re.findall(r"<a [^>]*buymeacoffee\.com[^>]*>", html)
+        self.assertEqual(len(links), 1)
+        link = links[0]
+        self.assertIn('href="https://buymeacoffee.com/soleil0815v"', link)
+        self.assertIn('id="nav-coffee"', link)
+        self.assertIn('style="display:none"', link)  # hidden until the role is known
+        self.assertIn('rel="noopener noreferrer"', link)
+        self.assertIn('target="_blank"', link)
+        roles = html[html.index("function setupRoleVisibility(role)") :][:3000]
+        self.assertIn("navCoffee.style.display = role === \"Administrator\" ? '' : 'none'", roles)
+        # no image, script or font from the coffee site: only the link target
+        self.assertEqual(html.count("buymeacoffee.com/soleil0815v"), 1)
+        self.assertNotRegex(html, r'(src|srcset)="https?://[^"]*buymeacoffee')
+
+    def test_tooltip_translated(self):
+        data = json.loads((WEB / "i18n.json").read_text(encoding="utf-8"))
+        self.assertEqual(
+            data["exact"]["Die Entwicklung unterstützen (öffnet buymeacoffee.com)"],
+            "Support the development (opens buymeacoffee.com)",
+        )
 
 
 if __name__ == "__main__":

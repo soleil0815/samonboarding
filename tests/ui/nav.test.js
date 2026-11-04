@@ -7,11 +7,11 @@ const f = new Function('document', 'window', 'navigator', src.replace(/document\
 return {setupRoleVisibility};`);
 const api = f(doc, {}, {language: 'de'});
 api.setupRoleVisibility('Account Operator');
-for (const id of ['nav-delete', 'nav-reports', 'nav-cert', 'nav-smtp']) {
+for (const id of ['nav-delete', 'nav-reports', 'nav-cert', 'nav-smtp', 'nav-coffee']) {
   console.assert(el(id).style.display === 'none', id + ' fuer Operatoren ausgeblendet');
 }
 api.setupRoleVisibility('Administrator');
-for (const id of ['nav-delete', 'nav-reports', 'nav-cert', 'nav-smtp']) {
+for (const id of ['nav-delete', 'nav-reports', 'nav-cert', 'nav-smtp', 'nav-coffee']) {
   console.assert(el(id).style.display === '', id + ' fuer Administratoren sichtbar');
 }
 console.log('Menue-Tests fertig');
