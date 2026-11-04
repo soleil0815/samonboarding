@@ -24,7 +24,7 @@ The application runs as a Docker container (FastAPI + ldap3). The web interface 
 > - **The program has far-reaching rights.** It creates accounts, resets passwords and deletes accounts and folders. Try it in a **test environment** first and make a backup before using it in a real AD for the first time.
 > - **Tested with Samba AD.** Windows Server AD is supported but less proven (for example several DCs, Exchange, large structures). Feedback on this is welcome.
 > - **Fixed version for production.** `latest` is rebuilt, tested and scanned automatically every week, but not against a real AD. If you want to check changes yourself first, set a fixed version, for example `SAMONBOARDING_VERSION=2.0` in `.env` (see [Fixing a version and going back](#fixing-a-version-and-going-back)).
-> - **No support.** Questions and bug reports are read but answered only as time allows. Please do not report **security vulnerabilities** publicly; see [SECURITY.md](SECURITY.md).
+> - **No support.** Questions and bug reports are read but answered only as time allows. Please do not report **security vulnerabilities** publicly; see [SECURITY.md](SECURITY.md). Contributions: see [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ---
 
@@ -261,7 +261,7 @@ samba-tool group addmembers CO-ADMIN user1,user2
 samba-tool group listmembers CO-ADMIN
 ```
 
-The group name is the `sAMAccountName` and goes into `CUSTOM_OPERATOR_GROUP` in `.env`. Alternatively, operators can be members of the built-in group `Account Operators`:
+`CO-ADMIN` is only an example: the name is up to you (e.g. `Onboarding-Operators`), it just has to be the same in AD and in `.env`. The group name is the `sAMAccountName` and goes into `CUSTOM_OPERATOR_GROUP` in `.env`. Alternatively, operators can be members of the built-in group `Account Operators`:
 
 ```bash
 samba-tool group addmembers "Account Operators" user1
@@ -673,7 +673,7 @@ A new base (e.g. Debian 14 or Python 3.14) is never chosen automatically. For th
 
 ### Automatic security updates
 
-Two workflows run on GitHub. A new program version only comes via a pull request; a pull request or a merge only checks, publishing is done by hand.
+Two workflows run on GitHub (`image.yml` with the build steps in `build.yml`, and `checks.yml`). A new program version only comes via a pull request; a pull request or a merge only checks, publishing is done by hand. Pull requests and pushes run with a **read-only** token, so code from a pull request can never commit or publish anything; only the release and the security update get write rights, and they publish only from `main`.
 
 | When | What happens |
 |---|---|
@@ -907,7 +907,7 @@ The GitHub workflow runs ruff and pyright before every build, pyright with exact
 | `tests/test_datastate.py` | Backup before a version change, migrations, stop on data of a newer version, version of the `docker-compose.yml`, start script |
 | `tests/test_pins.py`, `tests/test_supply_chain.py` | Pinned versions and their limits, security update numbers, Trivy (simulated), GitHub workflows |
 
-The scenarios run against a **simulated AD and a simulated file server** and need no installed packages (small stand-in modules in `tests/scenarios/stubs`). Run one on its own with `python tests/scenarios/scenario_deletion.py`. They do **not** test real SMB connections or real file permissions; that is only possible on a test server (see Delete accounts — try with an unimportant account first). The same checks run on every push in GitHub Actions (`.github/workflows/image.yml`); the image is only built if everything passes.
+The scenarios run against a **simulated AD and a simulated file server** and need no installed packages (small stand-in modules in `tests/scenarios/stubs`). Run one on its own with `python tests/scenarios/scenario_deletion.py`. They do **not** test real SMB connections or real file permissions; that is only possible on a test server (see Delete accounts — try with an unimportant account first). The same checks run on every push in GitHub Actions (`.github/workflows/image.yml` / `build.yml`); the image is only built if everything passes.
 
 ## License
 

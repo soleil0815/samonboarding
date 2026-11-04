@@ -16,7 +16,7 @@ def pyproject():
 
 
 def lint_step():
-    flow = (ROOT / ".github" / "workflows" / "image.yml").read_text(encoding="utf-8")
+    flow = (ROOT / ".github" / "workflows" / "build.yml").read_text(encoding="utf-8")
     start = flow.index("- name: Check code (ruff, pyright)")
     return flow[start : flow.index("- name:", start + 10)]
 
