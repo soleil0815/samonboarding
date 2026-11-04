@@ -58,7 +58,7 @@ REQ_IN = "requirements.in"
 REQ_TXT = "requirements.txt"
 PKG_JSON = "package.json"
 PKG_LOCK = "package-lock.json"
-CHANGELOGS = {"de": "CHANGELOG.md", "en": "CHANGELOG.en.md"}
+CHANGELOGS = {"de": "CHANGELOG.de.md", "en": "CHANGELOG.md"}
 TRIVYIGNORE = ".trivyignore"
 
 DEBIAN_RELEASES = {"bookworm": "12", "trixie": "13", "forky": "14", "duke": "15"}
@@ -710,23 +710,23 @@ def changelog_section(text, tag):
 
 
 def release_notes(tag, image, root=ROOT):
-    """Text of the GitHub release: changelog entry in German and English, plus how to get the update."""
+    """Text of the GitHub release: changelog entry in English and German, plus how to get the update."""
     de = changelog_section(read_text(CHANGELOGS["de"], root), tag)
     en = changelog_section(read_text(CHANGELOGS["en"], root), tag)
     if not de or not en:
-        raise PinError(f"No changelog entry for {tag} (CHANGELOG.md / CHANGELOG.en.md)")
+        raise PinError(f"No changelog entry for {tag} (CHANGELOG.de.md / CHANGELOG.md)")
     kind = (
-        "Sicherheitsupdate: gleiches Programm, aktualisierte Pakete. / Security update: same program, updated packages."
+        "Security update: same program, updated packages. / Sicherheitsupdate: gleiches Programm, aktualisierte Pakete."
         if "-s" in tag
-        else "Neue Programmversion. / New program version."
+        else "New program version. / Neue Programmversion."
     )
     return (
-        f"{kind}\n\n{de}\n\n---\n\n**English**\n\n{en}\n\n---\n\n"
+        f"{kind}\n\n{en}\n\n---\n\n**Deutsch**\n\n{de}\n\n---\n\n"
         f"Image: `{image}:{tag}`\n\n"
-        "Update: Container-Verwaltung (Dockhand, Watchtower, …) oder / or "
-        "`docker compose pull && docker compose up -d` oder / or `sudo sh update.sh`.\n"
-        "Ohne Internet / without internet: `samonboarding-<Version>-<amd64|arm64>.tar.gz` → "
-        "`sudo sh update.sh --offline <Datei>`\n"
+        "Update: container manager (Dockhand, Watchtower, …) or "
+        "`docker compose pull && docker compose up -d` or `sudo sh update.sh`.\n"
+        "Without internet: `samonboarding-<version>-<amd64|arm64>.tar.gz` → "
+        "`sudo sh update.sh --offline <file>`\n"
     )
 
 

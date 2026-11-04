@@ -166,7 +166,7 @@ class TagTests(unittest.TestCase):
 
     def changelog(self, entries):
         text = "# Changelog\n\nIntro.\n\n" + entries + "## 1.48.0 – 2026-10-26\n- Neu\n\n## 1.47.1 – 2026-10-25\n- x\n"
-        (self.root / "CHANGELOG.md").write_text(text, encoding="utf-8")
+        (self.root / "CHANGELOG.de.md").write_text(text, encoding="utf-8")
 
     def test_zaehler_beginnt_bei_eins_und_steigt(self):
         self.assertEqual(pins.next_tag(self.root), "1.48.0-s1")
@@ -233,13 +233,15 @@ class TagTests(unittest.TestCase):
             )
             path.write_text(pins.insert_changelog(text, pins.changelog_entry("1.48.0-s1", changes, lang, "2026-11-02")))
         notes = pins.release_notes("1.48.0-s1", "ghcr.io/x/y", self.root)
-        self.assertTrue(notes.startswith("Sicherheitsupdate: gleiches Programm"))
+        self.assertTrue(notes.startswith("Security update: same program"))
+        self.assertLess(notes.index("Security: security update"), notes.index("**Deutsch**"))  # English first
         self.assertIn("openssl `3.5.1-1` → `3.5.4-1`", notes)
-        self.assertIn("**English**", notes)
+        self.assertIn("**Deutsch**", notes)
+        self.assertIn("Sicherheit: Sicherheitsupdate ohne Programmänderung", notes)
         self.assertIn("Security: security update without program changes", notes)
         self.assertIn("`ghcr.io/x/y:1.48.0-s1`", notes)
         self.assertNotIn("## 1.48.0 ", notes)  # nur der eigene Eintrag
-        self.assertIn("Neue Programmversion", pins.release_notes("1.48.0", "ghcr.io/x/y", self.root))
+        self.assertIn("New program version", pins.release_notes("1.48.0", "ghcr.io/x/y", self.root))
         with self.assertRaises(pins.PinError):
             pins.release_notes("1.48.0-s2", "ghcr.io/x/y", self.root)
         self.assertEqual(pins.changelog_section("## 1.4.10 – x\n- a\n## 1.4.1 – y\n- b\n", "1.4.1"), "- b")
@@ -247,7 +249,7 @@ class TagTests(unittest.TestCase):
     def test_changelog_eintrag_wird_als_sicherheitsupdate_angezeigt(self):
         changes = {"images": [], "debian": {"changed": [["openssl", "3.5.1-1", "3.5.4-1"]], "added": [], "removed": []},
                    "python": {"changed": [], "added": [], "removed": []}, "npm": {"changed": [], "added": [], "removed": []}}  # fmt: skip
-        text = (self.root / "CHANGELOG.md").read_text(encoding="utf-8")
+        text = (self.root / "CHANGELOG.de.md").read_text(encoding="utf-8")
         new = pins.insert_changelog(text, pins.changelog_entry("1.48.0-s1", changes, "de", "2026-11-02"))
         self.assertTrue(new.startswith("# Changelog\n\nIntro.\n\n## 1.48.0-s1 – 2026-11-02\n"))
         entries = news.parse(new)

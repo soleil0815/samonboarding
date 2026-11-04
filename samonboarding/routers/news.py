@@ -2,7 +2,7 @@
 # Copyright (C) 2026 Die SAMONBOARDING-Autoren
 """Neuigkeiten in der Oberflaeche: was hat sich in den installierten Versionen geaendert?
 
-Quelle ist das Changelog, das mit dem Programm ausgeliefert wird (CHANGELOG.md bzw. CHANGELOG.en.md im
+Quelle ist das Changelog, das mit dem Programm ausgeliefert wird (CHANGELOG.de.md bzw. CHANGELOG.md im
 Programmordner). Es wird nichts aus dem Internet geladen. Ein Eintrag beginnt optional mit "Sicherheit:" / "Security:"
 oder "Behoben:" / "Fixed:"; alles andere gilt als neue Funktion.
 
@@ -19,7 +19,7 @@ from ..sessions import get_current_user
 
 router = APIRouter()
 
-FILES = {"de": "CHANGELOG.md", "en": "CHANGELOG.en.md"}
+FILES = {"de": "CHANGELOG.de.md", "en": "CHANGELOG.md"}
 MAX_ENTRIES = 12
 _VERSION_RE = re.compile(r"\d+\.\d+\.\d+(?:-s\d+)?")
 _DATE_RE = re.compile(r"\d{4}-\d{2}-\d{2}")

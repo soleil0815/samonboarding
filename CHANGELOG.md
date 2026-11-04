@@ -1,179 +1,181 @@
 # Changelog
 
-Alle wichtigen Änderungen an SAMONBOARDING, neueste zuerst. Die Oberfläche zeigt sie unter *Hilfe → Neuigkeiten*.
-Update auf dem Server: `sudo sh update.sh` oder `docker compose pull && docker compose up -d`.
+*Deutsche Fassung: [CHANGELOG.de.md](CHANGELOG.de.md)*
 
-Einträge, die mit „Sicherheit:“ oder „Behoben:“ beginnen, werden in der Oberfläche entsprechend markiert.
+All notable changes to SAMONBOARDING, newest first. The interface shows them under *Help → News*.
+Update on the server: `sudo sh update.sh` or `docker compose pull && docker compose up -d`.
+
+Entries starting with "Security:" or "Fixed:" are marked accordingly in the interface.
 
 ## 2.0.2 – 2026-11-03
-- Neues Logo: zwei Personen statt Schild – zeigt auf einen Blick, dass es um die Verwaltung von Benutzerkonten geht. Gilt für Anmeldung, Seitenleiste, mobile Ansicht und das Symbol im Browser-Tab.
+- New logo: two people instead of a shield – shows at a glance that this is about managing user accounts. Applies to sign-in, sidebar, mobile view and the icon in the browser tab.
 
 ## 2.0.1-s1 – 2026-11-02
-- Sicherheit: Sicherheitsupdate ohne Programmänderung: gleiches Programm, aktualisierte Pakete.
-- Basis-Images:
+- Security: security update without program changes: same program, updated packages.
+- Base images:
   - Python (python): `3.13.18-slim-trixie@76baad603769` → `3.13.18-slim-trixie@ae14d4ce8771`
-- Python-Pakete:
+- Python packages:
   - anyio `4.15.1` → `4.16.0`
 
-## 2.0.1 – Code-Audit – 2026-11-02
-- Sicherheit: `update.sh --cleanup` konnte bei einem Dateinamen mit `*` oder Leerzeichen (z. B. `neu * .zip`) auch `data/`, `docker-compose.yml` und `update.sh` löschen. Ungewöhnliche Namen werden jetzt nur gemeldet; vor jedem Löschen wird erneut geprüft.
-- Sicherheit: `update.sh --cleanup` erkennt eingehängte Ordner jetzt zuverlässig (auch Bind-Mounts vom selben Datenträger und einen Mount direkt auf einem alten Programmordner) und lässt sie stehen.
-- Sicherheit: `update.sh --restore` spielt nur Sicherungen mit gewöhnlichen Dateien und Ordnern zurück (keine Links oder Gerätedateien). Weitere Härtung: Versionsangaben nur aus Ziffern, Buchstaben, `.`, `_` und `-`; Link-Schleifen brechen `--cleanup` nicht mehr ab.
-- Sicherheit: Lehnt der DC auf Port 636 das Zertifikat ab (mit `LDAP_CA_FILE`), gibt es keinen Rückfall auf unverschlüsseltes LDAP mehr, auch nicht mit `LDAP_ALLOW_PLAIN=true`.
-- Sicherheit: Konten löschen: Ein Ordner wird auch dann nicht gelöscht, wenn der Basisordner eines anderen Kontos darin liegt, wenn ein anderes Konto `%username%` wörtlich im AD-Attribut stehen hat, wenn der Pfad aus dem AD einen Kurznamen mit `~` enthält oder wenn derselbe Ordner auch als Ordnerumleitung eingetragen ist und einem anderen Konto gehört.
-- Behoben: Konten löschen: Zeigen zwei Speicherorte auf denselben Ordner (z. B. Ordnerumleitung in den Basisordner), wird er nur einmal gelöscht und gezählt; das AD-Konto wird danach wie erwartet gelöscht.
-- Sicherheit: Benachrichtigungs-Mails (mit Startpasswort) gehen nur noch an die Adresse aus dem AD-Attribut `mail` des Angemeldeten. Ohne dieses Attribut wird keine Mail verschickt, statt `<Benutzer>@<AD-Domäne>` anzunehmen.
-- Sicherheit: Der Gesundheitscheck des Containers läuft nicht mehr als root, sondern gibt vorher alle Rechte ab. Ein leeres `HTTPS_PORT=` in der `.env` gilt dabei wie überall als 9500 (vorher wurde der Container „unhealthy“).
-- Datenschutz: Die eigenen Sicherungen in `data/backups` werden gelöscht, sobald sie älter als die längste Aufbewahrungsfrist sind; `offboarding.db` überschreibt gelöschte Einträge (`secure_delete`), wie dokumentiert.
-- Behoben: Bricht eine Datenmigration beim Start ab, legt jeder Neustart keine weitere Sicherung mehr an; die saubere Sicherung von vor dem Wechsel bleibt erhalten.
-- Behoben: Der Menüpunkt *E-Mail-Benachrichtigung* ist für Operatoren ausgeblendet (der Server gibt ihnen die Einstellungen nicht). PDF der Zugangsdaten: Hinweis statt stillem Abbruch, wenn ein Pop-up-Blocker das Fenster verhindert. Zwei fehlende englische Übersetzungen ergänzt.
-- Doku korrigiert: `TZ` (leer heißt UTC), Rechte der Operatoren, Beispielwerte, Vorlage `env.example`, Browser-Speicher.
+## 2.0.1 – Code audit – 2026-11-02
+- Security: `update.sh --cleanup` could delete `data/`, `docker-compose.yml` and `update.sh` too when a file name contained `*` or spaces (e.g. `neu * .zip`). Unusual names are now only reported; everything is checked again right before deleting.
+- Security: `update.sh --cleanup` now reliably detects mounted folders (also bind mounts from the same disk and a mount directly on an old program folder) and leaves them alone.
+- Security: `update.sh --restore` only restores backups with plain files and folders (no links or device files). Further hardening: versions only from digits, letters, `.`, `_` and `-`; link loops no longer break `--cleanup`.
+- Security: if the DC rejects the certificate on port 636 (with `LDAP_CA_FILE`), there is no longer a fallback to unencrypted LDAP, not even with `LDAP_ALLOW_PLAIN=true`.
+- Security: Delete accounts: a folder is also not deleted when another account's home folder lies inside it, when another account has `%username%` literally in its AD attribute, when the path from AD contains a short name with `~`, or when the same folder is also configured as folder redirection and belongs to another account.
+- Fixed: Delete accounts: if two locations point to the same folder (e.g. folder redirection into the home folder), it is deleted and counted only once; the AD account is then deleted as expected.
+- Security: notification mails (with the initial password) now only go to the address in the signed-in person's AD attribute `mail`. Without this attribute no mail is sent, instead of assuming `<user>@<AD domain>`.
+- Security: the container health check no longer runs as root but gives up all rights first. An empty `HTTPS_PORT=` in `.env` now means 9500 there as well (before, the container became "unhealthy").
+- Data protection: the program's own backups in `data/backups` are deleted once they are older than the longest retention period; `offboarding.db` overwrites deleted entries (`secure_delete`), as documented.
+- Fixed: if a data migration fails at start-up, a restart loop no longer creates new backups; the clean backup from before the change is kept.
+- Fixed: the menu item *E-mail notification* is hidden for operators (the server does not give them the settings). Credentials PDF: a message instead of a silent failure when a pop-up blocker prevents the window. Two missing English translations added.
+- Docs corrected: `TZ` (empty means UTC), operator rights, example values, template `env.example`, browser storage.
 
 ## 2.0.0-s1 – 2026-10-31
-- Sicherheit: Sicherheitsupdate ohne Programmänderung: gleiches Programm, aktualisierte Pakete.
-- Basis-Images:
+- Security: security update without program changes: same program, updated packages.
+- Base images:
   - Python (python): `3.13.17-slim-trixie@d98cc29d3266` → `3.13.18-slim-trixie@76baad603769`
   - Node (node): `24.22.1-trixie-slim@43b9ba1142b8` → `24.22.2-trixie-slim@54f84b4cf843`
-- Debian-Pakete:
+- Debian packages:
   - tzdata `2026e-0+deb13u1` → `2026f-0+deb13u1`
-- Python-Pakete:
+- Python packages:
   - opentelemetry-api `1.45.1` → `1.45.2`
   - pyasn1 `0.6.4` → `0.6.5`
   - pydantic `2.14.1` → `2.14.2`
   - pydantic_core `2.50.1` → `2.50.2`
-- npm-Pakete (nur beim Bauen der Oberfläche, nicht im Image):
+- npm packages (only for building the interface, not in the image):
   - postcss `8.5.31` → `8.5.32`
 
 ## 2.0.0 – 2026-10-29
-- **Umstellung auf den Docker-Standard:** Das Programm steckt komplett im Image. Auf dem Server liegen nur noch `docker-compose.yml`, `.env` und der Ordner `data/`. Installation: Dateien aus dem Release holen, `.env` ausfüllen, `docker compose up -d`. Updates mit einer Container-Verwaltung (Dockhand, Watchtower, Tugtainer …) oder mit `docker compose pull && docker compose up -d`.
-- Sicherheit: Vor jedem Versionswechsel sichert das Programm beim Start selbst den Datenordner (`data/backups/vor-<Version>-<Datum>.tar.gz`, die letzten 10 bleiben) und bringt die Daten danach auf den neuen Stand. Startet eine ältere Version auf Daten einer neueren, bricht sie mit einer klaren Meldung ab und nennt die Sicherung, statt mit Folgefehlern weiterzulaufen.
-- Sicherheit: Der Container startet nur kurz als root (mit den Rechten DAC_READ_SEARCH, CHOWN, SETUID, SETGID), übergibt `data/` an den Programmbenutzer 10001 und läuft danach dauerhaft ohne Sonderrechte. Ein frischer Datenordner funktioniert damit ohne Handarbeit.
-- Die `docker-compose.yml` bleibt stabil: keine Bau-Angaben mehr, Vorgaben stehen im Programm. Sie hat eine Kennung (`SAMONBOARDING_COMPOSE`); ist sie veraltet, zeigt die Oberfläche Administratoren einen Hinweis. Das Image bringt die aktuelle Datei mit. `docker-compose.image.yml` entfällt.
-- Version festlegen mit `SAMONBOARDING_VERSION` in der `.env`: leer = neueste, `2.0` = neueste 2.0.x samt Sicherheitsupdates, `2.0.0` = genau diese.
-- Neues `update.sh` für den Weg von Hand (läuft mit `/bin/sh`, auch auf einem NAS): merkt sich die laufende Version, holt die neue, startet sie und kehrt bei einem Fehlstart zurück. Dazu `--version`, `--offline` (Image-Datei aus dem Release, ohne Internet), `--restore` (Sicherung zurückspielen) und `--cleanup` (alte Programmdateien entfernen, nie Daten). ZIP, Bauen auf dem Server und `--lock` entfallen.
-- Jedes Release hat jetzt `docker-compose.yml`, `env.example` und die Image-Dateien für amd64 und arm64 als Anhang.
-- Neue Versionen kommen nur noch über einen Pull Request; ein Merge prüft nur, veröffentlicht wird von Hand. Zusätzlich gibt es den Tag `<Haupt>.<Unterversion>` (z. B. `2.0`).
-- Beispielwerte in Doku und Vorlagen neutral (`firma.local`, `10.0.10.x`).
+- **Moved to the Docker standard:** the program is completely in the image. Only `docker-compose.yml`, `.env` and the folder `data/` remain on the server. Installation: get the files from the release, fill in `.env`, `docker compose up -d`. Updates with a container manager (Dockhand, Watchtower, Tugtainer …) or with `docker compose pull && docker compose up -d`.
+- Security: before every version change the program itself backs up the data folder when it starts (`data/backups/vor-<version>-<date>.tar.gz`, the last 10 are kept) and then brings the data to the new state. If an older version starts on data of a newer one, it stops with a clear message naming the backup instead of running on with follow-up errors.
+- Security: the container starts only briefly as root (with the rights DAC_READ_SEARCH, CHOWN, SETUID, SETGID), hands `data/` over to the program user 10001 and then runs permanently without special rights. A fresh data folder therefore works without manual steps.
+- The `docker-compose.yml` stays stable: no build settings any more, defaults are in the program. It has a version (`SAMONBOARDING_COMPOSE`); if it is out of date, the interface shows administrators a note. The image carries the current file. `docker-compose.image.yml` is gone.
+- Fix a version with `SAMONBOARDING_VERSION` in `.env`: empty = newest, `2.0` = newest 2.0.x including security updates, `2.0.0` = exactly this one.
+- New `update.sh` for the manual way (runs with `/bin/sh`, also on a NAS): remembers the running version, fetches the new one, starts it and goes back if the start fails. Plus `--version`, `--offline` (image file from the release, without internet), `--restore` (put a backup back) and `--cleanup` (remove old program files, never data). ZIP, building on the server and `--lock` are gone.
+- Every release now has `docker-compose.yml`, `env.example` and the image files for amd64 and arm64 attached.
+- New versions only come via a pull request; a merge only checks, publishing is done by hand. In addition there is the tag `<major>.<minor>` (e.g. `2.0`).
+- Example values in the docs and templates are neutral (`firma.local`, `10.0.10.x`).
 
 ## 1.48.1 – 2026-10-28
-- Zu jeder veröffentlichten Version legt GitHub jetzt auch eine Release-Seite an (`v<Version>`, z. B. `v1.48.1` oder `v1.48.1-s1`), mit dem Changelog-Eintrag auf Deutsch und Englisch, bei Sicherheitsupdates samt Liste der geänderten Pakete. Eine Release-Seite wird einmal angelegt und danach nicht mehr verändert.
+- For every published version GitHub now also creates a release page (`v<version>`, e.g. `v1.48.1` or `v1.48.1-s1`) with the changelog entry in German and English, for security updates including the list of changed packages. A release page is created once and never changed afterwards.
 
 ## 1.48.0 – 2026-10-25
-- Sicherheit: Reproduzierbarer Bau. Basis-Images sind mit fester Version und Prüfsumme (Digest) festgelegt, die Debian-Pakete über einen festen Stand von snapshot.debian.org (`os-packages.lock`), alle Python- und npm-Pakete einschließlich der indirekten mit exakter Version. Das Skript `scripts/pins.py` legt die Versionen neu fest.
-- Sicherheit: Wöchentliches Sicherheitsupdate auf GitHub (montags, auch von Hand startbar). Es bringt Basis-Image, alle Debian-Pakete und alle Abhängigkeiten auf den neuesten Stand, aber nur innerhalb des Unterbaus:
-  - gleiche Debian-Version („trixie“), gleiche Python- (3.13) und Node-Reihe (24)
-  - jedes Paket innerhalb seiner Hauptversion, vor 1.0 innerhalb der Unterversion; Kalenderversionen wie Stammzertifikate ohne Grenze
-  - Bau ohne Zwischenspeicher, Tests im Image (amd64 und arm64), HTTPS-Startprüfung und Trivy
-  - veröffentlicht nur, wenn alles bestanden ist, als `<Version>-s<Zähler>` (z. B. `1.48.0-s1`), mit einem Eintrag hier samt Liste der geänderten Pakete. Hat sich nichts geändert, passiert nichts.
-- Sicherheit: Trivy läuft nicht mehr als GitHub Action, sondern als feste Version, deren Prüfsumme (SHA-256) vor der Nutzung kontrolliert wird. Hingenommene Funde stehen mit Begründung und Ablaufdatum in `.trivyignore`.
-- Sicherheit: Das veröffentlichte Image wird täglich mit Trivy geprüft. So fallen Schwachstellen auf, die erst nach dem Release bekannt werden.
-- Wöchentliche Prüfung, wie lange Debian, Python und Node noch Sicherheitsupdates bekommen (endoflife.date): ab 12 Monaten vorher ein Hinweis, ab 6 Monaten ein roter Lauf. Der Unterbau wird nie automatisch angehoben.
-- Veröffentlichte Versionen werden nie überschrieben, `latest` zeigt immer auf die höchste Version. Jeder Job bekommt nur die Rechte, die er braucht.
-- Neuigkeiten in der Oberfläche zeigen Sicherheitsupdates (`-s1`, `-s2` …) als eigene Einträge.
+- Security: reproducible build. Base images are pinned with a fixed version and checksum (digest), the Debian packages via a fixed state of snapshot.debian.org (`os-packages.lock`), all Python and npm packages including indirect ones with an exact version. The script `scripts/pins.py` renews the versions.
+- Security: weekly security update on GitHub (Mondays, can also be started by hand). It brings the base image, all Debian packages and all dependencies up to date, but only within the base:
+  - same Debian version ("trixie"), same Python (3.13) and Node series (24)
+  - every package within its major version, below 1.0 within its minor version; calendar versions such as root certificates without a limit
+  - build without cache, tests in the image (amd64 and arm64), HTTPS start check and Trivy
+  - published only if everything passed, as `<version>-s<counter>` (e.g. `1.48.0-s1`), with an entry here including the list of changed packages. If nothing changed, nothing happens.
+- Security: Trivy no longer runs as a GitHub Action but as a fixed version whose checksum (SHA-256) is checked before use. Accepted findings are listed in `.trivyignore` with a reason and an expiry date.
+- Security: the published image is scanned with Trivy every day, so vulnerabilities that only become known after the release are noticed.
+- Weekly check of how long Debian, Python and Node still get security updates (endoflife.date): a note from 12 months before, a red run from 6 months before. The base is never raised automatically.
+- Published versions are never overwritten, `latest` always points to the highest version. Every job only gets the rights it needs.
+- News in the interface show security updates (`-s1`, `-s2` …) as separate entries.
 
 ## 1.47.1 – 2026-10-25
-- Zum Bauen der Oberfläche wird jetzt Node 24 verwendet (Updates bis April 2028) statt Node 22, das im April 2027 ausläuft. Node ist nur beim Bauen dabei, nicht im fertigen Image; die erzeugte Oberfläche ist unverändert.
+- The interface is now built with Node 24 (updates until April 2028) instead of Node 22, which ends in April 2027. Node is only used while building, not in the finished image; the generated interface is unchanged.
 
 ## 1.47.0 – 2026-10-24
-- Sicherheit: Das Image basiert jetzt auf Debian 13 „Trixie“ mit Python 3.13 (vorher Debian 12 mit Python 3.11). Damit bekommt es deutlich länger Sicherheitsupdates, Python 3.13 bis 2029. Der wöchentliche Neubau spielt sie automatisch ein. Bedienung und Einstellungen bleiben gleich.
-- Sicherheit: Alles im Image bleibt aktuell. Der wöchentliche Neubau holt jetzt auch die neueste Python-3.13-Version und die neuesten Versionen aller Python-Pakete. Bisher festgeschriebene Versionen (uvicorn, ldap3, smbprotocol, pypsrp) sind freigegeben, nur Sprünge auf eine neue Hauptversion bleiben ausgeschlossen. Alles wird vor der Veröffentlichung getestet und geprüft.
-- Ein halbes Jahr bevor Debian 13, Python 3.13 oder Node 22 keine Updates mehr bekommen, meldet GitHub das per Mail. Erst dann wird der Unterbau angehoben.
-- README: Hinweise vor dem Einsatz (ohne Gewähr, zuerst testen, getestet mit Samba AD, feste Version für den Betrieb). Neu: `SECURITY.md` für die vertrauliche Meldung von Sicherheitslücken.
-- Sicherheit: Das Paketprogramm `pip` wird nur noch beim Bauen gebraucht und ist aus dem fertigen Image entfernt. Es brachte eigene, veraltete Kopien von urllib3, certifi und msgpack mit, die Trivy als Lücken gemeldet hatte.
+- Security: the image is now based on Debian 13 "Trixie" with Python 3.13 (previously Debian 12 with Python 3.11). It therefore receives security updates for much longer, Python 3.13 until 2029. The weekly rebuild installs them automatically. Usage and settings stay the same.
+- Security: everything in the image stays current. The weekly rebuild now also fetches the newest Python 3.13 version and the newest versions of all Python packages. Previously fixed versions (uvicorn, ldap3, smbprotocol, pypsrp) are released; only jumps to a new major version remain excluded. Everything is tested and scanned before it is published.
+- Half a year before Debian 13, Python 3.13 or Node 22 stop getting updates, GitHub reports it by e-mail. Only then is the base raised.
+- README: notes before use (no warranty, test first, tested with Samba AD, fixed version for production). New: `SECURITY.md` for reporting security vulnerabilities confidentially.
+- Security: the package tool `pip` is only needed while building and has been removed from the finished image. It brought its own outdated copies of urllib3, certifi and msgpack, which Trivy had reported as vulnerabilities.
 
 ## 1.46.1 – 2026-10-24
-- Sicherheit: Jedes Image wird vor der Veröffentlichung auf GitHub mit Trivy auf bekannte Schwachstellen geprüft. Findet Trivy eine schwere Lücke (CRITICAL/HIGH), für die es schon eine Korrektur gibt, wird das Image nicht veröffentlicht. Zusätzlich baut GitHub das Image jeden Montag mit den neuesten Paketen und Debian-Sicherheitsupdates neu. Es durchläuft dieselben Tests und dieselbe Prüfung und wird nur bei Erfolg unter `latest` veröffentlicht. Auf den Server kommt es erst mit `sh update.sh --pull`.
-- Sicherheit: Beim Bauen werden jetzt die aktuellen Debian-Sicherheitsupdates eingespielt (unter anderem OpenSSL, GnuTLS, Kerberos, PAM, Perl). Die nicht benötigten Pakete `setuptools` und `wheel` sind aus dem Image entfernt. Die erste Trivy-Prüfung hatte hier mehrere schwere Lücken gefunden.
+- Security: every image is checked for known vulnerabilities with Trivy on GitHub before it is published. If Trivy finds a serious vulnerability (CRITICAL/HIGH) for which a fix exists, the image is not published. In addition, GitHub rebuilds the image every Monday with the newest packages and Debian security updates. It goes through the same tests and the same scan and is published under `latest` only if everything passes. It reaches a server only with `sh update.sh --pull`.
+- Security: the current Debian security updates are now installed at build time (among others OpenSSL, GnuTLS, Kerberos, PAM, Perl). The packages `setuptools` and `wheel`, which are not needed, are removed from the image. The first Trivy scan had found several serious vulnerabilities here.
 
 ## 1.46.0 – 2026-10-24
-- Sicherheit: Mitglieder von Schlüsseladministratoren, Organisationsschlüsseladministratoren, Richtlinien-Ersteller-Besitzer und Zertifikatherausgeber gelten jetzt ebenfalls als geschützt. Bisher durften Operatoren deren Passwort zurücksetzen.
-- Sicherheit: Computer- und Dienstkonten (gMSA) lassen sich nicht mehr über Passwort-Reset, Offboarding, Verschieben oder Löschen bearbeiten, auch nicht mit einem gezielt übergebenen DN.
-- Sicherheit: Beim Löschen von Ordnern:
-  - Benutzernamen mit „~“ (mögliche Windows-Kurznamen) werden übersprungen.
-  - Ordner, die im Ordner eines anderen Kontos liegen, werden nicht gelöscht.
-  - Wird ein Unterordner während des Löschens durch eine Verknüpfung ersetzt, wird ihr nicht gefolgt.
-- Sicherheit: Die Sperre nach fehlgeschlagenen Anmeldungen lässt sich nicht mehr mit vielen gleichzeitigen Versuchen umgehen.
-- Sicherheit: Auf GitHub sieht der Build-Schritt mit den neu installierten Paketen den Zugangsschlüssel nicht mehr. Die verwendeten GitHub-Actions sind auf feste Versionen festgelegt. Images werden nur vom Branch `main` veröffentlicht.
-- Behoben: Doppelklick auf „Anlegen“, „Passwort zurücksetzen“, Offboarding oder Löschen löst die Aktion nicht mehr zweimal aus.
-- Behoben: Das Gruppenfenster zeigt nach schnellem Wechsel zwischen zwei Personen nicht mehr die Gruppen der falschen Person.
-- Behoben: Beim Onboarding wird auch ein bereits vergebener Anmeldename (UPN) erkannt.
-- Behoben: Steht in der Ziel-OU schon ein gleichnamiges Objekt, bricht das Offboarding ab, bevor etwas verändert wird.
-- Behoben: Eine abgebrochene Wiederherstellung lässt sich wiederholen.
-- Behoben: `update.sh`:
-  - Die Sicherung von `data/` entsteht erst bei angehaltenem Container.
-  - Ein lokaler Build ersetzt keine neuere Version von GitHub mehr.
-  - Nach `--pull` wird die richtige Version angezeigt.
-- Behoben: Fällt beim Laden ein Bereich aus, werden die übrigen trotzdem geladen.
+- Security: members of Key Admins, Enterprise Key Admins, Group Policy Creator Owners and Cert Publishers are now protected as well. Until now operators could reset their passwords.
+- Security: computer and service accounts (gMSA) can no longer be changed via password reset, offboarding, moving or deletion, not even with a specifically crafted DN.
+- Security: when deleting folders:
+  - User names containing "~" (possible Windows short names) are skipped.
+  - Folders inside another account's folder are not deleted.
+  - If a subfolder is replaced by a link while deleting, the link is not followed.
+- Security: the lockout after failed sign-ins can no longer be bypassed with many simultaneous attempts.
+- Security: on GitHub the build step with the newly installed packages can no longer see the access token. The GitHub Actions used are pinned to fixed versions. Images are only published from the `main` branch.
+- Fixed: a double click on "Create", "Reset password", offboarding or deletion no longer runs the action twice.
+- Fixed: after switching quickly between two people, the group window no longer shows the wrong person's groups.
+- Fixed: onboarding also detects a sign-in name (UPN) that is already taken.
+- Fixed: if an object with the same name already exists in the target OU, offboarding stops before changing anything.
+- Fixed: an interrupted restore can be repeated.
+- Fixed: `update.sh`:
+  - The backup of `data/` is taken only once the container is stopped.
+  - A local build no longer replaces a newer version from GitHub.
+  - The right version is shown after `--pull`.
+- Fixed: if one page fails to load, the others still load.
 
 ## 1.45.0 – 2026-10-24
-- Neuigkeiten in der Oberfläche: Unter *Hilfe → Neuigkeiten* steht, was sich in den installierten Versionen geändert hat. Gibt es seit dem letzten Lesen eine neue Version, zeigt ein kleiner Punkt das an; bei Sicherheitsupdates ist er orange.
+- News in the interface: *Help → News* shows what changed in the installed versions. A small dot appears if there is a new version since you last read it; for security updates it is orange.
 
 ## 1.44.0 – 2026-10-24
-- Automatisch erzeugte Passwörter (Onboarding, Passwort-Reset) enthalten keine leicht verwechselbaren Zeichen mehr: 0 O o 1 l I.
+- Automatically generated passwords (onboarding, password reset) no longer contain easily confused characters: 0 O o 1 l I.
 
 ## 1.43.1 – 2026-10-24
-- Auf GitHub gibt es nur noch einen Workflow („Image“). Er prüft Formatierung (ruff) und Tests und baut danach das Image. Der doppelte Lauf „Tests“ entfällt.
+- Only one workflow on GitHub ("Image"). It checks formatting (ruff) and the tests and then builds the image. The duplicate "Tests" run is gone.
 
 ## 1.43.0 – 2026-10-24
-- **`sudo sh update.sh --pull` holt jetzt das fertige Image von GitHub** (`ghcr.io/soleil0815/samonboarding`) und startet es. Auf dem Server wird nichts gebaut, und git wird nicht gebraucht.
-  - Vorher sichert das Skript `data/`. Startet die neue Version nicht, nimmt es das vorherige Image wieder in Betrieb.
-  - `update.sh` und `docker-compose.yml` werden passend zur Version aus dem Image übernommen.
-- `docker-compose.yml` nennt das Image (`SAMONBOARDING_IMAGE`). Lokales Bauen mit `sudo sh update.sh` geht weiterhin.
-- Der Weg über `git pull` aus 1.40 bis 1.42 ist entfernt.
+- **`sudo sh update.sh --pull` now fetches the ready-made image from GitHub** (`ghcr.io/soleil0815/samonboarding`) and starts it. Nothing is built on the server, and git is not needed.
+  - The script backs up `data/` first. If the new version does not start, it puts the previous image back into service.
+  - `update.sh` and `docker-compose.yml` are taken from the image to match its version.
+- `docker-compose.yml` names the image (`SAMONBOARDING_IMAGE`). Building locally with `sudo sh update.sh` still works.
+- The `git pull` route from 1.40 to 1.42 has been removed.
 
 ## 1.42.0 / 1.42.1 – 2026-10-24
-- Übergangsversionen für das Update per git, abgelöst durch 1.43.0.
+- Interim versions for updating via git, replaced by 1.43.0.
 
 ## 1.41.0 – 2026-10-24
-- GitHub baut bei jedem Push das fertige Image und veröffentlicht es als `ghcr.io/soleil0815/samonboarding` (`:latest` und `:<version>`), für amd64 und arm64.
-  - Vorher werden die Python-Pakete festgeschrieben und mit allen Tests geprüft.
-- Neu: `docker-compose.image.yml` für Dockhand, Portainer & Co.
+- On every push, GitHub builds the ready-made image and publishes it as `ghcr.io/soleil0815/samonboarding` (`:latest` and `:<version>`), for amd64 and arm64.
+  - Before that, the Python packages are pinned and checked with all tests.
+- New: `docker-compose.image.yml` for Dockhand, Portainer & co.
 
 ## 1.40.0 – 1.40.2 – 2026-10-23
-- Projekt für GitHub vorbereitet: `.gitattributes`, `update.sh` als ausführbar markiert, eine ZIP enthält nie einen `.git`-Ordner.
-- Lizenz: GNU AGPL v3 oder neuer (`LICENSE`). Die Anmeldeseite verlinkt auf den Quellcode.
-- Alle Befehle in Doku und Meldungen als `sh update.sh …` (funktioniert auch ohne Ausführungsrecht).
-- Alles zu Dockhand entfernt (Label `dockhand.update=false`).
+- Project prepared for GitHub: `.gitattributes`, `update.sh` marked as executable, a ZIP never contains a `.git` folder.
+- License: GNU AGPL v3 or later (`LICENSE`). The sign-in page links to the source code.
+- All commands in the docs and messages as `sh update.sh …` (also works without the executable bit).
+- Everything related to Dockhand removed (label `dockhand.update=false`).
 
 ## 1.39.0 – 2026-10-23
-- Installationsdateien auf Englisch: `update.sh` (alle Ausgaben), `.env.example`, `Dockerfile`, `docker-compose.yml`. Die Namen der Einstellungen in der `.env` sind unverändert.
-- Bestätigung mit `y` (`j` geht weiterhin), `--yes` zusätzlich zu `--ja`.
+- Installation files in English: `update.sh` (all output), `.env.example`, `Dockerfile`, `docker-compose.yml`. The setting names in `.env` are unchanged.
+- Confirm with `y` (`j` still works), `--yes` in addition to `--ja`.
 
 ## 1.38.0 – 2026-10-23
-- Internet-Sperre (iptables und systemd auf dem Host) komplett entfernt. `update.sh` räumt eine vorhandene Sperre automatisch ab, sobald die neue Version läuft.
-- Die Einstellungen `INTERNET_SPERRE`, `ZUSATZ_ZIELE`, `DATEISERVER_NETZE` und `DNS_SERVER` entfallen.
+- Internet block (iptables and systemd on the host) removed completely. `update.sh` removes an existing block automatically once the new version is running.
+- The settings `INTERNET_SPERRE`, `ZUSATZ_ZIELE`, `DATEISERVER_NETZE` and `DNS_SERVER` are gone.
 
 ## 1.37.0 – 2026-10-22
-- Schneller: Es wird nur der geöffnete Bereich geladen. Die Kontolisten bleiben je Sitzung bis zu 60 Sekunden im Arbeitsspeicher, nicht in einer Datenbank.
-  - Jede Änderung leert diesen Speicher sofort.
-  - „Konten aktualisieren“ liest immer frisch vom DC.
-- Die Schutzprüfung der Listen braucht nur noch wenige Sammelabfragen statt einer Abfrage je Konto.
-- Umbenannte, verschobene oder gelöschte OUs und Gruppen werden erkannt (über die objectGUID).
-  - Administratoren sehen einen Hinweis.
-  - „Neue Namen übernehmen“ passt alle betroffenen Einstellungen und Templates an.
-- Behoben: Mitglieder eingebauter Gruppen bekamen in der Liste kein Schloss. Die Aktion selbst war immer gesperrt.
-- Behoben: Nach einem DC-Ausfall wurde die Ersatzliste zwischengespeichert.
+- Faster: only the open page is loaded. The account lists are kept in memory per session for up to 60 seconds, not in a database.
+  - Every change clears this cache immediately.
+  - "Refresh accounts" always reads fresh from the DC.
+- The protection check of the lists needs only a few combined queries instead of one query per account.
+- Renamed, moved or deleted OUs and groups are detected (via the objectGUID).
+  - Administrators see a notice.
+  - "Apply new names" updates all affected settings and templates.
+- Fixed: members of built-in groups had no padlock in the list. The action itself was always blocked.
+- Fixed: after a DC outage the fallback list was cached.
 
 ## 1.36.0 – 2026-10-22
-- Behoben: Fehler aus dem Code-Review:
-  - LDAP-Suchen erkennen Abbrüche und Fehler.
-  - Zeitlimits für den DC.
-  - DN-Vergleich nach Bestandteilen.
-- Sicherheit: Beim Löschen werden Admin-Passwort und Rolle unmittelbar vorher erneut geprüft. Ordner, die auch andere Konten nutzen, werden nicht gelöscht.
-- Wiederherstellen nur noch über die GUID. Ein Onboarding, das abbricht, wird sauber zurückgerollt.
-- Sicherheit: Im SMTP-Modus „Auto“ wird ohne STARTTLS nichts mehr gesendet. Für interne Relays ohne TLS gibt es den Modus „Ohne Verschlüsselung“.
-- Namensbildung: Ø, Æ, Œ, Ł, Đ und Þ werden umgeschrieben.
+- Fixed: issues from the code review:
+  - LDAP searches detect aborts and errors.
+  - Time limits for the DC.
+  - DN comparison by components.
+- Security: before deleting, the admin password and role are checked again right beforehand. Folders also used by other accounts are not deleted.
+- Restoring only by GUID. An onboarding that is aborted is rolled back cleanly.
+- Security: in SMTP mode "Auto" nothing is sent without STARTTLS any more. For internal relays without TLS there is the mode "Without encryption".
+- Name generation: Ø, Æ, Œ, Ł, Đ and Þ are transliterated.
 
 ## 1.35.1 – 2026-10-22
-- Behoben: `update.sh` brach auf der Synology mit „syntax error near unexpected token `('“ ab (bash im POSIX-Modus).
+- Fixed: `update.sh` stopped on the Synology with "syntax error near unexpected token `('" (bash in POSIX mode).
 
 ## 1.35.0 – 2026-10-22
-- Docker Compose wird nicht mehr benötigt. Ohne Compose startet `update.sh` den Container direkt mit `docker` und denselben Einstellungen, zum Beispiel auf einer Synology.
-- Ersatz für Werkzeuge, die auf dem NAS fehlen (cmp, sha256sum, timeout, sort -V).
+- Docker Compose is no longer required. Without Compose, `update.sh` starts the container directly with `docker` and the same settings, e.g. on a Synology.
+- Fallbacks for tools missing on the NAS (cmp, sha256sum, timeout, sort -V).
 
-## Ältere Versionen (zusammengefasst)
-- Neue Version per ZIP einspielen: `sudo sh update.sh samonboarding-x.y.z.zip`, mit Rückfrage, Sicherung, Zurücksetzen und Aufräumen.
-- Container läuft ohne root (Benutzer 10001). Python-Pakete, npm-Pakete und Basis-Images mit fester Version, neue Pakete werden mit den Tests geprüft.
-- Handbuch auf Deutsch und Englisch in der Hilfe. Link zu helfi.space.
-- HTTPS mit eigenem oder selbstsigniertem Zertifikat, Berichte in SQLite, Datenschutz (DSGVO) mit Aufbewahrungsfristen und Auskunft.
-- Module: Onboarding mit Templates, Benutzerverwaltung, Passwort zurücksetzen, Offboarding mit Wiederherstellen, Konten löschen (nur Administratoren, mit Simulation und Passwortbestätigung).
+## Older versions (summary)
+- Install a new version from a ZIP: `sudo sh update.sh samonboarding-x.y.z.zip`, with confirmation, backup, rollback and cleanup.
+- The container runs without root (user 10001). Python packages, npm packages and base images with fixed versions; new packages are checked with the tests.
+- Manual in German and English in the help. Link to helfi.space.
+- HTTPS with your own or a self-signed certificate, reports in SQLite, data protection (GDPR) with retention periods and subject access.
+- Modules: onboarding with templates, user management, password reset, offboarding with restore, deleting accounts (administrators only, with simulation and password confirmation).

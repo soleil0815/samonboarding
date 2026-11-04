@@ -45,7 +45,7 @@ class LicenseTests(unittest.TestCase):
         self.assertIn("GNU AFFERO GENERAL PUBLIC LICENSE", (ROOT / "LICENSE").read_text(encoding="utf-8"))
         package = json.loads((ROOT / "package.json").read_text(encoding="utf-8"))
         self.assertEqual(package["license"], "AGPL-3.0-or-later")
-        for name in ("README.md", "README.en.md"):
+        for name in ("README.de.md", "README.md"):
             text = (ROOT / name).read_text(encoding="utf-8")
             self.assertIn("(NOTICE)", text, name)
             self.assertIn("(THIRD-PARTY-NOTICES.md)", text, name)

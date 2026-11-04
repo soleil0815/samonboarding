@@ -311,7 +311,7 @@ The **Data protection** link (bottom of the sign-in page and in the sidebar unde
 - Your password is only held in memory during the session.
 - **Subject access (Art. 15 GDPR):** administrators enter a user name there and **Download** everything the application has stored about that account (JSON). Review it before handing it out and redact information about other people.
 
-Details for the record of processing activities are in `DATA-PROTECTION.en.md`.
+Details for the record of processing activities are in `DATA-PROTECTION.md`.
 
 ---
 
