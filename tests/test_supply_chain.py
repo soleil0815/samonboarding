@@ -44,7 +44,7 @@ class WorkflowSecurityTests(unittest.TestCase):
             self.assertEqual(flow.count("actions/checkout@"), flow.count("persist-credentials: false"))
         checks = text("checks.yml")
         self.assertNotIn("write", checks)
-        self.assertEqual(checks.count("packages: read"), 1)
+        self.assertNotIn("packages:", checks)  # the published image is pulled without login
         image = text("image.yml")
         self.assertEqual(image.count("contents: write"), 1)
         self.assertEqual(image.count("packages: write"), 1)
@@ -115,6 +115,9 @@ class ScheduleTests(unittest.TestCase):
         self.assertIn("python3 scripts/pins.py eol", checks)
         scan = checks[checks.index("scan-published:") : checks.index("base-support:")]
         self.assertIn(":latest", scan)
+        self.assertNotIn("docker login", scan)  # pulled like any user: also proves every day that the image is public
+        self.assertIn('export DOCKER_CONFIG="$RUNNER_TEMP/no-login"', scan)
+        self.assertIn("::error title=Image not public::", scan)
         self.assertIn("pins.py scan published:amd64", scan)
         self.assertIn("pins.py scan published:arm64", scan)
 

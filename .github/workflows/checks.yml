@@ -20,8 +20,7 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     permissions:
-      contents: read
-      packages: read # pull the published image
+      contents: read # no packages permission: the image is pulled like by any user, without login
     env:
       IMAGE: ghcr.io/${{ github.repository }}
     steps:
@@ -32,16 +31,18 @@ jobs:
       - name: Install Trivy (fixed version, SHA-256 checked, no GitHub Action)
         run: sh scripts/install-trivy.sh
 
-      - name: Pull the published image (amd64 and arm64)
-        env:
-          GH_TOKEN: ${{ github.token }}
+      - name: Pull the published image without login (amd64 and arm64)
         run: |
-          printf '%s' "$GH_TOKEN" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
+          # Empty docker config = no stored login: this also checks every day that the image is public.
+          export DOCKER_CONFIG="$RUNNER_TEMP/no-login"
+          mkdir -p "$DOCKER_CONFIG"
           for arch in amd64 arm64; do
-            docker pull -q --platform "linux/$arch" "$IMAGE:latest"
+            if ! docker pull -q --platform "linux/$arch" "$IMAGE:latest"; then
+              echo "::error title=Image not public::$IMAGE:latest ($arch) cannot be pulled without login. Package settings -> Change visibility -> Public."
+              exit 1
+            fi
             docker tag "$IMAGE:latest" "published:$arch"
           done
-          docker logout ghcr.io
           echo "Version: $(docker image inspect --format '{{index .Config.Labels "org.opencontainers.image.version"}}' published:amd64)"
 
       - name: Vulnerability scan (Trivy)
