@@ -871,7 +871,8 @@
   "Abhilfe: im Ordner der docker-compose.yml „sh update.sh“ ausführen – oder die docker-compose.yml aus dem aktuellen Release herunterladen und „docker compose up -d“ ausführen. Die .env und die Daten bleiben unverändert.": "Remedy: run “sh update.sh” in the folder of the docker-compose.yml – or download the docker-compose.yml from the current release and run “docker compose up -d”. The .env and the data stay unchanged.",
   "Diese Objekte wurden gelöscht und unter gleichem Namen neu angelegt. Das neue Objekt übernehmen?": "These objects were deleted and created again under the same name. Accept the new object?",
   "Der Pfad enthält '~' (Kurzname) - wird nicht automatisch gelöscht.": "The path contains '~' (short name) - it will not be deleted automatically.",
-  "Das Fenster zum Drucken wurde blockiert. Bitte Pop-ups für diese Seite erlauben.": "The print window was blocked. Please allow pop-ups for this page."
+  "Das Fenster zum Drucken wurde blockiert. Bitte Pop-ups für diese Seite erlauben.": "The print window was blocked. Please allow pop-ups for this page.",
+  "Die Entwicklung unterstützen (öffnet buymeacoffee.com)": "Support the development (opens buymeacoffee.com)"
  },
  "patterns": [
   [

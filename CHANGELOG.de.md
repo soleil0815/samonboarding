@@ -7,6 +7,9 @@ Update auf dem Server: `sudo sh update.sh` oder `docker compose pull && docker c
 
 Einträge, die mit „Sicherheit:“ oder „Behoben:“ beginnen, werden in der Oberfläche entsprechend markiert.
 
+## 2.0.4 – 2026-11-04
+- Neu: Schaltfläche „Buy me a coffee“ am Ende des Menüs für Administratoren – für alle, die die Entwicklung unterstützen möchten. Es ist ein einfacher Link zu buymeacoffee.com; von dort wird nichts geladen, und Operatoren sehen ihn nicht.
+
 ## 2.0.3 – 2026-11-04
 - Englisch ist jetzt die Standardsprache der Projektdateien: README, Changelog, Datenschutz-Dokumentation und Release-Seiten erscheinen zuerst auf Englisch, die deutschen Fassungen stehen in `README.de.md`, `CHANGELOG.de.md` und `DATENSCHUTZ.de.md`. Die Kommentare im Quellcode sind englisch. Oberfläche, Handbuch und Verhalten sind unverändert.
 
