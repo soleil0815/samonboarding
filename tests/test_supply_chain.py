@@ -23,12 +23,14 @@ def step_index(flow, name):
 
 class WorkflowSecurityTests(unittest.TestCase):
     def test_only_the_two_workflows(self):
-        self.assertEqual(sorted(p.name for p in FLOWS.glob("*.y*ml")), ["checks.yml", "image.yml"])
+        self.assertEqual(sorted(p.name for p in FLOWS.glob("*.y*ml")), ["build.yml", "checks.yml", "image.yml"])
 
     def test_actions_pinned_to_commit_hashes_and_no_trivy_action(self):
-        for name in ("image.yml", "checks.yml"):
+        for name in ("image.yml", "build.yml", "checks.yml"):
             flow = text(name)
             for line in flow.splitlines():
+                if "uses: ./.github/workflows/build.yml" in line:
+                    continue  # our own build steps (same repository, same commit)
                 if "uses:" in line:
                     self.assertRegex(line, r"uses: [\w.-]+/[\w.-]+@[0-9a-f]{40}( |$)", line)
             self.assertNotIn("aquasecurity/", flow)  # trivy-action / setup-trivy (CVE-2026-33634)
@@ -46,27 +48,43 @@ class WorkflowSecurityTests(unittest.TestCase):
         image = text("image.yml")
         self.assertEqual(image.count("contents: write"), 1)
         self.assertEqual(image.count("packages: write"), 1)
+        build = text("build.yml")
+        self.assertEqual(build.count("actions/checkout@"), build.count("persist-credentials: false"))
+        self.assertNotIn("permissions:", build)  # gets exactly the rights of the calling job
+
+    def test_pull_requests_only_get_a_read_only_token(self):
+        """Code from a pull request runs in the check job: it can neither commit nor publish."""
+        image = text("image.yml")
+        check = image[image.index("  check:\n") : image.index("  release:\n")]
+        release = image[image.index("  release:\n") :]
+        self.assertIn("if: github.event_name == 'pull_request' || github.event_name == 'push'", check)
+        self.assertNotIn("write", check)
+        self.assertIn("contents: read", check)
+        self.assertIn("packages: read", check)
+        self.assertIn("publish: false", check)
+        self.assertIn("mode: check", check)
+        self.assertIn("if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'", release)
+        self.assertIn("publish: ${{ github.ref == 'refs/heads/main' }}", release)
+        self.assertEqual(image.count("uses: ./.github/workflows/build.yml"), 2)
+        self.assertIn("  workflow_call:\n", text("build.yml"))
 
     def test_release_only_from_main_and_never_two_at_once(self):
-        flow = text("image.yml")
+        image = text("image.yml")
+        flow = text("build.yml")
         self.assertTrue(
-            "on:\n  pull_request:\n    branches: [main]\n  push:\n    branches: [main]\n" in flow, "Ausloeser"
+            "on:\n  pull_request:\n    branches: [main]\n  push:\n    branches: [main]\n" in image, "Ausloeser"
         )
-        # publishes only from main, never on push or pull request: a merge alone publishes nothing
-        publish = (
-            "PUBLISH: ${{ github.ref == 'refs/heads/main' && github.event_name != 'push' "
-            "&& github.event_name != 'pull_request' && 'true' || 'false' }}"
-        )
-        self.assertTrue(publish in flow, "PUBLISH")
+        # publishes only if the caller allows it (release job on main): a merge alone publishes nothing
+        self.assertTrue("PUBLISH: ${{ inputs.publish && 'true' || 'false' }}" in flow, "PUBLISH")
         for step in ("Commit the new pins", "Publish the image"):
             block = flow[step_index(flow, step) :][:400]
             self.assertIn("if: env.PUBLISH == 'true'", block, step)
         self.assertTrue(
             "group: ${{ github.event_name == 'pull_request' && format('image-pr-{0}', github.ref) || 'image-release' }}"
-            in flow,
+            in image,
             "Releases nie gleichzeitig",
         )
-        self.assertIn("cancel-in-progress: false", flow)
+        self.assertIn("cancel-in-progress: false", image)
         self.assertEqual(flow.count("--push"), 1)
         self.assertEqual(flow.count("docker login"), 1)
 
@@ -79,7 +97,7 @@ class WorkflowSecurityTests(unittest.TestCase):
         self.assertIn('if [ "$official" != "$TRIVY_SHA256" ]', script)  # and listed like this in the official list
         self.assertIn("--proto '=https'", script)
         self.assertNotIn("latest", script)
-        for name in ("image.yml", "checks.yml"):
+        for name in ("build.yml", "checks.yml"):
             self.assertIn("sh scripts/install-trivy.sh", text(name))
 
 
@@ -101,17 +119,17 @@ class ScheduleTests(unittest.TestCase):
         self.assertIn("pins.py scan published:arm64", scan)
 
     def test_mode_per_trigger(self):
-        flow = text("image.yml")
-        mode = (
-            "MODE: ${{ (github.event_name == 'push' || github.event_name == 'pull_request') && 'check' || "
-            "(github.event_name == 'workflow_dispatch' && inputs.mode) || 'security-update' }}"
+        image = text("image.yml")
+        flow = text("build.yml")
+        self.assertIn(
+            "mode: ${{ github.event_name == 'workflow_dispatch' && inputs.mode || 'security-update' }}", image
         )
-        self.assertTrue(mode in flow, "MODE")
+        self.assertTrue("MODE: ${{ inputs.mode }}" in flow, "MODE")
         plan = flow[step_index(flow, "Plan") :][:500]
         self.assertTrue('if [ "$mode" = check ]; then mode=release; fi' in plan, "Pruefung plant wie ein Release")
 
     def test_release_page_with_assets_and_tag_x_y(self):
-        flow = text("image.yml")
+        flow = text("build.yml")
         release = flow[step_index(flow, "GitHub release (only main)") :]
         for needed in ('cp docker-compose.yml "$assets/docker-compose.yml"', 'cp .env.example "$assets/env.example"',
                        'docker save "$IMAGE:$TAG" | gzip -6 > "$assets/samonboarding-$TAG-$arch.tar.gz"',
@@ -126,7 +144,7 @@ class ScheduleTests(unittest.TestCase):
 
 class OrderTests(unittest.TestCase):
     def test_order_of_steps(self):
-        flow = text("image.yml")
+        flow = text("build.yml")
         order = [
             "Install Trivy",
             "Check code",
@@ -149,7 +167,7 @@ class OrderTests(unittest.TestCase):
         self.assertEqual(positions, sorted(positions))
 
     def test_built_without_cache_and_same_layers_published(self):
-        flow = text("image.yml")
+        flow = text("build.yml")
         probe = flow[step_index(flow, "Build without cache") : step_index(flow, "Debian packages")]
         self.assertIn("--no-cache --pull", probe)
         for name in ("Build $arch", "Final build $arch", "Publish"):  # failure cause readable in the run
@@ -163,7 +181,7 @@ class OrderTests(unittest.TestCase):
             self.assertIn('--label "org.opencontainers.image.version=$TAG"', block)
 
     def test_conditions(self):
-        flow = text("image.yml")
+        flow = text("build.yml")
         self.assertIn("if: env.MODE == 'security-update'\n        run: python3 scripts/pins.py update", flow)
         for step in ("Tests in the image", "Start check of the server", "Vulnerability scan (Trivy"):
             block = flow[step_index(flow, step) :][:200]
@@ -176,7 +194,7 @@ class OrderTests(unittest.TestCase):
 
     def test_github_release(self):
         """One release page v<version> per published version with the changelog entry - never changed."""
-        flow = text("image.yml")
+        flow = text("build.yml")
         block = flow[step_index(flow, "GitHub release (only main)") :]
         self.assertIn("if: env.PUBLISH == 'true'", block[:200])
         self.assertLess(block.index('gh release view "v$TAG"'), block.index('gh release create "v$TAG"'))
@@ -186,7 +204,7 @@ class OrderTests(unittest.TestCase):
         self.assertEqual(flow.count("gh release create"), 1)
 
     def test_logout_after_publishing(self):
-        flow = text("image.yml")
+        flow = text("build.yml")
         self.assertLess(flow.index("docker login"), flow.index("--push"))
         self.assertLess(flow.index("--push"), flow.index("docker logout ghcr.io"))
         self.assertLess(step_index(flow, "Vulnerability scan (Trivy"), flow.index("docker login"))

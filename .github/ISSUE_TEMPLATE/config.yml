@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Report a security vulnerability (confidential)
+    url: https://github.com/soleil0815/samonboarding/security/advisories/new
+    about: Please never report security vulnerabilities in a public issue.
+  - name: Documentation (README)
+    url: https://github.com/soleil0815/samonboarding#readme
+    about: Installation, update, settings and troubleshooting.

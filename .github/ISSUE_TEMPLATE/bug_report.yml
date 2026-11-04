@@ -1,0 +1,59 @@
+name: Bug report
+description: Something does not work as described. Not for security vulnerabilities (see SECURITY.md).
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting! This is a spare-time project without support – reports are read, answers come as time allows.
+        **Security vulnerabilities:** please do not report them here, use *Security → Report a vulnerability* (see SECURITY.md).
+        **No real data:** no passwords, real domain/server names, IP addresses, user names or log extracts from a production AD. Use examples such as `firma.local` or `10.0.10.5`.
+  - type: input
+    id: version
+    attributes:
+      label: Version
+      description: Shown in the interface under Help → News (e.g. 2.0.4 or 2.0.4-s1).
+    validations:
+      required: true
+  - type: dropdown
+    id: directory
+    attributes:
+      label: Directory
+      options:
+        - Samba AD
+        - Windows Server AD
+    validations:
+      required: true
+  - type: dropdown
+    id: setup
+    attributes:
+      label: How do you run it?
+      options:
+        - docker compose
+        - Container manager (Dockhand, Portainer, …)
+        - NAS (e.g. Synology)
+        - Other
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. Open …
+        2. Click …
+        3. …
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: What did you expect, and what happened instead?
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Messages or log lines (anonymised)
+      description: For example from Reports → Log in the interface or `docker compose logs`. Remove names, addresses and anything secret.
+      render: text

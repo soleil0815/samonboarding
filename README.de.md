@@ -24,7 +24,7 @@ Die Anwendung läuft als Docker-Container (FastAPI + ldap3), die Oberfläche ist
 > - **Das Programm hat weitreichende Rechte.** Es legt Konten an, setzt Passwörter zurück und löscht Konten und Ordner. Probiere es zuerst in einer **Testumgebung** aus und lege vor dem ersten Einsatz im echten AD eine Sicherung an.
 > - **Getestet mit Samba AD.** Windows Server AD wird unterstützt, ist aber weniger erprobt (zum Beispiel mehrere DCs, Exchange, große Strukturen). Rückmeldungen dazu sind willkommen.
 > - **Feste Version für den Betrieb.** `latest` wird jede Woche automatisch neu gebaut, getestet und geprüft, aber nicht gegen ein echtes AD. Wer Änderungen erst selbst prüfen möchte, trägt eine feste Version ein, zum Beispiel `SAMONBOARDING_VERSION=2.0` in der `.env` (siehe [Version festlegen und zurückgehen](#version-festlegen-und-zurückgehen)).
-> - **Kein Support.** Fragen und Fehlerberichte werden gelesen, beantwortet aber nur nach verfügbarer Zeit. **Sicherheitslücken** bitte nicht öffentlich melden, sondern wie in [SECURITY.md](SECURITY.md) beschrieben.
+> - **Kein Support.** Fragen und Fehlerberichte werden gelesen, beantwortet aber nur nach verfügbarer Zeit. **Sicherheitslücken** bitte nicht öffentlich melden, sondern wie in [SECURITY.md](SECURITY.md) beschrieben. Beiträge: siehe [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ---
 
@@ -261,7 +261,7 @@ samba-tool group addmembers CO-ADMIN benutzer1,benutzer2
 samba-tool group listmembers CO-ADMIN
 ```
 
-Der Gruppenname ist der `sAMAccountName` und kommt bei `CUSTOM_OPERATOR_GROUP` in die `.env`. Alternativ gehören Operatoren zur eingebauten Gruppe `Account Operators`:
+`CO-ADMIN` ist nur ein Beispiel: Den Namen wählst du selbst (z. B. `Onboarding-Operatoren`), er muss nur im AD und in der `.env` gleich sein. Der Gruppenname ist der `sAMAccountName` und kommt bei `CUSTOM_OPERATOR_GROUP` in die `.env`. Alternativ gehören Operatoren zur eingebauten Gruppe `Account Operators`:
 
 ```bash
 samba-tool group addmembers "Account Operators" benutzer1
@@ -673,7 +673,7 @@ Ein neuer Unterbau (z. B. Debian 14 oder Python 3.14) wird nie automatisch gewä
 
 ### Automatische Sicherheitsupdates
 
-Auf GitHub laufen zwei Workflows. Eine neue Programmversion kommt nur über einen Pull Request; ein Pull Request oder ein Merge prüft nur, veröffentlicht wird von Hand.
+Auf GitHub laufen zwei Workflows (`image.yml` mit den Bauschritten in `build.yml`, und `checks.yml`). Eine neue Programmversion kommt nur über einen Pull Request; ein Pull Request oder ein Merge prüft nur, veröffentlicht wird von Hand. Pull Requests und Pushes laufen mit einem Token **nur zum Lesen**, Code aus einem Pull Request kann also nie etwas committen oder veröffentlichen; Schreibrechte bekommen nur das Release und das Sicherheitsupdate, und die veröffentlichen nur von `main`.
 
 | Wann | Was passiert |
 |---|---|
@@ -907,7 +907,7 @@ Der GitHub-Workflow führt ruff und pyright vor jedem Bau aus, pyright mit genau
 | `tests/test_datastate.py` | Sicherung vor einem Versionswechsel, Migrationen, Abbruch bei Daten einer neueren Version, Kennung der `docker-compose.yml`, Startskript |
 | `tests/test_pins.py`, `tests/test_supply_chain.py` | Festgelegte Versionen und ihre Grenzen, Nummern der Sicherheitsupdates, Trivy (nachgestellt), Workflows auf GitHub |
 
-Die Szenarien laufen gegen ein **simuliertes AD und einen simulierten Dateiserver** und brauchen dafür keine installierten Pakete (kleine Ersatzmodule in `tests/scenarios/stubs`). Einzeln starten: `python tests/scenarios/scenario_deletion.py`. Echte SMB-Verbindungen und echte Dateirechte testen sie **nicht**; das ist nur auf einem Testserver möglich (siehe Abschnitt Konten löschen, erst mit einem unwichtigen Konto ausprobieren). Bei jedem Push laufen dieselben Prüfungen in GitHub Actions (`.github/workflows/image.yml`); nur wenn alles besteht, wird das Image gebaut.
+Die Szenarien laufen gegen ein **simuliertes AD und einen simulierten Dateiserver** und brauchen dafür keine installierten Pakete (kleine Ersatzmodule in `tests/scenarios/stubs`). Einzeln starten: `python tests/scenarios/scenario_deletion.py`. Echte SMB-Verbindungen und echte Dateirechte testen sie **nicht**; das ist nur auf einem Testserver möglich (siehe Abschnitt Konten löschen, erst mit einem unwichtigen Konto ausprobieren). Bei jedem Push laufen dieselben Prüfungen in GitHub Actions (`.github/workflows/image.yml` / `build.yml`); nur wenn alles besteht, wird das Image gebaut.
 
 ## Lizenz
 
