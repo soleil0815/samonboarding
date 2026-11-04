@@ -1,5 +1,5 @@
-"""Lizenz: Urheber-Hinweis wie bei SAMAUDIT (NOTICE, Kopfzeilen), vollstaendige Liste der Fremdkomponenten,
-Lizenztexte der Schriften und Icons im Image."""
+"""License: copyright notice as in SAMAUDIT (NOTICE, file headers), complete list of third-party components,
+license texts of the fonts and icons in the image."""
 
 import json
 import re
@@ -15,7 +15,7 @@ HEADER = ["# SPDX-License-Identifier: AGPL-3.0-or-later", f"# Copyright (C) 2026
 
 
 def program_files():
-    """Alle Programmdateien: das Paket, der Einstiegspunkt, die Skripte im Image und die Bau-Skripte."""
+    """All program files: the package, the entry point, the scripts in the image and the build scripts."""
     files = [ROOT / "app.py", ROOT / "docker-entrypoint.sh", ROOT / "update.sh"]
     files += sorted((ROOT / "samonboarding").rglob("*.py"))
     files += sorted(p for p in (ROOT / "scripts").iterdir() if p.suffix in (".py", ".sh"))
@@ -27,7 +27,7 @@ def norm(name):
 
 
 class LicenseTests(unittest.TestCase):
-    def test_kopfzeile_in_jeder_programmdatei(self):
+    def test_header_in_every_program_file(self):
         files = program_files()
         self.assertGreater(len(files), 40)
         for path in files:
@@ -36,7 +36,7 @@ class LicenseTests(unittest.TestCase):
                 lines = lines[1:]
             self.assertEqual(lines[:2], HEADER, path.relative_to(ROOT))
 
-    def test_notice_und_lizenz(self):
+    def test_notice_and_license(self):
         notice = (ROOT / "NOTICE").read_text(encoding="utf-8")
         self.assertIn(f"Copyright (C) 2026 {AUTHOR} / The SAMONBOARDING authors", notice)
         self.assertIn("SPDX-License-Identifier: AGPL-3.0-or-later", notice)
@@ -50,30 +50,30 @@ class LicenseTests(unittest.TestCase):
             self.assertIn("(NOTICE)", text, name)
             self.assertIn("(THIRD-PARTY-NOTICES.md)", text, name)
 
-    def test_kein_personenname_als_urheber(self):
-        """Urheber ist nur die neutrale Bezeichnung - kein Name, keine E-Mail-Adresse."""
+    def test_no_personal_name_as_author(self):
+        """The author is only the neutral designation - no name, no e-mail address."""
         for path in [*program_files(), ROOT / "NOTICE", ROOT / "THIRD-PARTY-NOTICES.md"]:
             for line in path.read_text(encoding="utf-8").splitlines():
                 if line.lstrip("# ").startswith("Copyright (C) 2026"):
                     self.assertIn(AUTHOR, line, path.relative_to(ROOT))
                     self.assertNotIn("@", line, path.relative_to(ROOT))
 
-    def test_hinweise_im_image(self):
-        """NOTICE und THIRD-PARTY-NOTICES.md kommen mit ins Image (COPY . . - nicht ausgeschlossen)."""
+    def test_notices_in_image(self):
+        """NOTICE and THIRD-PARTY-NOTICES.md are included in the image (COPY . . - not excluded)."""
         ignored = (ROOT / ".dockerignore").read_text(encoding="utf-8").split()
         for name in ("LICENSE", "NOTICE", "THIRD-PARTY-NOTICES.md"):
             self.assertNotIn(name, ignored)
             self.assertTrue((ROOT / name).exists(), name)
         self.assertIn("COPY . .", (ROOT / "Dockerfile").read_text(encoding="utf-8"))
 
-    def test_jede_python_abhaengigkeit_aufgefuehrt(self):
+    def test_every_python_dependency_listed(self):
         notices = norm((ROOT / "THIRD-PARTY-NOTICES.md").read_text(encoding="utf-8"))
         packages = re.findall(r"^([A-Za-z0-9_.-]+)==", (ROOT / "requirements.txt").read_text(encoding="utf-8"), re.M)
         self.assertGreater(len(packages), 10)
         for name in packages:
             self.assertRegex(notices, rf"(?<![a-z0-9-]){re.escape(norm(name))}(?![a-z0-9-])", name)
 
-    def test_schriften_und_icons_mit_lizenztext(self):
+    def test_fonts_and_icons_with_license_text(self):
         notices = (ROOT / "THIRD-PARTY-NOTICES.md").read_text(encoding="utf-8")
         docker = (ROOT / "Dockerfile").read_text(encoding="utf-8")
         deps = json.loads((ROOT / "package.json").read_text(encoding="utf-8"))["dependencies"]
@@ -83,19 +83,19 @@ class LicenseTests(unittest.TestCase):
             "@fortawesome/fontawesome-free": "LICENSE-Font-Awesome.txt",
             "tailwindcss": "LICENSE-Tailwind-CSS.txt",
         }
-        self.assertEqual(sorted(deps), sorted(files))  # neue Pakete brauchen einen Eintrag
+        self.assertEqual(sorted(deps), sorted(files))  # new packages need an entry
         for package, target in files.items():
             self.assertIn(package, notices)
             self.assertIn(f"`{target}`", notices)
             copy = rf"cp node_modules/{re.escape(package)}/LICENSE(\.txt)? dist/vendor/licenses/{target}"
             self.assertRegex(docker, copy)
         static = Path("/app/static/vendor")
-        if static.is_dir():  # nur bei den Tests im Image
+        if static.is_dir():  # only when testing inside the image
             for target in files.values():
                 self.assertGreater((static / "licenses" / target).stat().st_size, 500, target)
 
-    def test_skripte_laufen_noch(self):
-        """Die Kopfzeile steht nach der Shebang-Zeile, die Skripte bleiben gueltig."""
+    def test_scripts_still_run(self):
+        """The header comes after the shebang line, the scripts stay valid."""
         for name in ("update.sh", "docker-entrypoint.sh", "scripts/install-trivy.sh"):
             text = (ROOT / name).read_text(encoding="utf-8")
             self.assertTrue(text.startswith("#!/bin/sh\n"), name)

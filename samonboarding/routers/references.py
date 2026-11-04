@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 # Copyright (C) 2026 Die SAMONBOARDING-Autoren
-"""Pruefung der Verweise auf OUs und Gruppen in den Einstellungen (nach Umbenennen/Verschieben im AD).
-Nur Administratoren - siehe samonboarding/references.py."""
+"""Check of the references to OUs and groups in the settings (after renaming/moving in AD).
+Administrators only - see samonboarding/references.py."""
 
 from fastapi import APIRouter, Depends
 

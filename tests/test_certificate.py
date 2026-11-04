@@ -1,4 +1,4 @@
-"""Eigenes HTTPS-Zertifikat: Formate (PFX, PEM, DER, verschluesselt), Pruefungen, Speichern, Austausch, API."""
+"""Custom HTTPS certificate: formats (PFX, PEM, DER, encrypted), checks, storage, replacement, API."""
 
 import base64
 import datetime
@@ -14,7 +14,7 @@ import _paths
 
 try:
     import fastapi  # noqa: F401
-except ImportError:  # ohne installierte Pakete: Ersatzmodule der Szenarien verwenden
+except ImportError:  # without installed packages: use the scenario stub modules
     sys.path.insert(0, os.path.join(_paths.TESTS, "scenarios", "stubs"))
 
 from fastapi import HTTPException  # noqa: E402
@@ -42,7 +42,7 @@ def _name(cn):
 
 
 def make_pki(days=365, san=True, start=-1):
-    """Firmen-CA -> Zwischen-CA -> Server-Zertifikat (wie bei einer Windows-PKI)."""
+    """Company CA -> intermediate CA -> server certificate (as in a Windows PKI)."""
     root_key = rsa.generate_private_key(public_exponent=65537, key_size=2048)
     root = (
         x509.CertificateBuilder()
@@ -99,32 +99,32 @@ class ParseTests(unittest.TestCase):
     def setUpClass(cls):
         cls.key, cls.leaf, cls.sub, cls.root = make_pki()
 
-    def test_pfx_mit_passwort_und_kette(self):
+    def test_pfx_with_password_and_chain(self):
         pfx = pkcs12.serialize_key_and_certificates(
             b"web", self.key, self.leaf, [self.root, self.sub], serialization.BestAvailableEncryption(b"Geheim1")
         )
         priv, leaf, chain, warnings = tls.parse_upload(pfx=pfx, password="Geheim1")
         self.assertEqual(leaf, self.leaf)
-        self.assertEqual(chain, [self.sub])  # richtige Reihenfolge, Wurzel weggelassen
+        self.assertEqual(chain, [self.sub])  # correct order, root omitted
         self.assertEqual(warnings, [])
         with self.assertRaisesRegex(tls.CertError, "Passwort richtig"):
             tls.parse_upload(pfx=pfx, password="falsch")
 
-    def test_pfx_ohne_schluessel(self):
+    def test_pfx_without_key(self):
         pfx = pkcs12.serialize_key_and_certificates(b"x", None, None, [self.leaf], serialization.NoEncryption())
         with self.assertRaisesRegex(tls.CertError, "keinen privaten Schlüssel"):
             tls.parse_upload(pfx=pfx)
 
-    def test_pem_paar_mit_kette_in_der_zertifikatsdatei(self):
+    def test_pem_pair_with_chain_in_the_certificate_file(self):
         _, leaf, chain, _ = tls.parse_upload(cert=pem(self.leaf, self.sub), key=key_pem(self.key))
         self.assertEqual((leaf, chain), (self.leaf, [self.sub]))
 
-    def test_der_zertifikat_und_extra_kette(self):
+    def test_der_certificate_and_extra_chain(self):
         der = self.leaf.public_bytes(serialization.Encoding.DER)
         _, leaf, chain, _ = tls.parse_upload(cert=der, key=key_pem(self.key), chain=pem(self.sub, self.root))
         self.assertEqual((leaf, chain), (self.leaf, [self.sub]))
 
-    def test_verschluesselter_schluessel(self):
+    def test_encrypted_key(self):
         enc = key_pem(self.key, "KeyPw1")
         with self.assertRaisesRegex(tls.CertError, "mit einem Passwort geschützt"):
             tls.parse_upload(cert=pem(self.leaf), key=enc)
@@ -132,10 +132,10 @@ class ParseTests(unittest.TestCase):
             tls.parse_upload(cert=pem(self.leaf), key=enc, password="falsch")
         self.assertEqual(tls.parse_upload(cert=pem(self.leaf), key=enc, password="KeyPw1")[1], self.leaf)
 
-    def test_schluessel_in_derselben_datei(self):
+    def test_key_in_the_same_file(self):
         self.assertEqual(tls.parse_upload(cert=pem(self.leaf) + key_pem(self.key))[1], self.leaf)
 
-    def test_falscher_schluessel_und_fehlende_teile(self):
+    def test_wrong_key_and_missing_parts(self):
         other = ec.generate_private_key(ec.SECP256R1())
         with self.assertRaisesRegex(tls.CertError, "gehören nicht zusammen"):
             tls.parse_upload(cert=pem(self.leaf), key=key_pem(other))
@@ -146,7 +146,7 @@ class ParseTests(unittest.TestCase):
         with self.assertRaisesRegex(tls.CertError, "kein Zertifikat"):
             tls.parse_upload(cert=b"\x00\x01kaputt", key=key_pem(self.key))
 
-    def test_abgelaufen_bald_ablaufend_ohne_san(self):
+    def test_expired_expiring_soon_without_san(self):
         key, leaf, sub, _ = make_pki(days=-1, start=-30)
         with self.assertRaisesRegex(tls.CertError, "abgelaufen"):
             tls.parse_upload(cert=pem(leaf, sub), key=key_pem(key))
@@ -155,7 +155,7 @@ class ParseTests(unittest.TestCase):
         self.assertTrue(any("bald ab" in w for w in warnings))
         self.assertTrue(any("SAN" in w for w in warnings))
 
-    def test_kurzer_rsa_schluessel(self):
+    def test_short_rsa_key(self):
         small = rsa.generate_private_key(public_exponent=65537, key_size=1024)
         cert = (
             x509.CertificateBuilder()
@@ -170,7 +170,7 @@ class ParseTests(unittest.TestCase):
         with self.assertRaisesRegex(tls.CertError, "2048"):
             tls.parse_upload(cert=pem(cert), key=key_pem(small))
 
-    def test_zu_gross(self):
+    def test_too_large(self):
         with self.assertRaisesRegex(tls.CertError, "zu groß"):
             tls.parse_upload(pfx=b"x" * (tls.MAX_UPLOAD_BYTES + 1))
 
@@ -190,14 +190,14 @@ class InstallTests(unittest.TestCase):
         ]
         for p in self.patches:
             p.start()
-        tls.ensure_certificate()  # selbstsigniert zum Start
+        tls.ensure_certificate()  # self-signed at startup
 
     def tearDown(self):
         for p in reversed(self.patches):
             p.stop()
         self.tmp.cleanup()
 
-    def test_installieren_sichert_altes_und_tauscht_im_betrieb(self):
+    def test_install_backs_up_old_and_swaps_while_running(self):
         base = tls.make_context(self.cert, self.key_file)
         tls.activate(base)
         self.assertEqual(os.environ["SAMONBOARDING_TLS_SELF_SIGNED"], "1")
@@ -211,21 +211,21 @@ class InstallTests(unittest.TestCase):
             (info["subject"], info["issuer"], info["chainLength"]), ("samonboarding.firma.local", "Firma Issuing CA", 1)
         )
         self.assertFalse(info["selfSigned"])
-        self.assertEqual(os.environ["SAMONBOARDING_TLS_SELF_SIGNED"], "0")  # jetzt mit HSTS
+        self.assertEqual(os.environ["SAMONBOARDING_TLS_SELF_SIGNED"], "0")  # now with HSTS
         new_ctx = tls._active["ctx"]
         self.assertIsNot(new_ctx, base)
-        # SNI-Callback stellt neue Verbindungen auf das neue Zertifikat um
+        # SNI callback switches new connections to the new certificate
         obj = mock.MagicMock()
         tls._sni_callback(obj, None, base)
         self.assertIs(obj.context, new_ctx)
         self.assertEqual(new_ctx.minimum_version, ssl.TLSVersion.TLSv1_2)
 
-    def test_ohne_laufenden_server_heisst_neustart(self):
+    def test_without_running_server_means_restart(self):
         key, leaf, sub, _ = make_pki()
         self.assertFalse(tls.install(key, leaf, [sub]))
         self.assertEqual(tls.current_info()["subject"], "samonboarding.firma.local")
 
-    def test_zurueck_zu_selbstsigniert(self):
+    def test_back_to_self_signed(self):
         names, live = tls.install_self_signed(["neu.firma.local", "10.0.10.20", "neu.firma.local"])
         self.assertEqual(names, ["neu.firma.local", "10.0.10.20"])
         info = tls.current_info()
@@ -234,12 +234,12 @@ class InstallTests(unittest.TestCase):
         for bad in (["mit leerzeichen"], ["ümlaut.local"], ["a" * 64 + ".local"], ["-x.local"]):
             with self.assertRaises(tls.CertError):
                 tls.install_self_signed(bad)
-            # das bisherige Zertifikat bleibt in Betrieb
+            # the previous certificate stays in service
             self.assertEqual(tls.current_info()["names"], ["neu.firma.local", "10.0.10.20"])
         names, _ = tls.install_self_signed(["*.firma.local"])
         self.assertEqual(names, ["*.firma.local"])
 
-    def test_ablauf_warnung(self):
+    def test_expiry_warning(self):
         with self.assertLogs("samonboarding.tls", "WARNING") as logs:
             key, leaf, sub, _ = make_pki(days=5)
             tls.install(key, leaf, [sub])
@@ -270,7 +270,7 @@ class ApiTests(unittest.TestCase):
             p.stop()
         self.tmp.cleanup()
 
-    def test_nur_admins(self):
+    def test_admins_only(self):
         from samonboarding.models import CertSelfSignedModel, CertUploadModel
 
         for fn in (
@@ -282,7 +282,7 @@ class ApiTests(unittest.TestCase):
                 fn()
             self.assertEqual(ctx.exception.status_code, 403)
 
-    def test_hochladen_und_fehler(self):
+    def test_upload_and_errors(self):
         from samonboarding import reports
         from samonboarding.models import CertUploadModel
 
@@ -299,7 +299,7 @@ class ApiTests(unittest.TestCase):
             with self.assertRaises(HTTPException) as ctx:
                 self.api.tls_upload(bad, ADMIN)
             self.assertEqual(ctx.exception.status_code, 400)
-        self.assertFalse(reports.query_audit()[0][0]["ok"])  # Fehlversuch steht in den Berichten
+        self.assertFalse(reports.query_audit()[0][0]["ok"])  # failed attempt shows up in the reports
 
 
 if __name__ == "__main__":

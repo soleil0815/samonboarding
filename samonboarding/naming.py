@@ -1,15 +1,15 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 # Copyright (C) 2026 Die SAMONBOARDING-Autoren
-"""Passwoerter, Namensschemata (Makros), Laendercodes und Laufwerksbuchstaben."""
+"""Passwords, naming schemes (macros), country codes and drive letters."""
 
 import re
 import secrets
 import string
 import unicodedata
 
-# Zeichen, die man beim Abtippen oder Vorlesen leicht verwechselt (0/O/o, 1/l/I), kommen nicht vor
+# Characters that are easily confused when typing or reading aloud (0/O/o, 1/l/I) are excluded
 AMBIGUOUS_CHARS = "0Oo1lI"
-PASSWORD_SPECIALS = "!@#$%&*"  # noqa: S105 - erlaubte Sonderzeichen, kein Passwort
+PASSWORD_SPECIALS = "!@#$%&*"  # noqa: S105 - allowed special characters, not a password
 
 
 def generate_secure_password(length=12):
@@ -26,7 +26,7 @@ def generate_secure_password(length=12):
 
 
 def normalize_home_drive(value):
-    """'h', 'H' oder 'h:' -> 'H:'. Leer bleibt leer, alles andere wirft ValueError."""
+    """'h', 'H' or 'h:' -> 'H:'. Empty stays empty, anything else raises ValueError."""
     text = str(value or "").strip()
     if not text:
         return ""
@@ -45,7 +45,7 @@ def remove_umlauts(text):
         .replace("Ö", "OE")
         .replace("Ü", "UE")
         .replace("ß", "SS")
-        # Buchstaben, die keine Grundform mit Akzent haben (NFKD zerlegt sie nicht): Ø, Æ, Œ, Ł, Đ, Þ
+        # Letters without an accented base form (NFKD does not decompose them): Ø, Æ, Œ, Ł, Đ, Þ
         .replace("Ø", "OE")
         .replace("Æ", "AE")
         .replace("Œ", "OE")
@@ -55,7 +55,7 @@ def remove_umlauts(text):
         .replace("-", "")
         .replace(" ", "")
     )
-    # Uebrige Akzente (é, ñ, ...) entfernen, damit der sAMAccountName ASCII bleibt.
+    # Remove remaining accents (é, ñ, ...) so that the sAMAccountName stays ASCII.
     decomposed = unicodedata.normalize("NFKD", text)
     return "".join(c for c in decomposed if not unicodedata.combining(c))
 
@@ -79,7 +79,7 @@ _MAIL_RE = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
 
 
 def valid_person_name(value):
-    """Vor-/Nachname: hoechstens 64 Zeichen (AD-Grenze), keine Steuerzeichen (z. B. Zeilenumbrueche)."""
+    """First/last name: at most 64 characters (AD limit), no control characters (e.g. line breaks)."""
     return bool(value) and len(value) <= 64 and not _CONTROL_RE.search(value)
 
 
@@ -88,8 +88,8 @@ def valid_mail(value):
 
 
 def sanitize_sam(value):
-    """sAMAccountName: nur A-Z, 0-9, '.', '_', '-', maximal 20 Zeichen."""
-    # Erst kuerzen, dann Punkte am Rand entfernen - ein Punkt am Ende lehnt das AD ab
+    """sAMAccountName: only A-Z, 0-9, '.', '_', '-', at most 20 characters."""
+    # Truncate first, then strip leading/trailing dots - AD rejects a trailing dot
     return re.sub(r"[^A-Z0-9._-]", "", value.upper()).strip(".")[:20].rstrip(".")
 
 

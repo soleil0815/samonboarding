@@ -8,9 +8,9 @@
     __ASSET_HEAD__
     <style>
         /* ------------------------------------------------------------------
-           Gestaltung (ergänzt Tailwind; Farben aus theme.json, Schrift Manrope)
-           Grundidee: der Lebenszyklus eines Kontos (Eintritt, Pflege, Austritt,
-           Löschung) als roter Faden in Anmeldung und Navigation.
+           Styling (extends Tailwind; colors from theme.json, font Manrope)
+           Core idea: the life cycle of an account (joining, maintenance, leaving,
+           deletion) as the common thread through login and navigation.
            ------------------------------------------------------------------ */
         :root {
             --ink-950: #0e1220; --ink-925: #121729; --ink-900: #181e30; --ink-800: #252c42; --ink-700: #353d56;
@@ -35,7 +35,7 @@
         }
         input::placeholder, textarea::placeholder { color: var(--ink-500); }
 
-        /* Bausteine */
+        /* Building blocks */
         .card {
             background: linear-gradient(180deg, rgba(31, 38, 59, .78), rgba(24, 30, 48, .78));
             border: 1px solid rgba(53, 61, 86, .75);
@@ -83,7 +83,7 @@
         .brand-sprite { position: absolute; width: 0; height: 0; overflow: hidden; }
         .brand-word { font-weight: 800; letter-spacing: .04em; font-size: 13px; color: #fff; white-space: nowrap; }
 
-        /* Anmeldung */
+        /* Login */
         .login-screen:not(.hidden) {
             position: fixed; inset: 0; z-index: 50; overflow-y: auto; display: flex; align-items: center; justify-content: center; padding: 40px 20px;
             background:
@@ -169,7 +169,7 @@
             .login-lifecycle { margin-top: 32px; }
         }
 
-        /* App-Rahmen: Seitenleiste + Inhalt */
+        /* App frame: sidebar + content */
         .app-shell:not(.hidden) { display: grid; grid-template-columns: 280px minmax(0, 1fr); flex: 1; min-height: 0; height: 100%; }
         .sidebar { display: flex; flex-direction: column; min-height: 0; background: var(--ink-925); border-right: 1px solid var(--ink-800); }
         .sidebar-brand { display: flex; align-items: center; gap: 12px; padding: 20px 18px 14px; }
@@ -236,7 +236,7 @@
             .info-strip .text-right { text-align: left; }
         }
 
-        /* Sprachumschalter */
+        /* Language switcher */
         .lang-switch { display: inline-flex; flex: none; padding: 2px; border-radius: 9px; background: rgba(14, 18, 32, .7); border: 1px solid var(--ink-800); }
         .lang-btn { font-size: 11px; font-weight: 700; letter-spacing: .02em; padding: 3px 7px; border-radius: 7px; color: var(--ink-400); }
         .lang-btn:hover { color: #fff; }
@@ -244,7 +244,7 @@
         .login-lang { position: fixed; top: 16px; right: 16px; z-index: 2; }
         .sidebar-lang { display: flex; align-items: center; justify-content: space-between; padding: 10px 16px; border-top: 1px solid var(--ink-800); font-size: 12px; font-weight: 600; color: var(--ink-500); }
 
-        /* Dialoge: kurze Einblendung, damit sichtbar ist, was sich geöffnet hat */
+        /* Dialogs: short fade-in so it is visible what has opened */
         .modal-backdrop:not(.hidden) {
             position: fixed; inset: 0; z-index: 50; display: flex; align-items: center; justify-content: center; padding: 16px;
             background: rgba(8, 10, 20, .68); backdrop-filter: blur(6px); transition: opacity .18s ease;
@@ -255,7 +255,7 @@
             .modal-backdrop:not(.hidden) .modal-panel { opacity: 0; transform: translateY(12px) scale(.985); }
         }
 
-        /* Meldungen (ersetzen die Browser-Hinweisfenster) */
+        /* Messages (replace the browser alert windows) */
         .toast-stack { position: fixed; right: 20px; bottom: 20px; z-index: 90; display: flex; flex-direction: column; gap: 10px; width: min(440px, calc(100vw - 32px)); pointer-events: none; }
         .toast {
             pointer-events: auto; display: flex; gap: 12px; align-items: flex-start; padding: 14px 10px 14px 16px; border-radius: 14px;
@@ -277,7 +277,7 @@
     </style>
 </head>
 <body class="h-full bg-slate-950 text-slate-100 flex flex-col font-sans antialiased selection:bg-cyan-500 selection:text-white">
-    <!-- Logo: zwei Personen (Benutzerverwaltung), eigene Zeichnung. Nicht display:none, sonst greift die Maske nicht -->
+    <!-- Logo: two people (user management), own drawing. Not display:none, otherwise the mask does not apply -->
     <svg class="brand-sprite" aria-hidden="true" focusable="false"><defs><mask id="brand-team-cut" maskUnits="userSpaceOnUse" x="0" y="0" width="24" height="24"><rect width="24" height="24" fill="#fff"/><circle cx="9.3" cy="8.2" r="4.9" fill="#000"/><path d="M1.2 21.5c0-4.9 3.6-8.6 8.1-8.6s8.1 3.7 8.1 8.6z" fill="#000"/></mask><symbol id="brand-team" viewBox="0 0 24 24"><g mask="url(#brand-team-cut)" fill="#fff" fill-opacity=".6"><circle cx="16.2" cy="7.2" r="3.1"/><path d="M11.4 18.6c0-3.4 2.1-5.8 4.8-5.8s4.8 2.4 4.8 5.8v.5h-9.6z"/></g><g fill="#fff"><circle cx="9.3" cy="8.2" r="3.5"/><path d="M2.6 20c0-3.9 3-6.6 6.7-6.6s6.7 2.7 6.7 6.6v.6H2.6z"/></g></symbol></defs></svg>
     
     <div id="toast-stack" class="toast-stack" role="status" aria-live="polite"></div>
@@ -1338,9 +1338,9 @@
         let globalAllowedTargetOus = [];
 
         // ---------------------------------------------------------------
-        // Sprache (Deutsch/Englisch). Die Oberflaeche ist auf Deutsch geschrieben; fuer Englisch uebersetzt
-        // tr() jeden angezeigten Text ueber i18n.json (exakte Texte und Muster mit Platzhaltern {0}, {1} ...).
-        // AD-Daten (Namen, OUs, Gruppen) stehen in Elementen mit translate="no" und bleiben unveraendert.
+        // Language (German/English). The UI is written in German; for English, tr() translates every
+        // displayed text via i18n.json (exact texts and patterns with placeholders {0}, {1} ...).
+        // AD data (names, OUs, groups) sits in elements with translate="no" and stays unchanged.
         // ---------------------------------------------------------------
         const I18N = (() => {
             try { return JSON.parse(document.getElementById('i18n-data').textContent); } catch(e) { return {exact: {}, patterns: []}; }
@@ -1369,7 +1369,7 @@
             return trFallback(text, depth);
         }
 
-        // Zusammengesetzte Zeilen: '- Punkt', 'A · B', 'Name: Meldung' (der linke Teil bleibt, wenn unbekannt)
+        // Composite lines: '- item', 'A · B', 'Name: message' (the left part stays if unknown)
         function trFallback(text, depth) {
             if (text.startsWith('- ')) {
                 const rest = trCore(text.slice(2), depth + 1);
@@ -1398,7 +1398,7 @@
             return out === null ? str : m[1] + out + m[3];
         }
 
-        // Text eines DOM-Knotens: Zeilenumbrueche im Quelltext zaehlen als Leerzeichen
+        // Text of a DOM node: line breaks in the source count as spaces
         function trText(text) {
             if (uiLang !== 'en' || !text || !/[A-Za-zÄÖÜäöüß]/.test(text)) return text;
             const m = /^(\s*)([\s\S]*?)(\s*)$/.exec(text);
@@ -1501,7 +1501,7 @@
                 const o = Object.assign({}, opts || {});
                 o.headers = Object.assign({}, o.headers || {}, {'X-UI-Lang': uiLang});
                 const p = nativeFetch(url, o);
-                // Sitzung abgelaufen (30 Minuten ohne Aktivitaet, Neustart): zurueck zur Anmeldung
+                // Session expired (30 minutes without activity, restart): back to the login
                 if (p && p.then && typeof url === 'string' && url.startsWith('/api/') && url !== '/api/login') {
                     p.then(res => { if (res && res.status === 401 && appVisible()) sessionEnded(); }, () => {});
                 }
@@ -1512,7 +1512,7 @@
         }
 
         // ---------------------------------------------------------------
-        // Oberflaeche: mobile Seitenleiste, Meldungen, Benutzer-Kuerzel
+        // UI: mobile sidebar, messages, user initials
         // ---------------------------------------------------------------
         function toggleSidebar(open) {
             const bar = document.getElementById('app-sidebar');
@@ -1552,7 +1552,7 @@
             const remove = () => { el.classList.add('is-leaving'); setTimeout(() => el.remove(), 220); };
             close.onclick = remove;
             stack.appendChild(el);
-            // Lange Meldungen und Fehler bleiben stehen, bis sie geschlossen werden
+            // Long messages and errors stay until they are closed
             const sticky = kind === 'error' || kind === 'warn' || text.length > 180 || text.includes('\n\n');
             if(!sticky) setTimeout(remove, 4500 + Math.min(text.length * 30, 4000));
             while(stack.children.length > 4) stack.removeChild(stack.firstChild);
@@ -1610,7 +1610,7 @@
             if(navReports) navReports.style.display = role === "Administrator" ? '' : 'none';
             const navCert = document.getElementById('nav-cert');
             if(navCert) navCert.style.display = role === "Administrator" ? '' : 'none';
-            // SMTP-Einstellungen liest nur ein Administrator (der Server verweigert sie Operatoren)
+            // Only an administrator reads the SMTP settings (the server refuses them to operators)
             const navSmtp = document.getElementById('nav-smtp');
             if(navSmtp) navSmtp.style.display = role === "Administrator" ? '' : 'none';
 
@@ -1638,18 +1638,18 @@
             }
         }
 
-        // Geladen wird nur, was der geoeffnete Bereich braucht. Einstellungen kommen aus kleinen lokalen Dateien
-        // (schnell), die Kontolisten vom DC - die liest der Server je Sitzung bis zu 60 Sekunden aus dem
-        // Zwischenspeicher. force=true ("Aktualisieren", "Neu einlesen") liest immer frisch vom DC.
+        // Only what the opened section needs is loaded. Settings come from small local files (fast),
+        // the account lists from the DC - the server reads those from its cache for up to 60 seconds
+        // per session. force=true ("Aktualisieren", "Neu einlesen") always reads fresh from the DC.
         let currentTab = 'hire';
-        // Schutz vor doppeltem Absenden (Doppelklick, Enter + Klick): dieselbe Aktion laeuft nie zweimal gleichzeitig
+        // Protection against double submission (double click, Enter + click): the same action never runs twice at once
         const busyActions = new Set();
         async function guarded(key, fn) {
             if(busyActions.has(key)) return;
             busyActions.add(key);
             try { return await fn(); } finally { busyActions.delete(key); }
         }
-        // Ein Fehler beim Laden eines Bereichs darf die anderen nicht verhindern
+        // An error while loading one section must not prevent the others
         async function safeLoad(fn, ...args) {
             try { await fn(...args); } catch(e) { console.warn('Laden fehlgeschlagen:', e); }
         }
@@ -1676,7 +1676,7 @@
             await safeLoad(loadHostNotices);
         }
 
-        // Hinweise zum Betrieb (nur Administratoren), z. B. eine veraltete docker-compose.yml auf dem Server
+        // Operational notes (administrators only), e.g. an outdated docker-compose.yml on the server
         async function loadHostNotices() {
             const box = document.getElementById('host-notice');
             if(!box) return;
@@ -1695,8 +1695,8 @@
             box.classList.remove('hidden');
         }
 
-        // Einstellungen verweisen auf OUs/Gruppen per DN. Wurde eine davon im AD umbenannt, verschoben oder
-        // geloescht, zeigt das Programm hier einen Hinweis (nur Administratoren, Pruefung ueber die objectGUID).
+        // Settings refer to OUs/groups by DN. If one of them was renamed, moved or deleted in AD,
+        // the program shows a note here (administrators only, checked via the objectGUID).
         const REF_KINDS = {moved: 'umbenannt oder verschoben', replaced: 'gelöscht und neu angelegt (anderes Objekt)', missing: 'nicht mehr vorhanden'};
         async function loadReferenceCheck(force) {
             const box = document.getElementById('ref-warning');
@@ -1716,7 +1716,7 @@
                     + '<ul class="text-xs text-amber-300/80 ml-4 list-disc">' + (p.where || []).map(w => '<li><span>' + esc(w.label) + '</span>' + (w.template ? ' <span translate="no">„' + esc(w.template) + '“</span>' : '') + '</li>').join('') + '</ul></li>').join('') + '</ul>'
                 + (fixable ? '<button onclick="repairReferences()" class="px-3 py-1.5 bg-amber-500/20 border border-amber-500/50 rounded-lg text-xs font-medium hover:bg-amber-500/30">Neue Namen übernehmen</button> ' : '')
                 + (problems.some(p => p.kind === 'missing') ? '<span class="text-xs text-amber-300/80">Nicht mehr vorhandene Objekte bitte in den Einstellungen bzw. im Template von Hand ersetzen.</span>' : '');
-            if(box.dataset.html !== html) { box.dataset.html = html; box.innerHTML = html; }  // sonst liest der Screenreader bei jedem Wechsel neu vor
+            if(box.dataset.html !== html) { box.dataset.html = html; box.innerHTML = html; }  // otherwise the screen reader reads it out again on every change
             box.classList.remove('hidden');
         }
         let repairBusy = false;
@@ -1765,7 +1765,7 @@
         }
 
         // ---------------------------------------------------------------
-        // Sitzung: Abmeldung nach Inaktivitaet (Server prueft zusaetzlich selbst)
+        // Session: logout after inactivity (the server also checks on its own)
         // ---------------------------------------------------------------
         let idleLimitMs = 30 * 60000;
         let lastActivity = Date.now();
@@ -1778,8 +1778,8 @@
             return !!app && !app.classList.contains('hidden');
         }
 
-        // Mehrere Tabs teilen sich eine Sitzung: Aktivitaet in einem Tab zaehlt fuer alle (sonst meldet ein
-        // vergessener Tab nach 30 Minuten auch den Tab ab, in dem gerade gearbeitet wird)
+        // Several tabs share one session: activity in one tab counts for all (otherwise a forgotten tab
+        // would, after 30 minutes, also log out the tab that is currently in use)
         const ACTIVITY_KEY = 'samonboarding.activity';
         let lastShared = 0;
         function sharedActivity() {
@@ -1792,7 +1792,7 @@
                 lastShared = lastActivity;
                 try { localStorage.setItem(ACTIVITY_KEY, String(lastActivity)); } catch(e) {}
             }
-            // Wer aktiv ist (z. B. ein langes Formular ausfuellt), bleibt auch auf dem Server angemeldet
+            // Whoever is active (e.g. filling in a long form) also stays logged in on the server
             if (appVisible() && lastActivity - lastKeepAlive > 5 * 60000) {
                 lastKeepAlive = lastActivity;
                 fetch('/api/me').catch(() => {});
@@ -1813,7 +1813,7 @@
             if (sessionEnding) return;
             sessionEnding = true;
             if (idle) { try { await fetch('/api/logout', {method: 'POST'}); } catch(e) {} }
-            // Nur bei Inaktivitaet die Minuten nennen; sonst (Hoechstdauer, Abmeldung in einem anderen Tab) allgemein
+            // Name the minutes only for inactivity; otherwise (maximum duration, logout in another tab) a general message
             try { sessionStorage.setItem('samonboarding.ended', idle ? String(Math.round(idleLimitMs / 60000)) : '0'); } catch(e) {}
             location.reload();
         }
@@ -1990,7 +1990,7 @@
             else box.textContent = 'Automatische Erkennung nicht möglich (fehlende Rechte). Bitte selbst entscheiden.';
         }
 
-        // OU-Liste anzeigen: DNs sind Daten (nicht uebersetzen), der Hinweis ohne OUs schon
+        // Show the OU list: DNs are data (do not translate), the note shown without OUs is translated
         function setOuSummary(el, dns) {
             if(!el) return;
             el.setAttribute('translate', dns.length ? 'no' : 'yes');
@@ -2200,7 +2200,7 @@
 
         let groupsRequest = 0;
         async function openUserGroupsModal(dn, sam) {
-            const mine = ++groupsRequest;  // nur die zuletzt angeklickte Person zaehlt (langsame Antworten verwerfen)
+            const mine = ++groupsRequest;  // only the most recently clicked person counts (discard slow responses)
             const res = await fetch(`/api/usermgmt/user-groups?userDn=${encodeURIComponent(dn)}`);
             if(mine !== groupsRequest) return;
             document.getElementById('groups-user-dn').value = dn;
@@ -2344,7 +2344,7 @@
         }
 
         // ---------------------------------------------------------------
-        // Offboarding rueckgaengig machen
+        // Undo offboarding
         // ---------------------------------------------------------------
         let offRecords = [];
         let restorePlan = null;
@@ -2443,15 +2443,15 @@
         }
 
         // ---------------------------------------------------------------
-        // Neuigkeiten: Changelog der installierten Version (kommt vom eigenen Server, nicht aus dem Internet).
-        // Ein kleiner Punkt am Menueeintrag, wenn seit dem letzten Lesen eine neue Version installiert wurde
-        // (orange bei Sicherheitsupdates). Der gelesene Stand liegt nur im Browser.
+        // News: changelog of the installed version (comes from our own server, not from the internet).
+        // A small dot on the menu entry if a new version was installed since it was last read
+        // (orange for security updates). The read state is stored only in the browser.
         // ---------------------------------------------------------------
         const NEWS_KEY = 'samonboarding.newsSeen';
         let newsData = null, newsLang = null, newsUnread = new Set();
         function newsSeen() { try { return localStorage.getItem(NEWS_KEY) || ''; } catch(e) { return ''; } }
         function setNewsSeen(v) { try { localStorage.setItem(NEWS_KEY, v); } catch(e) {} }
-        function versionParts(v) {  // '1.48.0-s2' -> [1, 48, 0, 2]: Sicherheitsupdate = gleiches Programm, neue Pakete
+        function versionParts(v) {  // '1.48.0-s2' -> [1, 48, 0, 2]: security update = same program, new packages
             const [base, s] = String(v || '').split('-s');
             const p = base.split('.').map(n => parseInt(n, 10) || 0);
             return [p[0] || 0, p[1] || 0, p[2] || 0, parseInt(s, 10) || 0];
@@ -2476,7 +2476,7 @@
             const data = await loadNews();
             if(!dot || !data) return;
             const seen = newsSeen();
-            if(!seen) { setNewsSeen(data.version); return; }  // erste Nutzung: kein Hinweis auf alte Versionen
+            if(!seen) { setNewsSeen(data.version); return; }  // first use: no note about old versions
             const unread = (data.entries || []).filter(e => versionNewer(e.version, seen));
             newsUnread = new Set(unread.map(e => e.version));
             dot.classList.toggle('hidden', unread.length === 0);
@@ -2806,8 +2806,8 @@
         async function performLogout() { try { await fetch('/api/logout', {method: 'POST'}); } catch(e) {} finally { location.reload(); } }
         
         // ---------------------------------------------------------------
-        // Handbuch (Hilfe): Markdown vom Server, sicher dargestellt (alles wird escaped,
-        // nur ein kleiner Teil von Markdown wird unterstuetzt, Links nur intern oder https)
+        // Manual (help): Markdown from the server, rendered safely (everything is escaped,
+        // only a small subset of Markdown is supported, links only internal or https)
         // ---------------------------------------------------------------
         const manualCache = {};
         let manualLang = null;
@@ -2821,7 +2821,7 @@
         }
 
         function manualInline(text) {
-            // Platzhalter fuer Code und Links, damit Fett/Kursiv nie in Adressen oder Code eingreifen
+            // Placeholders for code and links so that bold/italic never touch addresses or code
             const parts = [];
             const hold = html => { parts.push(html); return '\u0000' + (parts.length - 1) + '\u0000'; };
             let out = esc(String(text).replace(/\u0000/g, ''));
@@ -2834,7 +2834,7 @@
                 return inner;
             });
             out = manualEmphasis(out);
-            // Platzhalter koennen in Link-Texten verschachtelt sein (Code im Link) - bis nichts mehr zu ersetzen ist
+            // Placeholders can be nested in link texts (code in a link) - repeat until nothing is left to replace
             for (let i = 0; i < 3 && out.includes('\u0000'); i++) out = out.replace(/\u0000(\d+)\u0000/g, (_, n) => parts[Number(n)]);
             return out;
         }
@@ -2890,7 +2890,7 @@
                     continue;
                 }
                 if (listRe.test(line)) {
-                    // Liste mit einer Ebene Verschachtelung (eingerueckte Punkte)
+                    // List with one level of nesting (indented items)
                     const items = [];
                     let ordered = /\d/.test(listRe.exec(line)[2]);
                     while (i < lines.length && (listRe.test(lines[i]) || /^\s{2,}\S/.test(lines[i]))) {
@@ -2911,7 +2911,7 @@
                 if (buf.length) out.push(`<p>${manualInline(buf.join(' '))}</p>`);
                 else i++;
             }
-            // Abschnitte je H2 (fuer die Suche)
+            // Sections per H2 (for the search)
             const html = out.join('\n');
             const parts = html.split(/(?=<h2 )/);
             return parts.map((p, k) => k === 0 ? `<section data-intro="1">${p}</section>` : `<section>${p}</section>`).join('\n');
@@ -2986,7 +2986,7 @@
         }
 
         // ---------------------------------------------------------------
-        // Berichte (nur Administratoren): Aenderungen und Protokoll
+        // Reports (administrators only): changes and log
         // ---------------------------------------------------------------
         let reportKind = 'audit';
         let reportRows = [];
@@ -3097,7 +3097,7 @@
         }
 
         // ---------------------------------------------------------------
-        // HTTPS-Zertifikat (nur Administratoren)
+        // HTTPS certificate (administrators only)
         // ---------------------------------------------------------------
         let certMode = 'pfx';
 
@@ -3246,7 +3246,7 @@
         }
 
         // ---------------------------------------------------------------
-        // Konten loeschen (nur Administratoren) - Konfiguration und Simulation
+        // Delete accounts (administrators only) - configuration and simulation
         // ---------------------------------------------------------------
         let cachedDeleteUsers = [];
         let delPlan = null;
@@ -3256,7 +3256,7 @@
             {kind: 'home', key: 'del-home', attr: true, suffixes: false}
         ];
 
-        // AD-Daten (Namen, DNs, Pfade) nie uebersetzen
+        // Never translate AD data (names, DNs, paths)
         function nt(value) {
             return `<span translate="no">${esc(value)}</span>`;
         }
@@ -3418,7 +3418,7 @@
         }
 
         async function simulateDeletion(userDn) {
-            if(delJobTimer) { clearTimeout(delJobTimer); delJobTimer = null; }  // Anzeige eines Sammellaufs nicht ueberschreiben lassen
+            if(delJobTimer) { clearTimeout(delJobTimer); delJobTimer = null; }  // do not let it overwrite the display of a batch run
             const box = document.getElementById('del-sim-result');
             box.innerHTML = '<div class="text-xs text-slate-400">Simulation läuft (kann bei großen Profilen etwas dauern)...</div>';
             const res = await fetch('/api/deletion/simulate', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ userDn }) });
@@ -3488,7 +3488,7 @@
 
 
         // ---------------------------------------------------------------
-        // Sammel-Löschen: mehrere Konten simulieren und nacheinander löschen
+        // Batch deletion: simulate several accounts and delete them one after another
         // ---------------------------------------------------------------
         function delBox() { return document.getElementById('del-sim-result'); }
         function delErr(msg) { return `<div class="p-4 rounded-xl border border-rose-500/30 bg-rose-500/5 text-xs text-rose-300">${esc(msg)}</div>`; }
@@ -3654,7 +3654,7 @@
                 return;
             }
             if(!res.ok && isPasswordError(res, data)) {
-                // Der Plan ist auf dem Server noch gültig: Formular zurückholen und neu eingeben lassen
+                // The plan is still valid on the server: bring the form back and let the user enter it again
                 box.innerHTML = savedHtml;
                 const sam = document.getElementById('del-confirm-sam');
                 if(sam) sam.value = typed;
@@ -3702,7 +3702,7 @@
         }
 
         // ---------------------------------------------------------------
-        // AD-Baum mit Haken (ersetzt die Mehrfachauswahl-Listen)
+        // AD tree with checkboxes (replaces the multi-select lists)
         // ---------------------------------------------------------------
         const AD_BS = String.fromCharCode(92);
         const AD_TREE_DEFS = {
@@ -4134,7 +4134,7 @@
             previewTemplateInfo();
         }
 
-        // Basisordner wie in RSAT: "Lokaler Pfad" oder "Verbinden von <Laufwerk>"
+        // Home folder as in RSAT: "Local path" or "Connect <drive> to"
         function fillHomeDriveOptions(extra) {
             const sel = document.getElementById('tpl-homedrive');
             const letters = [];
@@ -4376,7 +4376,7 @@
 
         function generatePDF() {
             const printWindow = window.open('', '_blank');
-            if (!printWindow) {  // Pop-up-Blocker: sonst bricht die Funktion ohne Hinweis ab
+            if (!printWindow) {  // Pop-up blocker: otherwise the function aborts without a message
                 alert(tr('Das Fenster zum Drucken wurde blockiert. Bitte Pop-ups für diese Seite erlauben.'));
                 return;
             }

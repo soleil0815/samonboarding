@@ -26,19 +26,19 @@ const base = {account:{name:'<b>A</b>', sam:'aalt', dn:'CN=a', groups:[]}, simul
   let h = els['del-sim-result'].innerHTML;
   console.assert(h.includes('del-confirm-sam') && h.includes('disabled') && h.includes('Endgültig löschen') && !h.includes('<b>A</b>'), 'Loeschbox sichtbar, escaped');
   console.assert(api.getPlan().planId === 'P1', 'Plan gemerkt');
-  // Button erst nach korrekter Eingabe aktiv
+  // Button active only after correct input
   els['del-confirm-sam'] = Object.assign(el('del-confirm-sam'), {value:'falsch'}); els['del-exec-btn'] = el('del-exec-btn');
   api.onDelConfirmInput(); console.assert(els['del-exec-btn'].disabled === true, 'gesperrt');
   els['del-confirm-pw'] = el('del-confirm-pw');
   els['del-confirm-sam'].value = ' AALT '; api.onDelConfirmInput(); console.assert(els['del-exec-btn'].disabled === true, 'ohne Passwort gesperrt');
   els['del-confirm-pw'].value = 'geheim'; api.onDelConfirmInput(); console.assert(els['del-exec-btn'].disabled === false, 'frei bei Treffer + Passwort');
-  // falsche Eingabe -> kein Request
+  // wrong input -> no request
   els['del-confirm-sam'].value = 'x'; calls.length = 0; await api.executeDeletion();
   console.assert(calls.length === 0 && alerts.length === 1, 'kein Request bei falscher Bestaetigung');
-  // Abbruch im Confirm-Dialog -> kein Request, Plan bleibt
+  // cancel in the confirm dialog -> no request, plan stays
   els['del-confirm-sam'].value = 'aalt'; confirmAnswer = false; await api.executeDeletion();
   console.assert(calls.length === 0 && confirms === 1 && api.getPlan(), 'Abbruch ohne Request');
-  // Erfolg
+  // Success
   confirmAnswer = true;
   execResp = {body:{status:'success', accountDeleted:true, message:'Konto aalt und 1 Ordner wurden gelöscht.', results:[{kind:'profile', label:'Profil', path:'\\\\fs\\p$\\aalt.V2', status:'deleted', files:2, dirs:1, links:1, takeovers:2, errors:[], errorCount:0}]}};
   await api.executeDeletion();
@@ -48,14 +48,14 @@ const base = {account:{name:'<b>A</b>', sam:'aalt', dn:'CN=a', groups:[]}, simul
   console.assert(h.includes('wurden gelöscht') && h.includes('Gelöscht') && api.getPlan() === null, 'Erfolgsanzeige, Plan verbraucht');
   console.assert(h.includes('1 Verknüpfung') && h.includes('Besitz übernommen: 2'), 'Links und Besitzuebernahme angezeigt');
   console.assert(calls.some(c => c[0] === '/api/deletion/users'), 'Liste neu geladen');
-  // Teilweise
+  // Partial
   simResp = Object.assign({}, base, {planId:'P2', planExpiresAt:null});
   await api.simulateDeletion('CN=a'); els['del-confirm-sam'].value = 'aalt';
   execResp = {body:{status:'partial', accountDeleted:false, message:'Nicht alle Ordner konnten gelöscht werden. Das AD-Konto wurde NICHT gelöscht.', results:[{kind:'profile', label:'Profil', path:'p', status:'failed', files:1, dirs:0, errors:['p\\\\x: <img src=x>', 'b'], errorCount:5}]}};
   await api.executeDeletion();
   h = els['del-sim-result'].innerHTML;
   console.assert(h.includes('NICHT gelöscht') && h.includes('Fehlgeschlagen') && h.includes('3 weitere') && !h.includes('<img') && h.includes('&lt;img'), 'Teilfehler-Anzeige');
-  // Server-Fehler
+  // Server error
   simResp = Object.assign({}, base, {planId:'P3'});
   await api.simulateDeletion('CN=a'); els['del-confirm-sam'].value = 'aalt';
   execResp = {ok:false, body:{detail:'Seit der Simulation hat sich etwas geändert <x>'}};
@@ -69,11 +69,11 @@ const base = {account:{name:'<b>A</b>', sam:'aalt', dn:'CN=a', groups:[]}, simul
   console.assert(h.includes('Löschen nicht möglich') && !h.includes('del-exec-btn') && h.includes('&lt;b&gt;') && api.getPlan() === null, 'Blocker statt Loeschbox');
   // Operator
   api.setRole('Account Operator'); simResp = Object.assign({}, base, {planId:'P9'});
-  await api.simulateDeletion('CN=a');   // simuliert Server-Antwort; Ausfuehren muss clientseitig trotzdem blocken
+  await api.simulateDeletion('CN=a');   // simulated server response; execution must still be blocked on the client side
   calls.length = 0; els['del-confirm-sam'].value = 'aalt'; await api.executeDeletion();
   console.assert(calls.length === 0, 'Operator: kein Execute-Request');
   api.setRole('Administrator');
-  // ---- Passwort falsch im Einzelablauf: Formular bleibt, Plan bleibt
+  // ---- Wrong password in the single flow: form stays, plan stays
   simResp = Object.assign({}, base, {planId:'P9', planExpiresAt:null});
   await api.simulateDeletion('CN=a'); els['del-confirm-sam'].value = 'aalt'; els['del-confirm-pw'].value = 'falsch';
   confirmAnswer = true; alerts.length = 0;
@@ -82,7 +82,7 @@ const base = {account:{name:'<b>A</b>', sam:'aalt', dn:'CN=a', groups:[]}, simul
   await api.executeDeletion();
   console.assert(alerts.some(a => a.includes('Passwort')) && api.getPlan() && api.getPlan().planId === 'P9' && els['del-sim-result'].innerHTML.includes('del-confirm-pw'), 'Falsches Passwort: Plan und Formular bleiben');
 
-  // ---- Auswahl
+  // ---- Selection
   const users = [1,2,3,4].map(i => ({dn:'CN=u'+i, name:'U'+i, sam:'u'+i, disabled:true, self:false})).concat([{dn:'CN=act', name:'A', sam:'act', disabled:false, self:false}]);
   api.setUsers(users);
   api.toggleDeletionSelect('CN=u1', true); api.toggleDeletionSelect('CN=u2', true);
@@ -97,7 +97,7 @@ const base = {account:{name:'<b>A</b>', sam:'aalt', dn:'CN=a', groups:[]}, simul
   console.assert(api.getSel().size === 25 && alerts.length === 1, 'Obergrenze 25');
   api.toggleSelectAllDeletion(false);
 
-  // ---- Sammel-Simulation + Ausfuehrung
+  // ---- Batch simulation + execution
   api.setUsers(users); api.toggleDeletionSelect('CN=u1', true); api.toggleDeletionSelect('CN=u2', true); api.toggleDeletionSelect('CN=u3', true);
   const tgt = [{label:'Profil', path:'\\\\fs\\p$\\x', source:'Basispfad', status:'found', files:2, dirs:0, size:10, warnings:[], message:'Vorhanden.'}];
   batchSim = {items:[
@@ -115,13 +115,13 @@ const base = {account:{name:'<b>A</b>', sam:'aalt', dn:'CN=a', groups:[]}, simul
   console.assert(els['del-batch-btn'].disabled === true, 'ohne Passwort gesperrt');
   els['del-batch-pw'].value = 'pw'; api.onDelBatchInput();
   console.assert(els['del-batch-btn'].disabled === false, 'frei bei Anzahl + Passwort');
-  // falsches Passwort -> Formular bleibt, Plan weiter nutzbar
+  // wrong password -> form stays, plan still usable
   batchExec = {ok:false, status:403, body:{detail:'Das Passwort ist falsch.'}}; alerts.length = 0; calls.length = 0;
   await api.executeBatch();
   const sent = JSON.parse(calls.find(c => c[0] === '/api/deletion/execute-batch')[1]);
   console.assert(sent.planId === 'B1' && sent.confirmCount === 2 && sent.password === 'pw', 'Batch-Payload');
   console.assert(alerts.some(a => a.includes('Passwort')) && els['del-sim-result'].innerHTML.includes('del-batch-pw'), 'Batch: falsches Passwort laesst Formular stehen');
-  // Erfolg -> Polling bis fertig
+  // success -> polling until done
   batchExec = {ok:true, body:{status:'started', jobId:'J1', total:2}};
   const item = (sam, status, extra) => Object.assign({dn:'CN='+sam, sam, name:'N '+sam, status, message:'', results:[]}, extra || {});
   jobs = [

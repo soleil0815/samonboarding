@@ -26,22 +26,22 @@ const mk = (i, extra) => Object.assign({dn:'CN=u'+i, name:'User '+i, sam:'u'+i, 
   console.assert(api.getSel().size === 1, 'Abwaehlen');
   api.toggleSelectAllOffboard(true);
   console.assert(api.getSel().size === 2 && !api.getSel().has('CN=u3') && !api.getSel().has('CN=u2'), 'Alle auswaehlen nur auswaehlbare');
-  // Obergrenze 25
+  // upper limit 25
   const many = Array.from({length: 30}, (_, i) => mk(100 + i));
   api.setUsers(many); api.renderOffboardTable(many); api.getSel().clear();
   api.toggleSelectAllOffboard(true);
   console.assert(api.getSel().size === 25 && alerts.length === 1, 'Obergrenze 25 mit Hinweis');
-  // Abbruch -> kein Request
+  // cancel -> no request
   confirmAnswer = false; calls.length = 0; await api.executeOffboardBatch();
   console.assert(calls.length === 0 && confirmText.includes('25 Konten'), 'Abbruch ohne Request');
-  // Erfolg mit Teilfehler
+  // success with partial error
   confirmAnswer = true; api.setUsers(users); api.renderOffboardTable(users); api.getSel().clear(); api.toggleOffboardSelect('CN=u1', true);
   batchResp = {body:{status:'success', done:[{dn:'CN=u1', name:'User 1', sam:'u1', failedGroups:[]}], failed:[{dn:'CN=u9', name:'User 9', error:'Dieses Konto ist geschützt'}]}};
   alerts.length = 0; calls.length = 0; await api.executeOffboardBatch();
   const body = JSON.parse(calls.find(c => c[0] === '/api/offboarding/execute-batch')[1]);
   console.assert(body.userDns.length === 1 && body.userDns[0] === 'CN=u1', 'Payload');
   console.assert(alerts[0].includes('1 von 1') && alerts[0].includes('User 9') && api.getSel().size === 0 && refreshed === 1, 'Ergebnis mit Fehlerliste, Auswahl geleert, Liste neu geladen');
-  // Serverfehler
+  // server error
   api.getSel().clear(); api.toggleOffboardSelect('CN=u1', true);
   batchResp = {ok:false, status:400, body:{detail:'Maximal 25 Konten gleichzeitig.'}}; alerts.length = 0;
   await api.executeOffboardBatch();

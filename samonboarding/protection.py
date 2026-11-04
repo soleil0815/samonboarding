@@ -1,10 +1,10 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 # Copyright (C) 2026 Die SAMONBOARDING-Autoren
-"""Schutz privilegierter Konten: Domaenen-Admins & Co. duerfen nicht versehentlich offgeboardet oder geloescht werden.
+"""Protection of privileged accounts: Domain Admins & co. must not be offboarded or deleted by accident.
 
-Massgeblich ist die tatsaechliche Gruppenmitgliedschaft (tokenGroups: enthaelt verschachtelte Gruppen und die primaere
-Gruppe). Die Pruefung erkennt die Gruppen an ihrer SID, nicht am Namen, und funktioniert deshalb auch mit deutschen
-oder umbenannten Gruppen und mit Samba genauso wie mit Windows.
+What counts is the effective group membership (tokenGroups: includes nested groups and the primary group). The check
+recognizes groups by their SID, not by name, and therefore also works with German or renamed groups, and with Samba
+just as with Windows.
 """
 
 import logging
@@ -16,7 +16,7 @@ from .dn import ldap_escape
 
 log = logging.getLogger(__name__)
 
-# Gruppen, die dem Konto weitreichende Rechte geben (feste SIDs der eingebauten Gruppen)
+# Groups that give the account far-reaching rights (well-known SIDs of the built-in groups)
 BUILTIN_GROUPS = {
     "S-1-5-32-544": "Administratoren",
     "S-1-5-32-548": "Konten-Operatoren",
@@ -24,9 +24,9 @@ BUILTIN_GROUPS = {
     "S-1-5-32-550": "Druck-Operatoren",
     "S-1-5-32-551": "Sicherungs-Operatoren",
 }
-# Gruppen mit festem Relativ-Teil (RID) hinter der Domaenen-SID
-# Privilegierte Gruppen der Domaene (an der RID erkannt). Mitglieder sind geschuetzt, und nur Administratoren duerfen
-# jemanden in diese Gruppen aufnehmen - EINE Liste fuer beides (520/526/527 fuehren ebenfalls zur Domaenen-Uebernahme)
+# Groups with a fixed relative ID (RID) after the domain SID
+# Privileged groups of the domain (recognized by RID). Members are protected, and only administrators may add
+# anyone to these groups - ONE list for both (520/526/527 also lead to a domain takeover)
 DOMAIN_GROUP_RIDS = {
     512: "Domänen-Admins",
     517: "Zertifikatherausgeber",
@@ -36,7 +36,7 @@ DOMAIN_GROUP_RIDS = {
     526: "Schlüsseladministratoren",
     527: "Organisationsschlüsseladministratoren",
 }
-# Konten mit festem RID
+# Accounts with a fixed RID
 SPECIAL_ACCOUNT_RIDS = {500: "integriertes Administratorkonto", 502: "Kerberos-Dienstkonto (krbtgt)"}
 
 
@@ -48,8 +48,8 @@ def _lookup(mapping, name):
 
 
 def read_sids(conn, dn, attr, flt="(objectClass=user)"):
-    """Liest SIDs eines Attributs (objectSid, tokenGroups) als Text. Nutzt die Rohbytes, weil ldap3 Binaerwerte
-    ohne Schema sonst unter Umstaenden als Text deutet. Liefert (Liste, gelesen?)."""
+    """Reads the SIDs of an attribute (objectSid, tokenGroups) as text. Uses the raw bytes because ldap3 without a
+    schema may otherwise interpret binary values as text. Returns (list, read?)."""
     if not conn.search(dn, flt, ldap3.BASE, attributes=[attr]):
         return [], False
     for entry in conn.response or []:
@@ -88,13 +88,13 @@ def _sid_list(entry, attr):
 
 
 def privileged_reason(conn, user_dn):
-    """Begruendung, warum das Konto geschuetzt ist (leer = nicht geschuetzt). Eine einzige LDAP-Abfrage."""
+    """Reason why the account is protected (empty = not protected). A single LDAP query."""
     if not conn.search(
         user_dn, "(objectClass=user)", ldap3.BASE, attributes=["objectSid", "tokenGroups", "adminCount"]
     ):
-        if (getattr(conn, "result", None) or {}).get("result") == 32:  # gibt es nicht - die Aktion scheitert ohnehin
+        if (getattr(conn, "result", None) or {}).get("result") == 32:  # does not exist - the action fails anyway
             return ""
-        # Abfrage fehlgeschlagen: im Zweifel als geschuetzt behandeln (lieber abweisen als ein Admin-Konto aendern)
+        # query failed: when in doubt, treat as protected (better to refuse than to modify an admin account)
         log.warning("Schutzpruefung fuer %s nicht moeglich: %s", user_dn, getattr(conn, "result", None))
         return "Schutzprüfung nicht möglich"
     entry = next((e for e in conn.response or [] if e.get("type") == "searchResEntry"), None)
@@ -114,26 +114,26 @@ def privileged_reason(conn, user_dn):
             if rid.isdigit() and int(rid) in DOMAIN_GROUP_RIDS:
                 return f"Mitglied von „{DOMAIN_GROUP_RIDS[int(rid)]}“"
     if not groups:
-        # tokenGroups nicht lesbar (enthaelt sonst immer mindestens die primaere Gruppe)
+        # tokenGroups not readable (otherwise it always contains at least the primary group)
         log.warning("tokenGroups fuer %s nicht lesbar - pruefe adminCount und die verschachtelten Gruppen", user_dn)
         value = _lookup(entry.get("attributes") or {}, "adminCount")
         if isinstance(value, (list, tuple)):
             value = value[0] if value else None
         if str(value) == "1":
             return "als privilegiertes Konto markiert (adminCount)"
-        # Samba pflegt adminCount nicht immer: Gruppen ueber die verschachtelte Mitgliedschaft lesen
+        # Samba does not always maintain adminCount: read groups via the nested membership
         return _nested_privileged(conn, user_dn)
     return ""
 
 
 def _nested_privileged(conn, user_dn):
-    """Privilegierte Gruppe ueber die (auch verschachtelte) Mitgliedschaft; im Zweifel 'geschuetzt'."""
+    """Privileged group via (also nested) membership; when in doubt, 'protected'."""
     base = ",".join(p for p in user_dn.split(",") if p.strip().lower().startswith("dc="))
     try:
         flt = f"(&(objectClass=group)(member:1.2.840.113556.1.4.1941:={ldap_escape(user_dn)}))"
         if not conn.search(base, flt, ldap3.SUBTREE, attributes=["objectSid"]):
             if (getattr(conn, "result", None) or {}).get("result") == 0:
-                return ""  # keine Gruppen gefunden
+                return ""  # no groups found
             return "Schutzprüfung nicht möglich"
         for entry in conn.response or []:
             if entry.get("type") != "searchResEntry":
@@ -151,7 +151,7 @@ def _nested_privileged(conn, user_dn):
         return "Schutzprüfung nicht möglich"
 
 
-# Gruppen, in die nur Administratoren Konten aufnehmen duerfen (dieselbe Liste wie fuer geschuetzte Konten)
+# Groups to which only administrators may add accounts (the same list as for protected accounts)
 PRIVILEGED_DOMAIN_GROUP_RIDS = DOMAIN_GROUP_RIDS
 
 
@@ -166,9 +166,9 @@ def _privileged_name(sid):
 
 
 def privileged_group(conn, group_dn):
-    """Name der privilegierten Gruppe (an ihrer SID erkannt) oder leer. Auch eine Gruppe, die selbst (verschachtelt)
-    Mitglied einer privilegierten Gruppe ist (z. B. "IT-Admins" in den Domaenen-Admins), gilt als privilegiert -
-    wer dort aufgenommen wird, bekaeme dieselben Rechte."""
+    """Name of the privileged group (recognized by its SID) or empty. A group that is itself a (nested) member of a
+    privileged group (e.g. "IT-Admins" in Domain Admins) also counts as privileged - anyone added to it would
+    get the same rights."""
     sids, _ok = read_sids(conn, group_dn, "objectSid", "(objectClass=group)")
     for sid in sids:
         name = _privileged_name(sid)
@@ -179,7 +179,7 @@ def privileged_group(conn, group_dn):
         flt = f"(&(objectClass=group)(member:1.2.840.113556.1.4.1941:={ldap_escape(group_dn)}))"
         if not conn.search(base, flt, ldap3.SUBTREE, attributes=["objectSid"]):
             if (getattr(conn, "result", None) or {}).get("result") in (0, None):
-                return ""  # in keiner anderen Gruppe
+                return ""  # not in any other group
             return "Gruppenprüfung nicht möglich"
         for entry in conn.response or []:
             if entry.get("type") != "searchResEntry":
@@ -202,25 +202,25 @@ def protected_message(reason, action):
 
 
 def _search_dns(conn, base, flt, attrs=("cn",)):
-    """Alle Treffer (paged, auch ueber 1000) als Liste von (dn, Eintrag)."""
-    from .ldap_client import ldap_search  # spaet importieren (ldap_client nutzt dieses Modul)
+    """All results (paged, also beyond 1000) as a list of (dn, entry)."""
+    from .ldap_client import ldap_search  # import late (ldap_client uses this module)
 
     return ldap_search(conn, base, flt, list(attrs))
 
 
 def privileged_map(conn, base):
-    """Alle geschuetzten Konten der Domaene mit wenigen Abfragen: {dn (klein): Begruendung}.
+    """All protected accounts of the domain with few queries: {dn (lowercase): reason}.
 
-    Statt fuer jedes Konto einer Liste einzeln nachzufragen (300 Konten = 300 Abfragen), werden die privilegierten
-    Gruppen einmal gesucht und ihre - auch verschachtelten - Mitglieder gelesen. Nur fuer die ANZEIGE in Listen;
-    vor jeder Aktion wird das Konto weiterhin einzeln und live geprueft (privileged_reason)."""
+    Instead of querying each account of a list individually (300 accounts = 300 queries), the privileged groups
+    are searched once and their members - including nested ones - are read. Only for DISPLAY in lists;
+    before every action the account is still checked individually and live (privileged_reason)."""
     dom = read_sids(conn, base, "objectSid", "(objectClass=domain)")[0]
     dom_sid = dom[0] if dom and dom[0].startswith("S-1-5-21-") else ""
     wanted = dict(BUILTIN_GROUPS)
     if dom_sid:
         wanted.update({f"{dom_sid}-{rid}": name for rid, name in DOMAIN_GROUP_RIDS.items()})
-    # Je SID eine eigene Suche: die SID kommt so aus der Anfrage, nicht aus dem Ergebnis (ohne Schema liefert ldap3
-    # Binaerwerte als Text, wenn sie zufaellig gueltiges UTF-8 sind - z. B. alle S-1-5-32-... der eingebauten Gruppen)
+    # One search per SID: this way the SID comes from the request, not from the result (without a schema, ldap3
+    # returns binary values as text if they happen to be valid UTF-8 - e.g. all S-1-5-32-... of the built-in groups)
     found = {}
     for sid, name in wanted.items():
         for row in _search_dns(conn, base, f"(&(objectClass=group)(objectSid={sid}))"):
@@ -236,12 +236,12 @@ def privileged_map(conn, base):
         for row in members:
             out.setdefault(row.dn.lower(), f"Mitglied von „{name}“")
         da_found = da_found or (bool(members) and name == DOMAIN_GROUP_RIDS[512])
-    # Plausibel? In jeder Domaene gibt es mindestens einen Domaenen-Admin. Kommt keiner zurueck, kann das Verzeichnis
-    # die verschachtelte Suche nicht - dann lieber einzeln pruefen als Admins ohne Schloss anzeigen.
+    # Plausible? Every domain has at least one Domain Admin. If none comes back, the directory does not support
+    # the nested search - then rather check individually than show admins without a lock.
     if not da_found:
         raise LookupError("verschachtelte Gruppensuche liefert keine Domaenen-Admins")
     if dom_sid:
-        # primaere Gruppe (steht nicht in memberOf) und Konten mit festem RID
+        # primary group (not listed in memberOf) and accounts with a fixed RID
         rids = "".join(f"(primaryGroupID={rid})" for rid in DOMAIN_GROUP_RIDS)
         for row in _search_dns(conn, base, f"(&(objectClass=user)(|{rids}))", ("primaryGroupID",)):
             rid = int(row.text("primaryGroupID") or 0)
@@ -253,8 +253,8 @@ def privileged_map(conn, base):
 
 
 def mark_protected(conn, users):
-    """Ergaenzt in Listen das Feld 'protected' (Begruendung). Zuerst mit einer Sammelabfrage (schnell); klappt die
-    nicht (z. B. ein Verzeichnis ohne die noetigen Suchfunktionen), wird jedes Konto einzeln geprueft."""
+    """Adds the field 'protected' (reason) to lists. First with a bulk query (fast); if that fails (e.g. a
+    directory without the required search features), each account is checked individually."""
     for entry in users:
         entry.pop("_adminCount", None)
     if not users:
@@ -271,7 +271,7 @@ def mark_protected(conn, users):
             continue
         try:
             entry["protected"] = privileged_reason(conn, entry["dn"])
-        except Exception as e:  # Liste soll trotzdem erscheinen, ausgefuehrt wird ohnehin erneut geprueft
+        except Exception as e:  # the list should still appear; actions are re-checked anyway
             log.warning("Schutzpruefung fuer %s fehlgeschlagen: %s", entry.get("dn"), e)
             entry["protected"] = ""
     return users

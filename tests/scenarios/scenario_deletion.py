@@ -1,4 +1,4 @@
-"""Szenario: Konten loeschen (Konfiguration, Simulation, Ausfuehrung, Besitzuebernahme, Verknuepfungen, Mail)."""
+"""Scenario: deleting accounts (configuration, simulation, execution, ownership takeover, links, mail)."""
 import os
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -11,7 +11,7 @@ import samonboarding.routers.deletion as dele  # noqa: E402
 from samonboarding.fileshare import FsEntry, FsError, FsStat  # noqa: E402
 
 reset()
-# Konten
+# accounts
 u = ["top", "person", "organizationalPerson", "user"]
 add("OU=Disabled," + B, objectClass=["top", "organizationalUnit"], name="Disabled")
 add("CN=Alt\\, Anna,OU=Disabled," + B, objectClass=u, sAMAccountName="aalt", displayName="Alt, Anna", userAccountControl="514",
@@ -24,7 +24,7 @@ add("CN=Evil Eve,OU=Disabled," + B, objectClass=u, sAMAccountName="eeve", userAc
     homeDirectory="\\\\fs1\\home$\\..\\..\\secret", profilePath="\\\\other\\x$\\eeve")
 add("CN=Staffer,OU=Staff," + B, objectClass=u, sAMAccountName="staffer", userAccountControl="514")
 
-# ---- Pfadfunktionen
+# ---- Path functions
 P = fs
 check("parse_unc normal", P.parse_unc("\\\\FS1\\Profiles$\\a\\b") == ("FS1", "Profiles$", ["a", "b"]))
 check("parse_unc Slashes + Endtrenner", P.parse_unc("//fs1/p$/a/") == ("fs1", "p$", ["a"]))
@@ -67,13 +67,13 @@ check("Ordnerumleitung: je Basispfad ein Ziel", [x["path"] for x in t] == ["\\\\
 t = P.build_targets("folderRedirection", {"enabled": True, "roots": ["\\\\fs1\\redir$"]}, "..")
 check("boeser Benutzername -> kein Pfad", t[0]["skip"] and t[0]["path"] == "")
 
-# ---- Fake-Dateisystem
+# ---- Fake file system
 class FakeFS:
     def __init__(self, tree, denied=(), down=(), reparse=(), locked=(), no_takeover=()):
         self.no_takeover = {x.lower() for x in no_takeover}
         self.taken = []
         self.locked = {x.lower() for x in locked}
-        self.tree = {k.lower(): v for k, v in tree.items()}   # pfad -> None (Datei, size) | dict
+        self.tree = {k.lower(): v for k, v in tree.items()}   # path -> None (file, size) | dict
         self.denied = {d.lower() for d in denied}
         self.down = {d.lower() for d in down}
         self.reparse = {r.lower() for r in reparse}
@@ -125,7 +125,7 @@ class FakeFS:
         if path.lower() in self.locked:
             raise FsError("denied", "Zugriff verweigert.")
         n = self._node(path)
-        if path.lower() in self.reparse:  # Verknuepfung: nur sie selbst verschwindet, das Ziel bleibt
+        if path.lower() in self.reparse:  # link: only the link itself disappears, the target stays
             parent, name = self._parent(path)
             self.tree[parent] = [x for x in self.tree[parent] if x.lower() != name.lower()]
             del self.tree[path.lower()]
@@ -184,7 +184,7 @@ def mkfs(clean=False, **kw):
 FSX = {"fs": None}
 dele.make_backend = lambda user: FSX["fs"]
 
-# ---- Konfiguration
+# ---- Configuration
 out, adm, _ = login("admin", "Pass1", ip="10.20.0.1")
 out, op, _ = login("op", "Pass2", ip="10.20.0.2")
 N = _t.SimpleNamespace
@@ -200,7 +200,7 @@ def cfg_m(**kw):
     d.update(kw)
     return N(**d)
 
-DC = dele.router.routes  # nur Smoke
+DC = dele.router.routes  # smoke test only
 for fn, args in [(dele.get_deletion_config, ()), (dele.save_deletion_config, (cfg_m(),)), (dele.get_deletion_users, ()),
                  (dele.test_deletion_paths, ()), (dele.simulate_deletion, (N(userDn="CN=x"),))]:
     ok, _ = raises(lambda fn=fn, args=args: fn(*args, op), 403)
@@ -227,13 +227,13 @@ saved = dele.get_deletion_config(adm)
 check("Config gespeichert + normalisiert", saved["profile"]["suffixes"] == ["V2", "V6"] and saved["folderRedirection"]["roots"] == ["\\\\fs1\\redir$"] and saved["enabled"])
 check("Config im Audit-Log", "config-deletion" in M["audit_jsonl"]())
 
-# ---- Benutzerliste
+# ---- User list
 users = dele.get_deletion_users(adm)["users"]
 check("Liste nur aus Deaktiviert-OU, alphabetisch", [x["sam"] for x in users] == ["aalt", "eeve", "nneu", "zzed", "zzwo"], [x["sam"] for x in users])
 check("Liste markiert aktive Konten", {x["sam"]: x["disabled"] for x in users}["nneu"] is False)
 check("Staffer (andere OU) nicht in Liste", "staffer" not in [x["sam"] for x in users])
 
-# ---- Verbindungstest
+# ---- Connection test
 FSX["fs"] = mkfs()
 r = dele.test_deletion_paths(adm)["results"]
 check("Verbindungstest: alle Roots ok", len(r) == 3 and all(x["ok"] for x in r) and FSX["fs"].closed, r)
@@ -269,14 +269,14 @@ check("Fremder Profilordner (other.V2) kommt nicht vor", not any("other" in x["p
 check("Warnung wegen fehlendem V6 nur wenn gar nichts gefunden", s["warnings"] == [])
 check("Simulation im Audit-Log", "deletion-simulate" in M["audit_jsonl"]())
 
-# Warnung: kein Profil
+# warning: no profile
 fs0 = mkfs()
 for k in [k for k in fs0.tree if "aalt.v2" in k]:
     del fs0.tree[k]
 s = sim(DN_ALT, fsobj=fs0)
 check("Warnung: kein Profilordner gefunden (erwartet aalt.V2/V6)", any("Roamingprofil" in w and "aalt.V2/V6" in w for w in s["warnings"]), s["warnings"])
 
-# Junction auf oberster Ebene, kein Zugriff, Server offline
+# junction at top level, no access, server offline
 s = sim(DN_ALT, fsobj=mkfs(reparse={"\\\\fs1\\home$\\aalt"}))
 h = [x for x in s["targets"] if x["kind"] == "home"][0]
 check("Ordner ist Junction -> uebersprungen", h["status"] == "skipped" and "Verknüpfung" in h["message"])
@@ -289,7 +289,7 @@ s = sim(DN_ALT, fsobj=mkfs(down={"fs1"}))
 check("Server offline -> Fehlerstatus, nichts loeschbar", all(x["status"] in ("error", "skipped") for x in s["targets"]) and s["summary"]["folders"] == 0)
 check("Server offline: nur ein Verbindungsversuch", sum(1 for c in FSX["fs"].calls if c[0] == "stat") == 1)
 
-# Abgrenzungen
+# boundaries
 ok, e = raises(lambda: sim("CN=Neu Nils,OU=Disabled," + B), 400)
 check("Aktives Konto -> 400 'nicht deaktiviert'", ok and "nicht deaktiviert" in e.detail)
 ok, _ = raises(lambda: sim("CN=Staffer,OU=Staff," + B), 403)
@@ -299,15 +299,15 @@ check("Unbekanntes Konto -> 404", ok)
 ok, _ = raises(lambda: sim("OU=Disabled," + B + ",OU=Fremd"), 403)
 check("DN-Trick ausserhalb -> 403", ok)
 
-# eigenes Konto in der Deaktiviert-OU
+# own account in the disabled OU
 add("CN=Admin Self,OU=Disabled," + B, objectClass=u, sAMAccountName="admin2", userAccountControl="514", pwd="Pass9")
 D["CN=Admin Self,OU=Disabled," + B]["member"] = []
 D["CN=Domain Admins,CN=Users," + B]["member"].append("CN=Admin Self,OU=Disabled," + B)
-D["CN=Admin Self,OU=Disabled," + B]["sAMAccountName"] = ["admin"]  # gleicher Name wie angemeldeter Admin
+D["CN=Admin Self,OU=Disabled," + B]["sAMAccountName"] = ["admin"]  # same name as the logged-in admin
 ok, e = raises(lambda: sim("CN=Admin Self,OU=Disabled," + B), 400)
 check("Eigenes Konto -> 400", ok and "eigene" in e.detail)
 
-# geteilter Basisordner / boeses Attribut
+# shared home folder / malicious attribute
 s = sim("CN=Zed Zora,OU=Disabled," + B)
 hz = [x for x in s["targets"] if x["kind"] == "home" and x["source"] == "AD-Attribut"][0]
 check("Fremder/gemeinsamer Ordner im Attribut wird ausgeschlossen", hz["status"] == "skipped" and "passt nicht zum Benutzernamen" in hz["message"] and not hz["deletable"], hz)

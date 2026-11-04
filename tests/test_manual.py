@@ -1,4 +1,4 @@
-"""Handbuch: Dateien vorhanden, nur ueber die Anmeldung abrufbar, keine Pfade aus der Anfrage."""
+"""Manual: files present, only available after login, no paths taken from the request."""
 
 import os
 import sys
@@ -25,21 +25,21 @@ def body(resp):
 
 
 class ManualTests(unittest.TestCase):
-    def test_beide_sprachen(self):
+    def test_both_languages(self):
         self.assertIn("# SAMONBOARDING – Handbuch", body(manual.manual("de", user={})))
         self.assertIn("# SAMONBOARDING – Manual", body(manual.manual("en", user={})))
 
-    def test_unbekannte_sprache_und_pfade(self):
+    def test_unknown_language_and_paths(self):
         for lang in ("../../config", "fr", "", "/etc/passwd"):
             self.assertIn("Handbuch", body(manual.manual(lang, user={})))
 
-    def test_nur_mit_anmeldung(self):
+    def test_login_required(self):
         src = (ROOT / "samonboarding" / "routers" / "manual.py").read_text(encoding="utf-8")
         self.assertIn("Depends(get_current_user)", src)
         main = (ROOT / "samonboarding" / "main.py").read_text(encoding="utf-8")
-        self.assertGreaterEqual(main.count("    manual,"), 2)  # importiert und eingebunden
+        self.assertGreaterEqual(main.count("    manual,"), 2)  # imported and included
 
-    def test_im_image_und_ohne_externe_adressen(self):
+    def test_in_image_and_without_external_urls(self):
         self.assertIn("COPY samonboarding/web ./samonboarding/web", (ROOT / "Dockerfile").read_text(encoding="utf-8"))
         for name in ("HANDBUCH.md", "MANUAL.en.md"):
             text = (ROOT / "samonboarding" / "web" / "manual" / name).read_text(encoding="utf-8")

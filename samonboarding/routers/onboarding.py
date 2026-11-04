@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 # Copyright (C) 2026 Die SAMONBOARDING-Autoren
-"""Onboarding: neuen AD-Benutzer anhand eines Templates anlegen."""
+"""Onboarding: create a new AD user from a template."""
 
 import logging
 import re
@@ -51,8 +51,8 @@ router = APIRouter()
 
 
 def unique_sam(conn, search_base, base_sam, domain=""):
-    """Liefert einen freien sAMAccountName (max. 20 Zeichen, bei Kollision mit Zaehler ab 2). Frei heisst auch: kein
-    anderes Konto hat den daraus gebildeten Anmeldenamen (UPN) <name>@<domain>."""
+    """Returns a free sAMAccountName (max. 20 characters, on collision with a counter starting at 2). Free also means:
+    no other account has the logon name (UPN) <name>@<domain> derived from it."""
     sam, counter = base_sam, 1
     while True:
         flt = f"(sAMAccountName={ldap_escape(sam)})"
@@ -79,18 +79,18 @@ def unique_cn(conn, search_base, base_name):
 
 
 def read_sid(conn, user_dn):
-    """SID des Kontos als Text, sonst None."""
+    """SID of the account as text, otherwise None."""
     sids, _ok = read_sids(conn, user_dn, "objectSid")
     return sids[0] if sids else None
 
 
 def make_backend(user):
-    """SMB-Zugriff im Namen des angemeldeten Benutzers (in Tests austauschbar)."""
+    """SMB access on behalf of the logged-in user (replaceable in tests)."""
     return open_backend(user)
 
 
 def create_home(user, home_dir, sid, warnings):
-    """Legt den Basisordner an. Fehler sind nur Warnungen: das Konto existiert bereits und bleibt bestehen."""
+    """Creates the home folder. Errors are only warnings: the account already exists and is kept."""
     backend = None
     try:
         backend = make_backend(user)
@@ -107,8 +107,8 @@ def create_home(user, home_dir, sid, warnings):
 
 
 def create_mailbox(user, user_dn, warnings):
-    """Legt das Exchange-Postfach an (nur fuer Templates mit E-Mail-Modus 'exchange'). Fehler sind nur Warnungen:
-    das Konto existiert bereits. Liefert 'created' oder 'failed'."""
+    """Creates the Exchange mailbox (only for templates with email mode 'exchange'). Errors are only warnings:
+    the account already exists. Returns 'created' or 'failed'."""
     try:
         cfg = clean_config(load_json(EXCHANGE_CONFIG_FILE, default_exchange_config))
     except ValueError:
@@ -131,7 +131,7 @@ def create_mailbox(user, user_dn, warnings):
 
 
 def read_mail(user, user_dn):
-    """Liest die vom Exchange gesetzte Adresse (best effort)."""
+    """Reads the address set by Exchange (best effort)."""
     try:
         with ad_session(user) as conn:
             entry = get_object(conn, user_dn, ["mail"])
@@ -142,12 +142,12 @@ def read_mail(user, user_dn):
 
 
 def _rollback_new_account(conn, user, user_dn):
-    """Loescht ein gerade angelegtes, noch unfertiges Konto. True bei Erfolg."""
+    """Deletes a just-created, still incomplete account. True on success."""
     try:
         if conn.delete(user_dn):
             return True
         log.warning("Rollback von %s: %s", user_dn, ldap_error_text(conn))
-    except Exception as e:  # Verbindung weg: mit einer neuen Verbindung versuchen
+    except Exception as e:  # connection lost: retry with a new connection
         log.warning("Rollback von %s ueber die bisherige Verbindung nicht moeglich: %s", user_dn, e)
     try:
         with ad_session(user) as fresh:
@@ -179,7 +179,7 @@ def execute_onboard(data: OnboardModel, background: BackgroundTasks, user: dict 
 
     mail_mode = template_mail_mode(tmpl)
     if mail_mode in ("exchange", "cloud"):
-        custom_mail = ""  # die Adresse entsteht mit dem Postfach (Exchange / Microsoft 365)
+        custom_mail = ""  # the address is created with the mailbox (Exchange / Microsoft 365)
     elif mail_mode == "required" and not custom_mail:
         raise HTTPException(status_code=400, detail="Vorname, Nachname und E-Mail-Adresse sind Pflichtfelder.")
 
@@ -211,7 +211,7 @@ def execute_onboard(data: OnboardModel, background: BackgroundTasks, user: dict 
             def clean_val(val):
                 if not val or not str(val).strip():
                     return None
-                # wie beim Loeschen: %username% ohne Beachtung der Gross-/Kleinschreibung (%USERNAME% aus RSAT)
+                # as when deleting: %username% case-insensitive (%USERNAME% from RSAT)
                 return re.sub(r"%username%", lambda _m: sam, str(val), flags=re.IGNORECASE).strip()
 
             final_display_name = clean_val(tmpl.get("displayName")) or cn_val
@@ -234,7 +234,7 @@ def execute_onboard(data: OnboardModel, background: BackgroundTasks, user: dict 
                 "givenName": first_name,
                 "sn": last_name,
                 "cn": cn_val,
-                # Konto zunaechst deaktiviert anlegen; aktiviert wird es erst nach gesetztem Passwort.
+                # Create the account disabled first; it is enabled only once the password is set.
                 "userAccountControl": 514 | flags,
             }
             if custom_mail:
@@ -288,8 +288,8 @@ def execute_onboard(data: OnboardModel, background: BackgroundTasks, user: dict 
                     "Konto aktivieren",
                 )
             except Exception as e:
-                # Halbfertiges Konto wieder entfernen, damit ein erneuter Versuch sauber startet - auch bei einem
-                # Verbindungsabbruch (dann ueber eine neue Verbindung)
+                # Remove the half-finished account so that a retry starts cleanly - also after a dropped
+                # connection (then via a new connection)
                 if not _rollback_new_account(conn, user, user_dn):
                     log.error("Rollback fehlgeschlagen, Konto %s muss manuell entfernt werden", user_dn)
                 detail = e.detail if isinstance(e, AdError) else str(e)

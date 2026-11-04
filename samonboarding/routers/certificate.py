@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 # Copyright (C) 2026 Die SAMONBOARDING-Autoren
-"""HTTPS-Zertifikat in der Oberflaeche (nur Administratoren): anzeigen, eigenes hochladen, selbstsigniert erzeugen."""
+"""HTTPS certificate in the UI (administrators only): view, upload your own, generate a self-signed one."""
 
 import base64
 import binascii

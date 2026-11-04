@@ -1,15 +1,15 @@
 #!/usr/bin/env python3
-"""Nachgebautes docker (und docker compose) fuer die Tests von update.sh - aendert nur eine Zustandsdatei.
+"""Fake docker (and docker compose) for the update.sh tests - only changes a state file.
 
-Zustand (JSON, Pfad in FAKE_DOCKER_STATE):
-  registry   {ref: image_id}            was "docker pull" holen kann
-  tags       {ref: image_id}            lokal vorhandene Images
+State (JSON, path in FAKE_DOCKER_STATE):
+  registry   {ref: image_id}            what "docker pull" can fetch
+  tags       {ref: image_id}            locally present images
   labels     {image_id: version}        org.opencontainers.image.version
-  compose    {image_id: text}           /app/docker-compose.yml im Image
-  health     {image_id: status}         Gesundheit eines Containers mit diesem Image (Standard: healthy)
-  container  {id, image, ref} | null    der laufende Dienst "samonboarding"
-  mounts     [pfad, ...]                Quellen eingebundener Ordner (docker inspect .Mounts)
-  calls      [[arg, ...], ...]          Protokoll aller Aufrufe
+  compose    {image_id: text}           /app/docker-compose.yml inside the image
+  health     {image_id: status}         health of a container with this image (default: healthy)
+  container  {id, image, ref} | null    the running service "samonboarding"
+  mounts     [path, ...]                sources of mounted folders (docker inspect .Mounts)
+  calls      [[arg, ...], ...]          log of all calls
 """
 
 import json
@@ -33,13 +33,13 @@ def save(state):
 def image_id(state, ref):
     if ref in state["tags"]:
         return state["tags"][ref]
-    if ref in state["labels"]:  # schon eine Image-ID
+    if ref in state["labels"]:  # already an image ID
         return ref
     return None
 
 
 def compose_ref():
-    """Das Image, das docker compose starten wuerde (docker-compose.yml + .env im aktuellen Ordner)."""
+    """The image docker compose would start (docker-compose.yml + .env in the current folder)."""
     env = {}
     if os.path.exists(".env"):
         for line in open(".env", encoding="utf-8"):

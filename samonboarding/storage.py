@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 # Copyright (C) 2026 Die SAMONBOARDING-Autoren
-"""JSON-Speicher: atomares Schreiben und gesichertes Lesen der Konfigurationsdateien."""
+"""JSON storage: atomic writing and safe reading of the configuration files."""
 
 import contextlib
 import copy
@@ -24,7 +24,7 @@ def load_json(filename, default):
             with open(filename, encoding="utf-8") as f:
                 return json.load(f)
         except ValueError:
-            # Defekte Datei nicht ueberschreiben, sondern sichern.
+            # Do not overwrite a corrupt file, back it up instead.
             backup = f"{filename}.corrupt-{int(time.time())}"
             try:
                 os.replace(filename, backup)
@@ -40,7 +40,7 @@ def load_json(filename, default):
 def save_json(filename, data, invalidate=True):
     with file_lock:
         tmp = f"{filename}.tmp"
-        # Nur fuer den Eigentuemer lesbar: die Dateien enthalten z. B. das SMTP-Passwort
+        # Readable only by the owner: the files contain e.g. the SMTP password
         fd = os.open(tmp, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
         with os.fdopen(fd, "w", encoding="utf-8") as f:
             json.dump(data, f, indent=4, ensure_ascii=False)
@@ -51,10 +51,10 @@ def save_json(filename, data, invalidate=True):
     if invalidate:
         from . import listcache
 
-        listcache.invalidate()  # geaenderte Einstellungen (z. B. Quell-OUs) wirken sofort auf die Listen
+        listcache.invalidate()  # changed settings (e.g. source OUs) take effect on the lists immediately
 
 
 def restrict(path):
-    """Rechte auf 0600 setzen (best effort, z. B. fuer vorhandene Dateien aus aelteren Versionen)."""
+    """Set permissions to 0600 (best effort, e.g. for existing files from older versions)."""
     with contextlib.suppress(OSError):
         os.chmod(path, 0o600)

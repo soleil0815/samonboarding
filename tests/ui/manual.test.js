@@ -1,4 +1,4 @@
-// Handbuch: Markdown-Darstellung (sicher, Ueberschriften-Anker passen zum Inhaltsverzeichnis)
+// Manual: Markdown rendering (safe, heading anchors match the table of contents)
 const fs = require('fs');
 const path = require('path');
 const src = require('./load_script.js');
@@ -7,7 +7,7 @@ const f = new Function('document', 'window', 'navigator',
 return {manualRender, manualSlug, manualInline};`);
 const api = f({getElementById: () => null, querySelector: () => null, querySelectorAll: () => [], addEventListener() {}}, {}, {language: 'de'});
 
-// Sicherheit: alles wird escaped, Links nur intern oder https
+// Security: everything is escaped, links only internal or https
 const evil = api.manualRender('# T<script>\n\nText <img src=x onerror=alert(1)> [x](javascript:alert(1)) [y](http://a.b) [z](https://ok.example/a?b=1&c=2)');
 console.assert(!evil.includes('<script') && !evil.includes('<img'), 'HTML wird escaped');
 console.assert(!evil.includes('javascript:') || !/href="javascript/.test(evil), 'kein javascript-Link');
@@ -16,7 +16,7 @@ console.assert(evil.includes('href="https://ok.example/a?b=1&amp;c=2" target="_b
 const quoteAttack = api.manualInline('[a](#x"onmouseover="alert(1))');
 console.assert(!/onmouseover="/.test(quoteAttack), 'kein Ausbruch aus dem Attribut');
 
-// Bausteine
+// Building blocks
 const html = api.manualRender([
   '## 1. Überblick', '', 'Absatz mit **fett**, *kursiv* und `code <b>`.', '',
   '| A | B |', '|---|---|', '| `x` | **y** |', '',
@@ -29,7 +29,7 @@ for (const want of ['<h2 id="m-1-überblick">', '<strong>fett</strong>', '<em>ku
 }
 console.assert(!api.manualInline('ein * Stern und noch ein * Stern').includes('<em>'), 'einzelne Sterne bleiben');
 
-// Alle Links im Inhaltsverzeichnis zeigen auf eine Ueberschrift
+// All links in the table of contents point to a heading
 for (const file of ['HANDBUCH.md', 'MANUAL.en.md']) {
   const md = fs.readFileSync(path.join(__dirname, '..', '..', 'samonboarding', 'web', 'manual', file), 'utf8');
   const out = api.manualRender(md);
@@ -39,7 +39,7 @@ for (const file of ['HANDBUCH.md', 'MANUAL.en.md']) {
   anchors.forEach(a => console.assert(ids.has('m-' + a), file + ': Anker fehlt ' + a));
   console.assert(!/href="http:/.test(out), file + ': kein http');
 }
-// Fett/Kursiv greifen nicht in Adressen ein, doppelte Ueberschriften bekommen eigene Anker, NUL wird entfernt
+// Bold/italic do not touch addresses, duplicate headings get their own anchors, NUL is removed
 const tricky = api.manualInline('[a](https://e.x/-*x) y* und `\u00000\u0000` [**fett** `c`](#ziel)');
 console.assert(tricky.includes('href="https://e.x/-*x"'), 'Adresse unveraendert: ' + tricky);
 console.assert(tricky.includes('<a href="#ziel" data-anchor="ziel"><strong>fett</strong> <code>c</code></a>'), 'Link mit Fett und Code: ' + tricky);

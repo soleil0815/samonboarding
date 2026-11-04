@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 # Copyright (C) 2026 Die SAMONBOARDING-Autoren
-"""Einstellungen (nur Administratoren schreiben): SMTP, Offboarding, Passwort-Reset, Benutzerverwaltung."""
+"""Settings (only administrators may write): SMTP, offboarding, password reset, user management."""
 
 import logging
 
@@ -37,7 +37,7 @@ from ..storage import file_lock, load_json, save_json
 
 log = logging.getLogger(__name__)
 router = APIRouter()
-SMTP_PASSWORD_MASK = "••••••••••••"  # noqa: S105 - Platzhalter in der Anzeige, kein Passwort
+SMTP_PASSWORD_MASK = "••••••••••••"  # noqa: S105 - display placeholder, not a password
 
 
 @router.get("/api/smtp-config")
@@ -67,8 +67,8 @@ def save_smtp_config(data: SmtpConfigModel, user: dict = Depends(get_current_use
         pwd = data.password
         if pwd == SMTP_PASSWORD_MASK or not pwd:
             pwd = current_cfg.get("password", "")
-            # Das gespeicherte Passwort geht nur an den Server, fuer den es eingegeben wurde. Sonst liesse es sich
-            # durch Umstellen auf einen fremden Server (und eine Test-Mail) auslesen.
+            # The stored password is sent only to the server it was entered for. Otherwise it could be extracted
+            # by switching to a foreign server (and sending a test email).
             changed = data.host.strip().lower() != str(
                 current_cfg.get("host", "")
             ).strip().lower() or data.username != current_cfg.get("username", "")
@@ -140,7 +140,7 @@ def save_exchange_config(data: ExchangeConfigModel, user: dict = Depends(get_cur
 
 @router.post("/api/exchange-config/test")
 def test_exchange_config(data: ExchangeConfigModel, user: dict = Depends(get_current_user)):
-    """Verbindungstest mit den eingegebenen (ungespeicherten) Werten und den Zugangsdaten des Administrators."""
+    """Connection test with the entered (unsaved) values and the administrator's credentials."""
     require_admin(user, "Nur Administratoren.")
     cfg: dict = {}
     try:
@@ -159,12 +159,12 @@ def test_exchange_config(data: ExchangeConfigModel, user: dict = Depends(get_cur
 
 @router.get("/api/onboarding-config/detect")
 def detect_onboarding_environment(user: dict = Depends(get_current_user)):
-    """Hinweis fuer Administratoren: gibt es im AD Spuren von Exchange oder einer Azure/Entra-Synchronisation?"""
+    """Notice for administrators: are there traces of Exchange or an Azure/Entra sync in AD?"""
     require_admin(user, "Nur Administratoren.")
     try:
         with ad_session(user) as conn:
             return detect_mail_system(conn)
-    except Exception as e:  # nur ein Hinweis, darf nie stoeren
+    except Exception as e:  # only a notice, must never interfere
         log.info("Erkennung Exchange/Entra nicht moeglich: %s", e)
         return {"exchange": None, "entra": None}
 

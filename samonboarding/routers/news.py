@@ -1,13 +1,13 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 # Copyright (C) 2026 Die SAMONBOARDING-Autoren
-"""Neuigkeiten in der Oberflaeche: was hat sich in den installierten Versionen geaendert?
+"""News in the UI: what has changed in the installed versions?
 
-Quelle ist das Changelog, das mit dem Programm ausgeliefert wird (CHANGELOG.de.md bzw. CHANGELOG.md im
-Programmordner). Es wird nichts aus dem Internet geladen. Ein Eintrag beginnt optional mit "Sicherheit:" / "Security:"
-oder "Behoben:" / "Fixed:"; alles andere gilt als neue Funktion.
+The source is the changelog shipped with the program (CHANGELOG.de.md or CHANGELOG.md in the program folder).
+Nothing is loaded from the internet. An entry optionally starts with "Sicherheit:" / "Security:"
+or "Behoben:" / "Fixed:"; everything else counts as a new feature.
 
-Sicherheitsupdates ohne Programmaenderung haben eine eigene Nummer: <Programmversion>-s<Zaehler>, z. B. 1.48.0-s2
-(gleiches Programm, nur neue Pakete). Sie zaehlen hoeher als die Programmversion und niedriger als die naechste.
+Security updates without program changes have their own number: <program version>-s<counter>, e.g. 1.48.0-s2
+(same program, only new packages). They rank above the program version and below the next one.
 """
 
 import re
@@ -28,7 +28,7 @@ _KINDS = {"sicherheit": "security", "security": "security", "behoben": "fix", "f
 
 
 def version_key(text):
-    """'1.44.0' -> (1, 44, 0, 0); '1.44.0-s2' -> (1, 44, 0, 2); unbekannt -> (0,)."""
+    """'1.44.0' -> (1, 44, 0, 0); '1.44.0-s2' -> (1, 44, 0, 2); unknown -> (0,)."""
     match = _VERSION_RE.search(str(text or ""))
     if not match:
         return (0,)
@@ -37,14 +37,14 @@ def version_key(text):
 
 
 def installed(entries, version=VERSION):
-    """Installierter Stand: die Programmversion oder ihr neuestes Sicherheitsupdate laut Changelog."""
+    """Installed release: the program version or its newest security update according to the changelog."""
     own = [e["version"] for e in entries if e["version"].split("-s")[0] == version]
     return max(own, key=version_key, default=version)
 
 
 def parse(text, limit=MAX_ENTRIES):
-    """Changelog (Markdown) -> [{version, title, date, items: [{kind, text, sub: [...]}]}], neueste zuerst.
-    Abschnitte ohne Versionsnummer (z. B. "Aeltere Versionen") werden ausgelassen."""
+    """Changelog (Markdown) -> [{version, title, date, items: [{kind, text, sub: [...]}]}], newest first.
+    Sections without a version number (e.g. "Aeltere Versionen") are skipped."""
     entries, current = [], None
     for raw in text.splitlines():
         line = raw.rstrip()
@@ -69,7 +69,7 @@ def parse(text, limit=MAX_ENTRIES):
         if not stripped.startswith("- "):
             continue
         body = stripped[2:].strip()
-        if len(line) - len(stripped) >= 2 and current["items"]:  # eingerueckt: Unterpunkt
+        if len(line) - len(stripped) >= 2 and current["items"]:  # indented: sub-item
             current["items"][-1]["sub"].append(body)
             continue
         kind = "new"
@@ -84,7 +84,7 @@ def parse(text, limit=MAX_ENTRIES):
 
 @router.get("/api/news")
 def news(lang: str = "de", user: dict = Depends(get_current_user)):
-    name = FILES.get(lang, FILES["de"])  # nur die festen Dateien, kein Pfad aus der Anfrage
+    name = FILES.get(lang, FILES["de"])  # only the fixed files, no path from the request
     try:
         text = (BASE_DIR / name).read_text(encoding="utf-8")
     except OSError:

@@ -1,4 +1,4 @@
-"""Szenario: OUs/Gruppen in den Einstellungen werden im AD umbenannt, verschoben, ersetzt oder geloescht."""
+"""Scenario: OUs/groups in the settings are renamed, moved, replaced or deleted in AD."""
 import json
 import os
 import uuid
@@ -28,7 +28,7 @@ check("Kontenoperator darf nicht pruefen", ok)
 ok, _ = raises(lambda: repair(op), 403)
 check("Kontenoperator darf nicht anpassen", ok)
 
-# Im AD: Gruppe umbenannt, OU umbenannt, Gruppe geloescht und neu angelegt, Gruppe geloescht
+# in AD: group renamed, OU renamed, group deleted and recreated, group deleted
 D["CN=VPN-Remote,OU=Groups," + B] = D.pop("CN=VPN,OU=Groups," + B)
 D["OU=Archiv," + B] = D.pop("OU=Archive," + B)
 D["CN=Printers,OU=Groups," + B]["objectGUID"] = [uuid.uuid4().bytes_le]

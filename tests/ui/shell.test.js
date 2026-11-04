@@ -1,4 +1,4 @@
-// Navigation (aktiver Eintrag), mobiles Menue und Meldungen (Toasts statt alert)
+// Navigation (active entry), mobile menu and messages (toasts instead of alert)
 const src = require('./load_script.js');
 const els = {};
 function mkEl(id) {
@@ -27,24 +27,24 @@ return {switchTab, toggleSidebar, showToast, toastKind, setAvatar, stubRefresh: 
 (async () => {
   const api = f(doc, {}, {language: 'de'}, () => {}, async () => ({ok: true, json: async () => ({})}), () => true, (fn, ms) => timers.push([fn, ms]));
   api.stubRefresh(async () => {});
-  // Navigation: genau ein aktiver Eintrag, aria-current, Inhalt oben
+  // Navigation: exactly one active entry, aria-current, content at the top
   await api.switchTab('offboard');
   console.assert(el('nav-offboard').classList.contains('is-active') && el('nav-offboard').getAttribute('aria-current') === 'page', 'Offboarding aktiv');
   console.assert(!el('nav-hire').classList.contains('is-active') && el('nav-hire').getAttribute('aria-current') === undefined, 'Onboarding nicht mehr aktiv');
   console.assert(el('tab-offboard').classList.contains('hidden') === false && el('tab-hire').classList.contains('hidden') === true, 'richtiger Tab sichtbar');
   console.assert(main.scrollTop === 0, 'Inhalt nach oben gescrollt');
-  // Mobiles Menue
+  // Mobile menu
   api.toggleSidebar(true);
   console.assert(el('app-sidebar').classList.contains('is-open') && el('sidebar-scrim').classList.contains('is-open'), 'Menue offen');
   await api.switchTab('hire');
   console.assert(!el('app-sidebar').classList.contains('is-open') && !el('sidebar-scrim').classList.contains('is-open'), 'Tab-Wechsel schliesst das Menue');
-  // Meldungen: Art erkennen
+  // Messages: detect the type
   console.assert(api.toastKind('Konfiguration gespeichert!') === 'success', 'Erfolg');
   console.assert(api.toastKind('Fehler beim Speichern.') === 'error', 'Fehler');
   console.assert(api.toastKind('Das Passwort ist falsch.') === 'error', 'falsch = Fehler');
   console.assert(api.toastKind('Hinweis:\nGruppe fehlt') === 'warn', 'Hinweis = Warnung');
   console.assert(api.toastKind('Verbindung wird geprüft') === 'info', 'neutral');
-  // Meldung erscheint, Text bleibt Text (kein HTML), kurze Erfolgsmeldung verschwindet von selbst
+  // message appears, text stays text (no HTML), a short success message disappears on its own
   api.showToast('<b>x</b> gespeichert');
   const stack = el('toast-stack');
   const t = stack.children[0];
@@ -57,7 +57,7 @@ return {switchTab, toggleSidebar, showToast, toastKind, setAvatar, stubRefresh: 
   console.assert(timers.length === before, 'Fehler bleiben stehen');
   for (let i = 0; i < 6; i++) api.showToast('Info ' + i, 'info');
   console.assert(stack.children.length <= 4, 'hoechstens vier Meldungen gleichzeitig');
-  // Kuerzel
+  // Initials
   api.setAvatar('anna.berger'); console.assert(el('user-avatar').textContent === 'AB', 'Kuerzel AB');
   api.setAvatar('FIRMA\\\\administrator'); console.assert(el('user-avatar').textContent === 'A', 'Kuerzel aus DOMAIN\\\\user');
   api.setAvatar('max@firma.local'); console.assert(el('user-avatar').textContent === 'M', 'Kuerzel aus UPN');

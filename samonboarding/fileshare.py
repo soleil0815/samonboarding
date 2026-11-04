@@ -1,13 +1,13 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 # Copyright (C) 2026 Die SAMONBOARDING-Autoren
-"""Dateifreigaben (SMB): strenge Pfadpruefung und rein lesender Ordner-Scan fuer die Loesch-Simulation.
+"""File shares (SMB): strict path validation and a read-only folder scan for the deletion simulation.
 
-Alles, was einen Pfad betrifft, laeuft hier durch dieselben Regeln:
-  * nur UNC-Pfade (\\\\server\\freigabe\\ordner), keine '..', keine Platzhalter, keine Streams (':')
-  * ein Ziel muss STRENG UNTERHALB eines vom Administrator freigegebenen Basispfads liegen
-  * der Basispfad selbst (und die Freigabe) ist nie ein gueltiges Ziel
-Der eigentliche SMB-Zugriff steckt hinter SmbBackend; die Pruefungen und der Scan arbeiten gegen eine
-kleine Schnittstelle (stat/listdir) und sind dadurch ohne Dateiserver testbar.
+Everything that concerns a path goes through the same rules here:
+  * UNC paths only (\\\\server\\share\\folder), no '..', no wildcards, no streams (':')
+  * a target must lie STRICTLY BELOW a base path approved by the administrator
+  * the base path itself (and the share) is never a valid target
+The actual SMB access sits behind SmbBackend; the checks and the scan work against a
+small interface (stat/listdir) and can therefore be tested without a file server.
 """
 
 import errno
@@ -31,7 +31,7 @@ _SUFFIX_RE = re.compile(r"^[A-Za-z0-9]{1,10}$")
 
 
 class FsError(Exception):
-    """Dateisystemfehler mit grober Art: notfound, exists, denied, locked, auth, unreachable, other."""
+    """File system error with a coarse kind: notfound, exists, denied, locked, auth, unreachable, other."""
 
     def __init__(self, kind, message=""):
         super().__init__(message or kind)
@@ -66,7 +66,7 @@ class ScanResult:
 
 
 # ---------------------------------------------------------------------------
-# Pfade
+# Paths
 # ---------------------------------------------------------------------------
 def _check_component(comp, what):
     if comp in (".", ".."):
@@ -78,7 +78,7 @@ def _check_component(comp, what):
 
 
 def parse_unc(path):
-    """'\\\\server\\freigabe\\a\\b' -> ('server', 'freigabe', ['a', 'b']). Wirft ValueError bei jedem Zweifel."""
+    """'\\\\server\\share\\a\\b' -> ('server', 'share', ['a', 'b']). Raises ValueError on any doubt."""
     raw = str(path or "").strip().replace("/", "\\")
     if not raw.startswith("\\\\"):
         raise ValueError("Der Pfad muss ein UNC-Pfad sein (\\\\server\\freigabe\\ordner).")
@@ -110,7 +110,7 @@ def _key(server, share, parts):
 
 
 def is_strictly_below(path, root):
-    """True, wenn path unterhalb von root liegt (gleicher Server/Freigabe, nicht root selbst)."""
+    """True if path lies below root (same server/share, not root itself)."""
     ps, psh, pp = _key(*parse_unc(path))
     rs, rsh, rp = _key(*parse_unc(root))
     return ps == rs and psh == rsh and len(pp) > len(rp) and pp[: len(rp)] == rp
@@ -121,7 +121,7 @@ def below_any_root(path, roots):
 
 
 def expand_username(value, sam):
-    """Ersetzt %username% (ohne Beachtung der Gross-/Kleinschreibung). Andere Variablen sind nicht aufloesbar."""
+    """Replace %username% (case-insensitive). Other variables cannot be resolved."""
     out = re.sub(r"%username%", sam, str(value or ""), flags=re.IGNORECASE)
     if "%" in out:
         raise ValueError("Der Pfad enthält eine nicht auflösbare Variable (nur %username% wird ersetzt).")
@@ -153,7 +153,7 @@ def last_name(path):
 
 
 # ---------------------------------------------------------------------------
-# Zielpfade eines Kontos bestimmen
+# Determine an account's target paths
 # ---------------------------------------------------------------------------
 LOCATION_LABELS = {
     "profile": "Roamingprofil",
@@ -167,7 +167,7 @@ def _target(kind, path, source, skip=""):
 
 
 def _from_attribute(kind, raw, sam, roots, suffixes=()):
-    """Pfad aus einem AD-Attribut -> Ziel (ggf. mit Ueberspringen-Grund)."""
+    """Path from an AD attribute -> target (with a skip reason if applicable)."""
     try:
         path = normalize_unc(expand_username(raw, sam))
     except ValueError as e:
@@ -175,11 +175,11 @@ def _from_attribute(kind, raw, sam, roots, suffixes=()):
     if not below_any_root(path, roots):
         return _target(kind, path, "AD-Attribut", "Liegt nicht unterhalb eines freigegebenen Basispfads.")
     if "~" in path:
-        # Windows-Kurznamen (CHEF~1) koennten auf den Ordner eines anderen zeigen; der Vergleich mit anderen Konten
-        # sieht sie nicht
+        # Windows short names (CHEF~1) could point to someone else's folder; the comparison with other accounts
+        # does not see them
         return _target(kind, path, "AD-Attribut", "Der Pfad enthält '~' (Kurzname) - wird nicht automatisch gelöscht.")
     if not name_matches_sam(last_name(path), sam, suffixes):
-        # Schutz: Steht im Attribut der Ordner eines anderen (z. B. \\fs\home$\chef), darf er nicht geloescht werden
+        # Safeguard: if the attribute holds someone else's folder (e.g. \\fs\home$\chef), it must not be deleted
         return _target(
             kind, path, "AD-Attribut", f"Der Ordnername passt nicht zum Benutzernamen '{sam}' - wird nicht gelöscht."
         )
@@ -187,8 +187,8 @@ def _from_attribute(kind, raw, sam, roots, suffixes=()):
 
 
 def name_matches_sam(name, sam, suffixes=()):
-    """Ordnername gehoert zum Konto: genau der Benutzername, bei Profilen auch mit einer der eingestellten Endungen
-    (z. B. 'mueller.V6'). 'mueller.alt' oder 'max.mustermann' (fuer das Konto 'max') gehoeren NICHT dazu."""
+    """Folder name belongs to the account: exactly the user name, for profiles also with one of the configured suffixes
+    (e.g. 'mueller.V6'). 'mueller.alt' or 'max.mustermann' (for the account 'max') do NOT belong to it."""
     name, sam = str(name).lower(), str(sam).lower()
     if not sam:
         return False
@@ -196,10 +196,10 @@ def name_matches_sam(name, sam, suffixes=()):
 
 
 def build_targets(kind, loc_cfg, sam, attr_value=""):
-    """Alle moeglichen Ordner dieses Kontos fuer einen Speicherort (existierende werden spaeter geprueft).
+    """All possible folders of this account for one storage location (existing ones are checked later).
 
-    Roamingprofil: Der Ordner muss auf eine der konfigurierten Endungen (z. B. .V2) enden - ohne Endung
-    wird nichts vorgeschlagen. Sonstige Orte: <Basispfad>\\<Benutzername> sowie (optional) der Pfad aus dem AD.
+    Roaming profile: the folder must end in one of the configured suffixes (e.g. .V2) - without a suffix
+    nothing is suggested. Other locations: <base path>\\<user name> and (optionally) the path from AD.
     """
     if not loc_cfg.get("enabled"):
         return []
@@ -208,7 +208,7 @@ def build_targets(kind, loc_cfg, sam, attr_value=""):
     if not valid_sam(sam):
         return [_target(kind, "", "Konto", f"Benutzername '{sam}' ist als Ordnername nicht zulässig.")]
     if "~" in str(sam):
-        # Windows-Kurznamen (z. B. ADMINI~1 fuer Administrator) koennten auf den Ordner eines anderen zeigen
+        # Windows short names (e.g. ADMINI~1 for Administrator) could point to someone else's folder
         return [
             _target(kind, "", "Konto", f"Benutzername '{sam}' enthält '~' - Ordner werden nicht automatisch gelöscht.")
         ]
@@ -235,10 +235,10 @@ def build_targets(kind, loc_cfg, sam, attr_value=""):
 
 
 # ---------------------------------------------------------------------------
-# Scan (nur lesend)
+# Scan (read-only)
 # ---------------------------------------------------------------------------
 def scan_tree(backend, path, max_entries=100000, max_seconds=20.0):
-    """Zaehlt Dateien/Ordner/Groesse unterhalb von path. Verknuepfungen (Reparse Points) werden NICHT verfolgt."""
+    """Count files/folders/size below path. Links (reparse points) are NOT followed."""
     result = ScanResult()
     deadline = time.monotonic() + max_seconds
     stack = [path]
@@ -272,7 +272,7 @@ def scan_tree(backend, path, max_entries=100000, max_seconds=20.0):
 
 
 # ---------------------------------------------------------------------------
-# Loeschen
+# Deletion
 # ---------------------------------------------------------------------------
 MAX_REPORTED_ERRORS = 20
 
@@ -303,12 +303,12 @@ def _plain_name(name):
 
 
 def delete_tree(backend, root, takeover=False):
-    """Loescht root samt Inhalt (erst Dateien, dann Ordner von innen nach aussen).
+    """Delete root including its contents (files first, then folders from the inside out).
 
-    Verknuepfungen (Junctions/Symlinks) werden nie verfolgt: es wird nur die Verknuepfung selbst entfernt, das Ziel
-    bleibt unberuehrt. Fehler brechen nicht ab: es wird so viel wie moeglich geloescht und alles Uebrige im Ergebnis
-    aufgelistet. Mit takeover=True wird bei "Zugriff verweigert" der Besitz uebernommen und einmal erneut versucht.
-    Der Aufrufer muss root vorher gegen die Basispfade geprueft haben.
+    Links (junctions/symlinks) are never followed: only the link itself is removed, the target stays
+    untouched. Errors do not abort: as much as possible is deleted and everything left over is listed in the
+    result. With takeover=True, ownership is taken over on "access denied" and the operation is retried once.
+    The caller must have checked root against the base paths beforehand.
     """
     result = DeleteResult()
 
@@ -333,8 +333,8 @@ def delete_tree(backend, root, takeover=False):
                 result.fail(f"{path}: {e.message}")
             continue
         if path != root and hasattr(backend, "stat"):
-            # Unmittelbar vor dem Hineingehen erneut pruefen: Wurde der Ordner inzwischen durch eine Verknuepfung
-            # (Junction) ersetzt, nur die Verknuepfung entfernen - nie ihrem Ziel folgen
+            # Check again right before descending: if the folder has meanwhile been replaced by a link
+            # (junction), remove only the link - never follow its target
             try:
                 now = run(backend.stat, path, True)
             except FsError as e:
@@ -373,7 +373,7 @@ def delete_tree(backend, root, takeover=False):
 
 
 # ---------------------------------------------------------------------------
-# SMB-Zugriff (smbprotocol, erst bei Bedarf importiert)
+# SMB access (smbprotocol, imported only when needed)
 # ---------------------------------------------------------------------------
 _NT_STATUS = {
     0xC0000022: ("denied", "Zugriff verweigert."),
@@ -391,7 +391,7 @@ _NT_STATUS = {
 
 
 def _translate(exc):
-    """smbprotocol/OS-Fehler -> FsError mit verstaendlicher Meldung."""
+    """smbprotocol/OS error -> FsError with an understandable message."""
     if isinstance(exc, FsError):
         return exc
     code = getattr(exc, "errno", None)
@@ -424,7 +424,7 @@ def _translate(exc):
 
 
 def _lib():
-    """Die benoetigten Teile von smbprotocol (erst bei Bedarf importiert)."""
+    """The required parts of smbprotocol (imported only when needed)."""
     from smbclient._io import SMBDirectoryIO, SMBFileIO, SMBFileTransaction
     from smbprotocol import MAX_PAYLOAD_SIZE
     from smbprotocol.file_info import InfoType
@@ -453,9 +453,9 @@ def _lib():
 
 
 class SmbBackend:
-    """SMB-Zugriff im Namen des angemeldeten Administrators.
+    """SMB access on behalf of the logged-on administrator.
 
-    Jede Instanz hat einen eigenen Verbindungs-Cache, damit Sitzungen verschiedener Benutzer nie vermischt werden.
+    Each instance has its own connection cache so that sessions of different users are never mixed.
     """
 
     def __init__(self, username, password, timeout=10):
@@ -469,10 +469,10 @@ class SmbBackend:
     def close(self):
         try:
             self._smb.reset_connection_cache(connection_cache=self._kw["connection_cache"])
-        except Exception as e:  # Aufraeumen darf nie scheitern
+        except Exception as e:  # cleanup must never fail
             log.debug("SMB-Verbindungen schliessen: %s", e)
 
-    # -- lesen ----------------------------------------------------------------
+    # -- read -----------------------------------------------------------------
     def stat(self, path):
         try:
             st = self._smb.lstat(path, **self._kw)
@@ -485,7 +485,7 @@ class SmbBackend:
         )
 
     def listdir(self, path):
-        """Eintraege eines Ordners. Art und Groesse kommen direkt aus der Verzeichnisabfrage (keine Einzelabfragen)."""
+        """Entries of a folder. Kind and size come straight from the directory query (no per-entry queries)."""
         entries = []
         try:
             with self._smb.scandir(path, **self._kw) as iterator:
@@ -504,16 +504,16 @@ class SmbBackend:
             raise _translate(e) from e
         return entries
 
-    # -- aendern --------------------------------------------------------------
+    # -- modify ---------------------------------------------------------------
     def remove(self, path):
-        """Datei oder Dateiverknuepfung loeschen (schreibgeschuetzt wird von der Bibliothek zuvor entsperrt)."""
+        """Delete a file or file link (the library clears the read-only flag first)."""
         try:
             self._smb.remove(path, **self._kw)
         except Exception as e:
             raise _translate(e) from e
 
     def rmdir(self, path):
-        """Leeren Ordner oder eine Ordnerverknuepfung loeschen (ohne ihr zu folgen)."""
+        """Delete an empty folder or a folder link (without following it)."""
         try:
             self._smb.rmdir(path, **self._kw)
         except Exception as e:
@@ -525,7 +525,7 @@ class SmbBackend:
         except Exception as e:
             raise _translate(e) from e
 
-    # -- Berechtigungen --------------------------------------------------------
+    # -- permissions ----------------------------------------------------------
     def _open_for_security(self, lib, path, is_dir, access):
         cls = lib.dir_io if is_dir else lib.file_io
         return cls(
@@ -538,7 +538,7 @@ class SmbBackend:
         )
 
     def get_security(self, path, is_dir, info=acl.SECINFO_OWNER | acl.SECINFO_GROUP | acl.SECINFO_DACL):
-        """Sicherheitsdeskriptor (Binaerformat) eines Eintrags lesen."""
+        """Read the security descriptor (binary format) of an entry."""
         try:
             lib = _lib()
             raw = self._open_for_security(lib, path, is_dir, lib.access.READ_CONTROL)
@@ -561,7 +561,7 @@ class SmbBackend:
             raise _translate(e) from e
 
     def set_security(self, path, is_dir, descriptor, info, access):
-        """Teile eines Sicherheitsdeskriptors schreiben (info = was, access = dafuer noetiges Zugriffsrecht)."""
+        """Write parts of a security descriptor (info = what, access = access right required for it)."""
         try:
             lib = _lib()
             raw = self._open_for_security(lib, path, is_dir, access(lib.access))
@@ -583,7 +583,7 @@ class SmbBackend:
             raise _translate(e) from e
 
     def can_take_ownership(self, path, is_dir):
-        """Prueft nur, ob der Besitz uebernommen werden koennte (Handle mit WRITE_OWNER oeffnen, nichts aendern)."""
+        """Only check whether ownership could be taken over (open a handle with WRITE_OWNER, change nothing)."""
         try:
             lib = _lib()
             raw = self._open_for_security(lib, path, is_dir, lib.access.WRITE_OWNER)
@@ -595,7 +595,7 @@ class SmbBackend:
             return False
 
     def grant_access(self, path, is_dir, sid, mask=acl.FILE_ALL_ACCESS):
-        """Ergaenzt die Berechtigungsliste um einen Zugriffseintrag fuer sid und prueft das Ergebnis."""
+        """Add an access control entry for sid to the ACL and verify the result."""
         try:
             sd = acl.parse_sd(self.get_security(path, is_dir))
             aces, changed = acl.with_allow_ace(sd, acl.allow_ace(sid, mask, is_dir))
@@ -608,7 +608,7 @@ class SmbBackend:
             raise FsError("other", f"Berechtigung nicht setzbar: {e}") from e
 
     def take_ownership(self, path, is_dir):
-        """Besitz auf BUILTIN\\Administrators uebernehmen und dieser Gruppe Vollzugriff geben."""
+        """Take ownership for BUILTIN\\Administrators and grant this group full control."""
         try:
             descriptor = acl.build_sd(owner=acl.SID_ADMINISTRATORS)
             self.set_security(path, is_dir, descriptor, acl.SECINFO_OWNER, lambda a: a.WRITE_OWNER)
@@ -618,10 +618,10 @@ class SmbBackend:
 
 
 def create_home_folder(backend, path, sid):
-    """Legt einen Basisordner an und gibt dem Konto (sid) Vollzugriff. Liefert 'created' oder 'exists'.
+    """Create a home folder and grant the account (sid) full control. Returns 'created' or 'exists'.
 
-    Es wird nur der letzte Ordner angelegt (der Elternordner muss existieren). Ein bereits vorhandener Ordner
-    wird NICHT angefasst, weil er jemand anderem gehoeren koennte.
+    Only the last folder is created (the parent folder must exist). An existing folder
+    is NOT touched, because it could belong to someone else.
     """
     try:
         _server, _share, parts = parse_unc(path)
@@ -642,5 +642,5 @@ def create_home_folder(backend, path, sid):
 
 
 def open_backend(user):
-    """SMB-Zugriff mit den Zugangsdaten des angemeldeten Benutzers (in Tests austauschbar)."""
+    """SMB access with the credentials of the logged-on user (replaceable in tests)."""
     return SmbBackend(user["bind_user"], user["password"])

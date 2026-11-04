@@ -1,6 +1,6 @@
-"""Oberflaechen-Logik (JavaScript in index.html) mit einer einfachen Fake-DOM-Umgebung unter Node.
+"""UI logic (JavaScript in index.html) with a simple fake DOM environment under Node.
 
-Wird uebersprungen, wenn Node.js nicht installiert ist.
+Skipped if Node.js is not installed.
 """
 
 import glob

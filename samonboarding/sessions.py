@@ -1,10 +1,10 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 # Copyright (C) 2026 Die SAMONBOARDING-Autoren
-"""Sitzungsverwaltung (im Arbeitsspeicher) und Schutz vor wiederholten Fehlanmeldungen.
+"""Session management (in memory) and protection against repeated failed logins.
 
-Eine Sitzung endet bei der Abmeldung, nach SESSION_IDLE_SECONDS ohne Anfrage (gleitend: jede Anfrage verlaengert)
-oder beim Neustart, weil sie nur im Arbeitsspeicher liegt. Unabhaengig davon endet sie spaetestens nach
-SESSION_MAX_SECONDS (Standard 12 Stunden) - dann wird bei der neuen Anmeldung auch die Rolle neu bestimmt.
+A session ends on logout, after SESSION_IDLE_SECONDS without a request (sliding: every request extends it)
+or on restart, because it is kept in memory only. Independently of that, it ends at the latest after
+SESSION_MAX_SECONDS (default 12 hours) - the role is then determined again at the next login.
 """
 
 import secrets
@@ -49,7 +49,7 @@ def get_current_user(session_id: str = Cookie(None)):
             session = active_sessions.get(session_id)
         now = time.time()
         if session and session["expires"] > now and now - session.get("created", now) < SESSION_MAX_SECONDS:
-            session["expires"] = now + SESSION_IDLE_SECONDS  # Aktivitaet verlaengert die Sitzung
+            session["expires"] = now + SESSION_IDLE_SECONDS  # activity extends the session
             return session
         drop_session(session_id)
     raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Not logged in.")
@@ -78,18 +78,18 @@ def throttle_check(key):
                 status_code=429,
                 detail=f"Zu viele fehlgeschlagene Anmeldungen. Bitte in {minutes} Minute(n) erneut versuchen.",
             )
-        # Der Versuch zaehlt sofort (unter der Sperre) - sonst kaemen viele gleichzeitige Anfragen alle durch, bevor
-        # der erste Fehlschlag vermerkt ist. Bei Erfolg oder ohne Passwortpruefung wird er wieder freigegeben.
+        # The attempt counts immediately (under the lock) - otherwise many concurrent requests would all get through
+        # before the first failure is recorded. On success, or if no password check took place, it is released.
         _login_failures.setdefault(key, []).append(now)
         return now
 
 
 def throttle_fail(key):
-    """Fehlschlag: der bei throttle_check vermerkte Versuch bleibt einfach stehen."""
+    """Failure: the attempt recorded by throttle_check simply remains."""
 
 
 def throttle_release(key, stamp):
-    """Versuch zuruecknehmen (z. B. DC nicht erreichbar - das Passwort wurde gar nicht geprueft)."""
+    """Withdraws the attempt (e.g. DC unreachable - the password was never checked)."""
     with _login_lock:
         attempts = _login_failures.get(key, [])
         if stamp in attempts:
@@ -102,6 +102,6 @@ def throttle_clear(key):
 
 
 def peek_session(token):
-    """Liefert die Sitzung zum Token (oder None), ohne Ablauf oder Cookie zu pruefen."""
+    """Returns the session for the token (or None) without checking expiry or cookie."""
     with _session_lock:
         return active_sessions.get(token)

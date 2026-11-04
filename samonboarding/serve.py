@@ -1,9 +1,9 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 # Copyright (C) 2026 Die SAMONBOARDING-Autoren
-"""Startet SAMONBOARDING nur ueber HTTPS:  python -m samonboarding.serve
+"""Starts SAMONBOARDING over HTTPS only:  python -m samonboarding.serve
 
-Es gibt keinen unverschluesselten HTTP-Port. Zertifikat siehe samonboarding/tls.py; ein in der Oberflaeche
-hochgeladenes Zertifikat gilt sofort fuer neue Verbindungen (ohne Neustart).
+There is no unencrypted HTTP port. For the certificate see samonboarding/tls.py; a certificate uploaded in the UI
+applies immediately to new connections (without restart).
 """
 
 import contextlib
@@ -17,11 +17,11 @@ CIPHERS = tls.CIPHERS
 
 
 def data_writable():
-    """Das Programm laeuft ohne root: data/ muss dem Container-Benutzer gehoeren. Mit der aktuellen docker-compose.yml
-    stellt das Startskript (docker-entrypoint.sh) das selbst ein."""
+    """The program runs without root: data/ must be owned by the container user. With the current docker-compose.yml
+    the start script (docker-entrypoint.sh) sets this up itself."""
     probe = os.path.join(str(config.DATA_DIR), ".schreibtest")
     with contextlib.suppress(OSError):
-        os.chmod(str(config.DATA_DIR), 0o700)  # nur fuer den Programmbenutzer (er ist der Besitzer)
+        os.chmod(str(config.DATA_DIR), 0o700)  # only for the program user (who is the owner)
     try:
         with open(probe, "w") as f:
             f.write("ok")
@@ -63,17 +63,17 @@ def main():
     cert_file, key_file, _self_signed = tls.ensure_certificate()
     server_config = uvicorn.Config(
         "samonboarding.main:app",
-        host="0.0.0.0",  # noqa: S104 - im Container; nach aussen gibt nur docker-compose.yml den Port frei
+        host="0.0.0.0",  # noqa: S104 - inside the container; only docker-compose.yml exposes the port externally
         port=config.HTTPS_PORT,
         ssl_certfile=cert_file,
         ssl_keyfile=key_file,
         ssl_ciphers=CIPHERS,
-        access_log=False,  # keine IP-Adressen je Anfrage protokollieren (Datensparsamkeit)
+        access_log=False,  # do not log IP addresses per request (data minimization)
         server_header=False,
         proxy_headers=False,
     )
-    server_config.load()  # erzeugt den SSLContext des Servers ...
-    tls.activate(server_config.ssl)  # ... und haengt den Austausch im laufenden Betrieb daran
+    server_config.load()  # creates the server's SSLContext ...
+    tls.activate(server_config.ssl)  # ... and hooks live certificate swapping into it
     uvicorn.Server(server_config).run()
 
 

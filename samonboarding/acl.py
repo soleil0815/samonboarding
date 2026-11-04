@@ -1,11 +1,10 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 # Copyright (C) 2026 Die SAMONBOARDING-Autoren
-"""Windows-Sicherheitsbeschreibungen (Security Descriptor, binaer): lesen, um einen Eintrag ergaenzen, schreiben.
+"""Windows security descriptors (binary): read, add one entry, write back.
 
-Das ist nur der kleine Ausschnitt, der gebraucht wird: einen Besitzer setzen und eine Zugriffsberechtigung (ACE)
-hinzufuegen. Alles andere in der Berechtigungsliste bleibt unveraendert, auch unbekannte ACE-Typen (Rohbytes).
-Ist gar keine Berechtigungsliste vorhanden (NULL-DACL = Zugriff fuer alle), wird nichts veraendert, weil ein
-Hinzufuegen den Ordner sonst ploetzlich einschraenken wuerde.
+Only the small subset that is needed: set an owner and add an access control entry (ACE). Everything else in the
+ACL stays unchanged, including unknown ACE types (raw bytes). If there is no ACL at all (NULL DACL = access for
+everyone), nothing is changed, because adding an entry would suddenly restrict the folder.
 """
 
 import struct
@@ -41,7 +40,7 @@ MAX_ACL_SIZE = 0xFFFF
 
 
 class AclError(ValueError):
-    """Sicherheitsbeschreibung nicht lesbar oder nicht sicher aenderbar."""
+    """Security descriptor cannot be read or cannot be changed safely."""
 
 
 # ---------------------------------------------------------------------------
@@ -64,7 +63,7 @@ def sid_to_bytes(sid):
 
 
 def sid_from_bytes(data, offset=0):
-    """Liest eine SID aus data ab offset. Liefert (SID-Text, Laenge in Bytes)."""
+    """Read a SID from data at offset. Returns (SID string, length in bytes)."""
     if len(data) < offset + 8:
         raise AclError("SID abgeschnitten.")
     revision = data[offset]
@@ -78,14 +77,14 @@ def sid_from_bytes(data, offset=0):
 
 
 def sid_from_ldap(raw):
-    """objectSid aus LDAP (Bytes) -> SID-Text. Ein bereits lesbarer Text ('S-1-5-21-...') wird durchgereicht."""
+    """objectSid from LDAP (bytes) -> SID string. Text that is already readable ('S-1-5-21-...') is passed through."""
     if isinstance(raw, (bytes, bytearray)):
         sid, length = sid_from_bytes(bytes(raw))
         if length != len(raw):
             raise AclError("objectSid hat unerwartete Länge.")
         return sid
     text = str(raw or "").strip()
-    sid_to_bytes(text)  # prueft das Format
+    sid_to_bytes(text)  # validates the format
     return text
 
 
@@ -98,7 +97,7 @@ class Ace:
     flags: int
     mask: int = 0
     sid: str = ""
-    raw: bytes = b""  # gelesene ACEs bleiben als Originalbytes erhalten (byte-genaues Zurueckschreiben)
+    raw: bytes = b""  # parsed ACEs keep their original bytes (byte-exact write-back)
 
     def to_bytes(self):
         if self.raw:
@@ -113,7 +112,7 @@ class SecurityDescriptor:
     control: int = SE_SELF_RELATIVE
     owner: str | None = None
     group: str | None = None
-    dacl: list | None = field(default_factory=list)  # None = keine DACL vorhanden (NULL-DACL)
+    dacl: list | None = field(default_factory=list)  # None = no DACL present (NULL DACL)
     dacl_revision: int = 2
 
 
@@ -173,7 +172,7 @@ def _build_acl(aces, revision=2):
 
 
 def build_sd(owner=None, group=None, dacl=None, dacl_control=0, dacl_revision=2):
-    """Baut einen selbstbezogenen Deskriptor, der nur die gesetzten Teile enthaelt (fuer SET_INFO)."""
+    """Build a self-relative descriptor that contains only the parts that are set (for SET_INFO)."""
     control = SE_SELF_RELATIVE
     chunks, pos = [], 20
     offsets = {"owner": 0, "group": 0, "dacl": 0}
@@ -200,7 +199,7 @@ def allow_ace(sid, mask=FILE_ALL_ACCESS, is_dir=False):
 
 
 def with_allow_ace(sd, ace):
-    """Liefert (neue ACE-Liste, geaendert?). Fuegt vor dem ersten geerbten Eintrag ein, falls nicht schon enthalten."""
+    """Return (new ACE list, changed?). Inserts before the first inherited entry unless already present."""
     if sd.dacl is None:
         raise AclError("Der Ordner hat keine Berechtigungsliste (NULL-DACL) - wird nicht verändert.")
     for existing in sd.dacl:

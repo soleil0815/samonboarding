@@ -7,6 +7,9 @@ Update auf dem Server: `sudo sh update.sh` oder `docker compose pull && docker c
 
 Einträge, die mit „Sicherheit:“ oder „Behoben:“ beginnen, werden in der Oberfläche entsprechend markiert.
 
+## 2.0.3 – 2026-11-04
+- Englisch ist jetzt die Standardsprache der Projektdateien: README, Changelog, Datenschutz-Dokumentation und Release-Seiten erscheinen zuerst auf Englisch, die deutschen Fassungen stehen in `README.de.md`, `CHANGELOG.de.md` und `DATENSCHUTZ.de.md`. Die Kommentare im Quellcode sind englisch. Oberfläche, Handbuch und Verhalten sind unverändert.
+
 ## 2.0.2 – 2026-11-03
 - Neues Logo: zwei Personen statt Schild – zeigt auf einen Blick, dass es um die Verwaltung von Benutzerkonten geht. Gilt für Anmeldung, Seitenleiste, mobile Ansicht und das Symbol im Browser-Tab.
 

@@ -1,4 +1,4 @@
-"""Workflows auf GitHub: Zeitplan, Reihenfolge der Schritte, Rechte, Trivy ohne Action, nie ueberschreiben."""
+"""GitHub workflows: schedule, order of steps, permissions, Trivy without an action, never overwrite."""
 
 import re
 import unittest
@@ -22,10 +22,10 @@ def step_index(flow, name):
 
 
 class WorkflowSecurityTests(unittest.TestCase):
-    def test_nur_die_beiden_workflows(self):
+    def test_only_the_two_workflows(self):
         self.assertEqual(sorted(p.name for p in FLOWS.glob("*.y*ml")), ["checks.yml", "image.yml"])
 
-    def test_actions_auf_commit_pruefsummen_und_kein_trivy_action(self):
+    def test_actions_pinned_to_commit_hashes_and_no_trivy_action(self):
         for name in ("image.yml", "checks.yml"):
             flow = text(name)
             for line in flow.splitlines():
@@ -35,10 +35,10 @@ class WorkflowSecurityTests(unittest.TestCase):
             self.assertNotIn("setup-trivy", flow)
             self.assertNotIn("trivy-action", flow)
 
-    def test_minimale_rechte_und_keine_gespeicherten_zugangsdaten(self):
+    def test_minimal_permissions_and_no_persisted_credentials(self):
         for name in ("image.yml", "checks.yml"):
             flow = text(name)
-            self.assertIn("\npermissions: {}\n", flow)  # oben nichts - jeder Job nur, was er braucht
+            self.assertIn("\npermissions: {}\n", flow)  # nothing at the top - each job gets only what it needs
             self.assertEqual(flow.count("actions/checkout@"), flow.count("persist-credentials: false"))
         checks = text("checks.yml")
         self.assertNotIn("write", checks)
@@ -47,12 +47,12 @@ class WorkflowSecurityTests(unittest.TestCase):
         self.assertEqual(image.count("contents: write"), 1)
         self.assertEqual(image.count("packages: write"), 1)
 
-    def test_release_nur_vom_hauptzweig_und_nie_zwei_gleichzeitig(self):
+    def test_release_only_from_main_and_never_two_at_once(self):
         flow = text("image.yml")
         self.assertTrue(
             "on:\n  pull_request:\n    branches: [main]\n  push:\n    branches: [main]\n" in flow, "Ausloeser"
         )
-        # veroeffentlicht nur von main, nie bei Push oder Pull Request: ein Merge allein veroeffentlicht nichts
+        # publishes only from main, never on push or pull request: a merge alone publishes nothing
         publish = (
             "PUBLISH: ${{ github.ref == 'refs/heads/main' && github.event_name != 'push' "
             "&& github.event_name != 'pull_request' && 'true' || 'false' }}"
@@ -70,13 +70,13 @@ class WorkflowSecurityTests(unittest.TestCase):
         self.assertEqual(flow.count("--push"), 1)
         self.assertEqual(flow.count("docker login"), 1)
 
-    def test_trivy_feste_version_mit_sha256(self):
+    def test_trivy_fixed_version_with_sha256(self):
         script = (ROOT / "scripts" / "install-trivy.sh").read_text(encoding="utf-8")
         version = re.search(r'^TRIVY_VERSION="(\d+\.\d+\.\d+)"$', script, re.M).group(1)
-        self.assertNotEqual(version, "0.69.4")  # die boesartige Version vom Maerz 2026
+        self.assertNotEqual(version, "0.69.4")  # the malicious version from March 2026
         self.assertRegex(script, r'(?m)^TRIVY_SHA256="[0-9a-f]{64}"')
         self.assertIn('if [ "$actual" != "$TRIVY_SHA256" ]', script)
-        self.assertIn('if [ "$official" != "$TRIVY_SHA256" ]', script)  # und so in der offiziellen Liste
+        self.assertIn('if [ "$official" != "$TRIVY_SHA256" ]', script)  # and listed like this in the official list
         self.assertIn("--proto '=https'", script)
         self.assertNotIn("latest", script)
         for name in ("image.yml", "checks.yml"):
@@ -84,14 +84,14 @@ class WorkflowSecurityTests(unittest.TestCase):
 
 
 class ScheduleTests(unittest.TestCase):
-    def test_zeitplaene(self):
+    def test_schedules(self):
         image = text("image.yml")
-        self.assertIn('    - cron: "17 5 * * 1"', image)  # montags frueh: Sicherheitsupdate
-        self.assertIn("workflow_dispatch:", image)  # auch von Hand
+        self.assertIn('    - cron: "17 5 * * 1"', image)  # early Monday: security update
+        self.assertIn("workflow_dispatch:", image)  # also manually
         self.assertIn("options: [security-update, release]", image)
         checks = text("checks.yml")
-        self.assertIn('    - cron: "43 3 * * *"', checks)  # taeglich: Scan des veroeffentlichten Images
-        self.assertIn('    - cron: "29 6 * * 1"', checks)  # woechentlich: Unterbau
+        self.assertIn('    - cron: "43 3 * * *"', checks)  # daily: scan of the published image
+        self.assertIn('    - cron: "29 6 * * 1"', checks)  # weekly: base support
         self.assertIn("github.event.schedule == '43 3 * * *'", checks)
         self.assertIn("github.event.schedule == '29 6 * * 1'", checks)
         self.assertIn("python3 scripts/pins.py eol", checks)
@@ -100,7 +100,7 @@ class ScheduleTests(unittest.TestCase):
         self.assertIn("pins.py scan published:amd64", scan)
         self.assertIn("pins.py scan published:arm64", scan)
 
-    def test_modus_je_ausloeser(self):
+    def test_mode_per_trigger(self):
         flow = text("image.yml")
         mode = (
             "MODE: ${{ (github.event_name == 'push' || github.event_name == 'pull_request') && 'check' || "
@@ -110,7 +110,7 @@ class ScheduleTests(unittest.TestCase):
         plan = flow[step_index(flow, "Plan") :][:500]
         self.assertTrue('if [ "$mode" = check ]; then mode=release; fi' in plan, "Pruefung plant wie ein Release")
 
-    def test_release_seite_mit_anhaengen_und_tag_x_y(self):
+    def test_release_page_with_assets_and_tag_x_y(self):
         flow = text("image.yml")
         release = flow[step_index(flow, "GitHub release (only main)") :]
         for needed in ('cp docker-compose.yml "$assets/docker-compose.yml"', 'cp .env.example "$assets/env.example"',
@@ -120,12 +120,12 @@ class ScheduleTests(unittest.TestCase):
         publish = flow[step_index(flow, "Publish the image") : step_index(flow, "GitHub release (only main)")]
         self.assertTrue('if [ "$MINOR_LATEST" = true ]; then tags="$tags --tag $IMAGE:$MINOR"; fi' in publish, "X.Y")
         smoke = flow[step_index(flow, "Start check of the server") : step_index(flow, "Vulnerability scan (Trivy")]
-        for arch in ("amd64", "arm64"):  # auch so gestartet wie mit der docker-compose.yml (als root, dann 10001)
+        for arch in ("amd64", "arm64"):  # also started as with docker-compose.yml (as root, then 10001)
             self.assertTrue(f"smoke samonboarding:test-{arch} --as-root" in smoke, arch)
 
 
 class OrderTests(unittest.TestCase):
-    def test_reihenfolge_der_schritte(self):
+    def test_order_of_steps(self):
         flow = text("image.yml")
         order = [
             "Install Trivy",
@@ -148,26 +148,26 @@ class OrderTests(unittest.TestCase):
         positions = [step_index(flow, name) for name in order]
         self.assertEqual(positions, sorted(positions))
 
-    def test_ohne_zwischenspeicher_gebaut_und_gleiche_schichten_veroeffentlicht(self):
+    def test_built_without_cache_and_same_layers_published(self):
         flow = text("image.yml")
         probe = flow[step_index(flow, "Build without cache") : step_index(flow, "Debian packages")]
         self.assertIn("--no-cache --pull", probe)
-        for name in ("Build $arch", "Final build $arch", "Publish"):  # Fehlerursache lesbar am Lauf
+        for name in ("Build $arch", "Final build $arch", "Publish"):  # failure cause readable in the run
             self.assertIn(f'python3 scripts/pins.py run "{name}" -- docker buildx build', flow)
         self.assertIn("--cache-to", probe)
-        self.assertNotIn("type=gha", flow)  # kein Zwischenspeicher aus frueheren Laeufen
+        self.assertNotIn("type=gha", flow)  # no cache from earlier runs
         final = flow[step_index(flow, "Build the final image") : step_index(flow, "Tests in the image")]
         publish = flow[step_index(flow, "Publish the image") :]
         for block in (final, publish):
             self.assertIn("--cache-from", block)
             self.assertIn('--label "org.opencontainers.image.version=$TAG"', block)
 
-    def test_bedingungen(self):
+    def test_conditions(self):
         flow = text("image.yml")
         self.assertIn("if: env.MODE == 'security-update'\n        run: python3 scripts/pins.py update", flow)
         for step in ("Tests in the image", "Start check of the server", "Vulnerability scan (Trivy"):
             block = flow[step_index(flow, step) :][:200]
-            self.assertIn("if: steps.plan.outputs.action != 'nothing'", block, step)  # nichts geaendert: nichts tun
+            self.assertIn("if: steps.plan.outputs.action != 'nothing'", block, step)  # nothing changed: do nothing
         publish = flow[step_index(flow, "Publish the image") :][:300]
         self.assertIn("steps.plan.outputs.action == 'publish'", publish)
         self.assertIn('if [ "$LATEST" = true ]; then tags="$tags --tag $IMAGE:latest"; fi', flow)
@@ -175,17 +175,17 @@ class OrderTests(unittest.TestCase):
         self.assertIn("steps.plan.outputs.commit == 'true'", commit)
 
     def test_github_release(self):
-        """Je veroeffentlichter Version eine Release-Seite v<Version> mit dem Changelog-Eintrag - nie geaendert."""
+        """One release page v<version> per published version with the changelog entry - never changed."""
         flow = text("image.yml")
         block = flow[step_index(flow, "GitHub release (only main)") :]
         self.assertIn("if: env.PUBLISH == 'true'", block[:200])
         self.assertLess(block.index('gh release view "v$TAG"'), block.index('gh release create "v$TAG"'))
         self.assertIn("left unchanged", block)
         self.assertIn('--notes-file "$RUNNER_TEMP/notes.md" --latest="$latest"', block)
-        self.assertIn('grep -qx "$TAG"', block)  # kein Release ohne veroeffentlichtes Image
+        self.assertIn('grep -qx "$TAG"', block)  # no release without a published image
         self.assertEqual(flow.count("gh release create"), 1)
 
-    def test_nach_dem_veroeffentlichen_abmelden(self):
+    def test_logout_after_publishing(self):
         flow = text("image.yml")
         self.assertLess(flow.index("docker login"), flow.index("--push"))
         self.assertLess(flow.index("--push"), flow.index("docker logout ghcr.io"))
@@ -193,13 +193,13 @@ class OrderTests(unittest.TestCase):
 
 
 class ImageContentTests(unittest.TestCase):
-    def test_nicht_benoetigtes_entfernt(self):
+    def test_unneeded_parts_removed(self):
         docker = (ROOT / "Dockerfile").read_text(encoding="utf-8")
         final = docker[docker.index("FROM ${PYTHON_IMAGE}") :]
-        self.assertIn("python -m pip uninstall -y pip", final)  # Paketmanager pip nicht im fertigen Image
+        self.assertIn("python -m pip uninstall -y pip", final)  # package manager pip not in the final image
         self.assertIn("pip uninstall -y setuptools wheel", final)
         self.assertIn("ensurepip/_bundled", final)
-        self.assertNotIn("npm", final.replace("COPY --from=assets", ""))  # Node/npm nur im Bau-Abschnitt
+        self.assertNotIn("npm", final.replace("COPY --from=assets", ""))  # Node/npm only in the build stage
         self.assertIn("scripts/", (ROOT / ".dockerignore").read_text(encoding="utf-8").split())
 
 

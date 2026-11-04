@@ -1,4 +1,4 @@
-# ---- Besitzuebernahme, Verknuepfungen, Benachrichtigung ----
+# ---- Ownership takeover, links, notification ----
 HOME = "\\\\fs1\\home$\\"
 def user_fs(sam, extra=None, **kw):
     fsx = mkfs(clean=True, **kw)
@@ -21,19 +21,19 @@ def set_cfg(takeover):
 def home_row(sim_result):
     return [x for x in sim_result["targets"] if x["kind"] == "home" and x["source"] == "AD-Attribut"][0]
 
-# Einstellung wird gespeichert, Standard ist aus
+# setting is saved, default is off
 check("Besitzuebernahme standardmaessig aus", dele.get_deletion_config(adm)["home"]["takeOwnership"] is False)
 set_cfg(True)
 check("Besitzuebernahme wird gespeichert", all(dele.get_deletion_config(adm)[k]["takeOwnership"] is True for k in ("profile", "folderRedirection", "home")))
 
-# Ohne Erlaubnis: kein Zugriff bleibt ein Hindernis
+# without permission: no access remains an obstacle
 set_cfg(False)
 dn1 = add_user("ttom", "Take Tom")
 fs1 = user_fs("ttom", denied={HOME.lower() + "ttom\\docs"})
 s = sim(dn1, fsobj=fs1)
 check("Ohne takeOwnership: Unterordner ohne Zugriff blockiert", s["planId"] is None and s["blockers"] and not any(c[0] == "can_take" for c in fs1.calls), s["blockers"])
 
-# Mit Erlaubnis: Unterordner ohne Zugriff -> Besitzuebernahme einplanen, Simulation aendert nichts
+# with permission: subfolder without access -> plan ownership takeover, simulation changes nothing
 set_cfg(True)
 fs1 = user_fs("ttom", denied={HOME.lower() + "ttom\\docs"}, locked={HOME.lower() + "ttom\\secret.txt"})
 s = sim(dn1, fsobj=fs1)
@@ -41,14 +41,14 @@ h = home_row(s)
 check("Simulation: Besitz noetig wird erkannt", h["status"] == "found" and h["takeoverNeeded"] == 1 and h["deletable"] and s["planId"] and s["summary"]["takeovers"] == 1, h)
 check("Simulation uebernimmt noch nichts", not fs1.taken and all(c[0] in ("stat", "listdir", "can_take") for c in fs1.calls))
 
-# Ausfuehren: Besitz wird uebernommen (Ordner Docs, Datei secret.txt), dann alles geloescht, Konto weg
+# run: ownership is taken (folder Docs, file secret.txt), then everything deleted, account gone
 r = X(exm(dn1, s["planId"], "ttom"), adm)
 hr = [x for x in r["results"] if x["kind"] == "home"][0]
 check("Mit Besitzuebernahme: alles geloescht, Konto weg", r["status"] == "success" and r["accountDeleted"] and dn1 not in D and HOME.lower() + "ttom" not in fs1.tree, r)
 check("Besitz fuer genau die gesperrten Eintraege uebernommen", sorted(x.lower() for x in fs1.taken) == sorted([HOME.lower() + "ttom\\docs", HOME.lower() + "ttom\\secret.txt"]) and hr["takeovers"] == 2, fs1.taken)
 check("Besitzuebernahme steht im Ergebnis", hr["takeoverPaths"] and hr["status"] == "deleted")
 
-# Wurzelordner ohne Zugriff (stat verweigert) -> Status 'takeover'
+# root folder without access (stat denied) -> status 'takeover'
 dn2 = add_user("tuwe", "Take Uwe")
 fs2 = user_fs("tuwe", denied={HOME.lower() + "tuwe"})
 s = sim(dn2, fsobj=fs2)
@@ -57,7 +57,7 @@ check("Wurzelordner ohne Zugriff -> takeover", h["status"] == "takeover" and h["
 r = X(exm(dn2, s["planId"], "tuwe"), adm)
 check("Wurzelordner: Besitz uebernommen und geloescht", r["status"] == "success" and HOME.lower() + "tuwe" not in fs2.tree and HOME.lower() + "tuwe" in [x.lower() for x in fs2.taken])
 
-# Besitzuebernahme nicht moeglich -> Hindernis, nichts passiert
+# ownership takeover not possible -> obstacle, nothing happens
 dn3 = add_user("tvia", "Take Via")
 fs3 = user_fs("tvia", denied={HOME.lower() + "tvia\\docs"}, no_takeover={HOME.lower() + "tvia\\docs"})
 s = sim(dn3, fsobj=fs3)
@@ -66,7 +66,7 @@ fs3b = user_fs("tvia", denied={HOME.lower() + "tvia"}, no_takeover={HOME.lower()
 s = sim(dn3, fsobj=fs3b)
 check("Wurzel: Besitzuebernahme unmoeglich -> denied", home_row(s)["status"] == "denied" and s["planId"] is None)
 
-# Ausfuehrung: Besitzuebernahme scheitert mitten im Lauf -> partial, Konto bleibt
+# run: ownership takeover fails mid-run -> partial, account stays
 dn4 = add_user("twil", "Take Wil")
 fs4 = user_fs("twil", locked={HOME.lower() + "twil\\secret.txt"}, no_takeover={HOME.lower() + "twil\\secret.txt"})
 set_cfg(True)
@@ -74,7 +74,7 @@ s = sim(dn4, fsobj=fs4)
 r = X(exm(dn4, s["planId"], "twil"), adm)
 check("Besitzuebernahme scheitert beim Loeschen -> partial, Konto bleibt", r["status"] == "partial" and dn4 in D and not r["accountDeleted"] and any("Besitzübernahme" in e for x in r["results"] for e in x["errors"]), r)
 
-# Mit Erlaubnis aus: gesperrte Datei -> partial wie bisher, keine Besitzuebernahme versucht
+# with permission off: locked file -> partial as before, no ownership takeover attempted
 set_cfg(False)
 dn5 = add_user("tzoe", "Take Zoe")
 fs5 = user_fs("tzoe", locked={HOME.lower() + "tzoe\\secret.txt"})
@@ -82,7 +82,7 @@ s = sim(dn5, fsobj=fs5)
 r = X(exm(dn5, s["planId"], "tzoe"), adm)
 check("Ohne Erlaubnis keine Besitzuebernahme", r["status"] == "partial" and not fs5.taken and dn5 in D)
 
-# Verknuepfungen: nur die Verknuepfung wird entfernt, das Ziel bleibt
+# links: only the link is removed, the target stays
 dn6 = add_user("tlin", "Take Lin")
 fs6 = user_fs("tlin", reparse={HOME.lower() + "tlin\\docs"})
 s = sim(dn6, fsobj=fs6)
@@ -92,7 +92,7 @@ hr = [x for x in r["results"] if x["kind"] == "home"][0]
 check("Verknuepfung entfernt, Ziel unberuehrt", r["status"] == "success" and hr["links"] == 1 and (HOME.lower() + "tlin\\docs\\a.txt") in fs6.tree
       and not any(c[0] == "listdir" and c[1].lower().endswith("tlin\\docs") for c in fs6.calls[-12:]) and not any(c == ("remove", HOME + "tlin\\docs\\a.txt") for c in fs6.calls), r)
 
-# E-Mail-Benachrichtigung
+# e-mail notification
 import json as _json
 def smtp(notify):
     cfg = dict(enabled=True, host="x", port=25, username="", password="", fromEmail="a@b.c", ccRecipients="", tlsMode="Auto",

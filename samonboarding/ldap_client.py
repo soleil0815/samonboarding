@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 # Copyright (C) 2026 Die SAMONBOARDING-Autoren
-"""LDAP-Zugriff: Verbindung, Suche, Fehlerpruefung und Zeilenobjekte mit komfortablem Attributzugriff."""
+"""LDAP access: connection, search, error checking and entry objects with convenient attribute access."""
 
 import logging
 import ssl
@@ -28,7 +28,7 @@ def _first(value) -> Any:
 
 
 class Row:
-    """LDAP-Eintrag mit case-insensitivem Attributzugriff."""
+    """LDAP entry with case-insensitive attribute access."""
 
     __slots__ = ("dn", "_attrs")
 
@@ -76,22 +76,22 @@ def row_display_name(row):
 
 
 def _fold(text):
-    """Klein geschrieben, Umlaute/Akzente wie ihre Grundbuchstaben (Ä = A, ß = ss)."""
+    """Lowercased, umlauts/accents folded to their base letters (Ä = A, ß = ss)."""
     decomposed = unicodedata.normalize("NFKD", str(text or "").casefold())
     return "".join(c for c in decomposed if not unicodedata.combining(c))
 
 
 def name_sort_key(name, tiebreak=""):
-    """Sortierschluessel fuer alphabetische Listen: Gross-/Kleinschreibung und Umlaute spielen keine Rolle."""
+    """Sort key for alphabetical lists: case and umlauts are ignored."""
     return (_fold(name), _fold(tiebreak))
 
 
 def _certificate_rejected(error):
-    """Hat der DC auf 636 ein Zertifikat gezeigt, das die Pruefung (LDAP_CA_FILE) nicht besteht?
+    """Did the DC present a certificate on 636 that fails verification (LDAP_CA_FILE)?
 
-    ldap3 verpackt den SSL-Fehler in LDAPSocketOpenError (eine LDAPCommunicationError); erkennbar ist er nur am Text.
-    Dann darf es nie auf unverschluesseltes LDAP (389) weitergehen - sonst schickt ein Angreifer mit falschem
-    Zertifikat die Anmeldung in den Klartext.
+    ldap3 wraps the SSL error in LDAPSocketOpenError (an LDAPCommunicationError); it can only be recognized by its
+    text. In that case we must never fall back to unencrypted LDAP (389) - otherwise an attacker with a forged
+    certificate could force the login into clear text.
     """
     if isinstance(error, ssl.SSLCertVerificationError):
         return True
@@ -107,10 +107,10 @@ def _tls_config():
 
 @contextmanager
 def ldap_connection(dc_ip, bind_user, password):
-    """Verbindet sich per LDAPS (Fallback optional LDAP) und raeumt die Verbindung immer auf.
+    """Connects via LDAPS (optional fallback to LDAP) and always cleans up the connection.
 
-    Zum Fallback auf Port 389 kommt es nur bei Verbindungsfehlern - nie bei falschem Passwort,
-    damit ein Tippfehler nicht doppelt gegen die Kontosperre zaehlt.
+    The fallback to port 389 happens only on connection errors - never on a wrong password,
+    so that a typo does not count twice towards the account lockout.
     """
     conn = None
     attempts = [(636, True)]
@@ -128,7 +128,7 @@ def ldap_connection(dc_ip, bind_user, password):
                     password=password,
                     authentication=ldap3.SIMPLE,
                     auto_bind=True,
-                    receive_timeout=30,  # ein DC, der haengt, darf keinen Arbeits-Thread fuer immer blockieren
+                    receive_timeout=30,  # a hanging DC must not block a worker thread forever
                 )
                 if not use_ssl:
                     log.warning("Unverschluesselte LDAP-Verbindung zu %s (Port 389) - LDAPS nicht erreichbar", dc_ip)
@@ -140,7 +140,7 @@ def ldap_connection(dc_ip, bind_user, password):
                     log.error("Zertifikat des DC %s abgelehnt - kein Rueckfall auf unverschluesseltes LDAP", dc_ip)
                     break
         if conn is None:
-            # Einzelheiten (Socket-Fehler) stehen oben im Protokoll, nicht in der Meldung an den Browser
+            # details (socket errors) are logged above, not in the message to the browser
             raise DcUnreachable(f"Domain Controller {dc_ip} nicht erreichbar. Details stehen im Protokoll.")
         yield conn
     finally:
@@ -149,16 +149,16 @@ def ldap_connection(dc_ip, bind_user, password):
                 conn.unbind()
 
 
-AD_CAPABILITY_OID = "1.2.840.113556.1.4.800"  # LDAP_CAP_ACTIVE_DIRECTORY_OID: Windows und Samba melden ihn
+AD_CAPABILITY_OID = "1.2.840.113556.1.4.800"  # LDAP_CAP_ACTIVE_DIRECTORY_OID: reported by both Windows and Samba
 
 _directory = {"type": "unknown", "label": "Active Directory", "version": "", "host": ""}
 
 
 def detect_directory(conn):
-    """Erkennt aus dem RootDSE, ob ein Samba-AD oder ein Windows-AD antwortet. Es ist keine Einstellung noetig.
+    """Detects from the RootDSE whether a Samba AD or a Windows AD is responding. No setting is needed.
 
-    Samba nennt sich im RootDSE (vendorName); Windows hat diesen Eintrag nicht. Schlaegt die Abfrage fehl, bleibt es
-    bei 'Active Directory' (das Verhalten der Anwendung haengt nicht davon ab).
+    Samba names itself in the RootDSE (vendorName); Windows has no such entry. If the query fails, it stays
+    'Active Directory' (the application's behavior does not depend on it).
     """
     info = {"type": "unknown", "label": "Active Directory", "version": "", "host": ""}
     try:
@@ -185,9 +185,9 @@ def detect_directory(conn):
                 info.update(type="samba", label="Samba AD", version=text("vendorVersion"))
             elif AD_CAPABILITY_OID in caps:
                 info.update(type="windows", label="Windows Server AD")
-    except Exception as e:  # die Erkennung darf nie die Anmeldung stoeren
+    except Exception as e:  # detection must never interfere with the login
         log.debug("Verzeichnisdienst nicht erkennbar: %s", e)
-    if info != _directory:  # nur bei der ersten Erkennung oder wenn sich etwas aendert
+    if info != _directory:  # only on first detection or when something changes
         log.info(
             "Verzeichnisdienst erkannt: %s%s%s",
             info["label"],
@@ -199,11 +199,11 @@ def detect_directory(conn):
 
 
 def detect_mail_system(conn):
-    """Hinweise, ob im AD Exchange oder eine Azure/Entra-Synchronisation eingerichtet ist (None = nicht feststellbar).
+    """Hints whether Exchange or an Azure/Entra sync is set up in AD (None = cannot be determined).
 
-    Exchange legt im Konfigurationsbereich den Eintrag 'Microsoft Exchange' an. Microsoft Entra Connect erzeugt ein
-    Dienstkonto namens MSOL_* (aeltere Versionen AAD_*). Beides ist nur ein Hinweis fuer die Einstellung, die
-    Entscheidung trifft der Administrator.
+    Exchange creates the entry 'Microsoft Exchange' in the configuration partition. Microsoft Entra Connect creates a
+    service account named MSOL_* (older versions AAD_*). Both are only hints for the setting; the administrator
+    makes the decision.
     """
     result: dict[str, bool | None] = {"exchange": None, "entra": None}
     try:
@@ -246,25 +246,25 @@ def detect_mail_system(conn):
 
 
 def directory_info():
-    """Zuletzt erkannter Verzeichnisdienst (nach der ersten Anmeldung)."""
+    """Most recently detected directory service (after the first login)."""
     return dict(_directory)
 
 
 @contextmanager
 def ad_session(user):
-    """LDAP-Verbindung im Namen des angemeldeten Benutzers."""
+    """LDAP connection on behalf of the logged-in user."""
     cfg = load_json(CONFIG_FILE, default_config)
     try:
         with ldap_connection(cfg["dc_ip"], user["bind_user"], user["password"]) as conn:
             yield conn
     except LDAPBindError:
-        # Passwort wurde zwischenzeitlich geaendert / Konto gesperrt -> Sitzung ungueltig.
+        # Password changed in the meantime / account locked -> session invalid.
         drop_session(user.get("sid"))
         raise HTTPException(status_code=401, detail="Sitzung ungueltig - bitte neu anmelden.") from None
 
 
 def ldap_search(conn, base, flt, attrs, scope=ldap3.SUBTREE, page_size=500):
-    """Paged Search (umgeht das 1000er-Limit von AD). Wirft bei Serverfehlern eine LDAPException."""
+    """Paged search (bypasses the AD limit of 1000). Raises an LDAPException on server errors."""
     rows = []
     for entry in conn.extend.standard.paged_search(
         base, flt, search_scope=scope, attributes=attrs, paged_size=page_size, generator=True
@@ -272,8 +272,8 @@ def ldap_search(conn, base, flt, attrs, scope=ldap3.SUBTREE, page_size=500):
         if entry.get("type") != "searchResEntry":
             continue
         rows.append(Row(entry["dn"], entry.get("attributes")))
-    # ldap3 wirft hier ohne raise_exceptions keinen Fehler - ein Abbruch (DC beschaeftigt, Zeitlimit, OU fehlt,
-    # keine Rechte) saehe sonst aus wie "nichts gefunden" bzw. eine unvollstaendige Liste
+    # without raise_exceptions, ldap3 raises no error here - an abort (DC busy, time limit, OU missing,
+    # no permissions) would otherwise look like "nothing found" or an incomplete list
     result = getattr(conn, "result", None) or {}
     code = result.get("result") if isinstance(result, dict) else None
     if code not in (None, 0):
@@ -284,7 +284,7 @@ def ldap_search(conn, base, flt, attrs, scope=ldap3.SUBTREE, page_size=500):
 
 
 def get_object(conn, dn, attrs, flt="(objectClass=user)"):
-    """Liest genau ein Objekt. None, wenn es nicht existiert."""
+    """Reads exactly one object. None if it does not exist."""
     conn.search(dn, flt, ldap3.BASE, attributes=attrs)
     code = (conn.result or {}).get("result")
     if code in (32, 34):  # noSuchObject, invalidDNSyntax
@@ -305,13 +305,13 @@ def ldap_error_text(conn):
 
 
 def ensure(conn, ok, action, hint=""):
-    """Erfolgspruefung fuer add/modify/delete (ldap3 wirft hier standardmaessig keine Exception)."""
+    """Success check for add/modify/delete (by default, ldap3 raises no exception here)."""
     if not ok:
         raise AdError(f"{action} fehlgeschlagen: {ldap_error_text(conn)}.{hint}")
 
 
 def member_change_ok(conn, ok):
-    """True, wenn die Mitgliedschaftsaenderung gelungen ist oder bereits dem Zielzustand entspricht."""
+    """True if the membership change succeeded or the target state already applies."""
     if ok:
         return True
     result = conn.result or {}

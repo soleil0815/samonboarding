@@ -40,17 +40,17 @@ return {applyMailMode, currentMailMode, submitOnboard, setRole:r=>{currentUserRo
   console.assert(el('hire-mail-box').classList._h === true, '365: Feld versteckt');
   pick(5);
   console.assert(api.currentMailMode() === 'required' && el('hire-mail-box').classList._h === false, 'Template ohne Angabe -> Pflicht');
-  // Wechsel zurueck blendet das Feld wieder ein
+  // switching back shows the field again
   pick(3); pick(1);
   console.assert(el('hire-mail-box').classList._h === false && el('hire-mail').required === true, 'Zurueckwechseln zeigt das Feld wieder');
-  // Hinweis (Erkennung) im Template-Dialog
+  // note (detection) in the template dialog
   detectResp = {exchange:true, entra:false}; await api.loadMailDetect();
   console.assert(els['tpl-mail-detect'].textContent.includes('Exchange'), 'Hinweis Exchange');
   detectResp = {exchange:false, entra:false}; await api.loadMailDetect();
   console.assert(els['tpl-mail-detect'].textContent.includes('Eigener Mailserver'), 'Hinweis nichts erkannt');
   detectResp = {exchange:null, entra:null}; await api.loadMailDetect();
   console.assert(els['tpl-mail-detect'].textContent.includes('nicht möglich'), 'Hinweis unbekannt');
-  // Exchange-Einstellungen
+  // Exchange settings
   api.setRole('Administrator'); await api.loadExchangeConfig();
   console.assert(els['ex-enabled'].checked === true && els['ex-server'].value === 'exch01' && els['ex-port'].value === 8443 && els['ex-ssl'].checked === false && els['ex-auth'].value === 'ntlm', 'Exchange-Formular gefuellt');
   console.assert(els['ex-status'].textContent.includes('Zertifikatsprüfung ist ausgeschaltet'), 'Warnung bei ausgeschalteter Pruefung');

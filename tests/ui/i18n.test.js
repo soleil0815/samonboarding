@@ -1,4 +1,4 @@
-// Sprachumschaltung: Uebersetzer (exakt, Muster, verschachtelt, Zeilen) mit dem echten Woerterbuch
+// Language switching: translator (exact, patterns, nested, lines) with the real dictionary
 const fs = require('fs');
 const path = require('path');
 const src = require('./load_script.js');
@@ -11,28 +11,28 @@ const f = new Function('document', 'window', 'navigator', 'alert', 'fetch', 'con
 return {tr, trText, setLanguage, initialLanguage, getLang: () => uiLang};`);
 const ls = {getItem: k => store[k] || null, setItem: (k, v) => { store[k] = v; }};
 const api = f(doc, {}, {language: 'de-DE'}, () => {}, async () => ({}), () => true, ls);
-// Deutsch: nichts aendern
+// German: change nothing
 console.assert(api.tr('Konto suchen...') === 'Konto suchen...', 'DE unveraendert');
 console.assert(api.initialLanguage() === 'de', 'Browser Deutsch -> de');
 api.setLanguage('en');
 console.assert(api.getLang() === 'en' && store['samonboarding.lang'] === 'en' && doc.documentElement.lang === 'en', 'gespeichert und lang-Attribut');
 console.assert(api.initialLanguage() === 'en', 'gespeicherte Wahl hat Vorrang');
-// exakt, Leerraum bleibt
+// exact, whitespace stays
 console.assert(api.tr('  Konto suchen...  ') === '  Search account...  ', 'exakt mit Leerraum');
 console.assert(api.trText('Benutzerkonten aufräumen, in andere OUs\n                verschieben und Gruppenmitgliedschaften anpassen') === 'Tidy up user accounts, move them to other OUs and adjust group memberships', 'Zeilenumbruch im Quelltext');
-// Muster mit Zahlen
+// patterns with numbers
 console.assert(api.tr('6 Konten') === '6 accounts', 'Zaehler');
-// verschachtelt: Begruendung und Aktion werden mit uebersetzt
+// nested: reason and action are translated as well
 console.assert(api.tr('Dieses Konto ist geschützt (Mitglied von „Domänen-Admins“) und darf nicht offgeboardet werden. Soll es trotzdem bearbeitet werden, zuerst die Mitgliedschaft im AD entfernen.')
   === 'This account is protected (Member of “Domain Admins”) and must not be offboarded. If it really has to be processed, remove the membership in AD first.', 'verschachtelt');
-// mehrzeilige Meldung mit Aufzaehlung
+// multi-line message with a list
 const multi = api.tr('2 von 3 Konten wurden offgeboardet.\n\nNICHT offgeboardet:\n- Anna: Das Konto liegt nicht in einer für diese Funktion freigegebenen Quell-OU.');
 console.assert(multi === '2 of 3 accounts were offboarded.\n\nNOT offboarded:\n- Anna: The account is not in a source OU permitted for this function.', multi);
-// Daten bleiben, unbekannte Texte bleiben
+// data stays, unknown texts stay
 console.assert(api.tr('Hans von Berg') === 'Hans von Berg', 'Namen unveraendert');
 console.assert(api.tr('OU=Mitarbeiter,DC=firma,DC=local') === 'OU=Mitarbeiter,DC=firma,DC=local', 'DN unveraendert');
 console.assert(api.tr('12345') === '12345', 'Zahlen');
-// Zurueck auf Deutsch
+// Back to German
 api.setLanguage('de');
 console.assert(api.tr('Konto suchen...') === 'Konto suchen...' && store['samonboarding.lang'] === 'de', 'zurueck auf Deutsch');
 console.log('I18n-UI-Tests fertig');

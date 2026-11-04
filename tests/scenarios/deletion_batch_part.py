@@ -1,4 +1,4 @@
-# ---- Passwortbestaetigung und Sammel-Loeschen ----
+# ---- Password confirmation and batch deletion ----
 BM = lambda **kw: N(**kw)
 def fresh_admin(ip):
     return login("admin", "Pass1", ip=ip)[1]
@@ -9,7 +9,7 @@ def run_tasks(bg):
         fn(*args, **kw)
     bg.tasks.clear()
 
-# -- Passwort: falsches/leeres Passwort verbraucht den Plan nicht
+# -- Password: a wrong/empty password does not use up the plan
 adm_p = fresh_admin("10.50.0.1")
 dnp = add_user("pwu1", "Pass Eins")
 s = sim(dnp, fsobj=user_fs("pwu1"), who=adm_p)
@@ -21,7 +21,7 @@ check("Falsches Passwort steht im Audit-Log, das Passwort nicht", "deletion-pass
 r = dele.execute_deletion(exm(dnp, s["planId"], "pwu1"), BackgroundTasks(), adm_p)
 check("Plan nach Fehleingabe weiter nutzbar, richtiges Passwort loescht", r["status"] == "success" and dnp not in D)
 
-# -- Passwort: Sperre nach 5 Fehlversuchen (je Sitzung)
+# -- Password: lockout after 5 failed attempts (per session)
 adm_l = fresh_admin("10.50.0.2")
 dnl = add_user("pwu2", "Pass Zwei")
 s = sim(dnl, fsobj=user_fs("pwu2"), who=adm_l)
@@ -34,7 +34,7 @@ s = sim(dnl, fsobj=user_fs("pwu2"), who=adm_n)
 r = dele.execute_deletion(exm(dnl, s["planId"], "pwu2"), BackgroundTasks(), adm_n)
 check("Sperre gilt nur fuer die Sitzung", r["status"] == "success")
 
-# -- Sammel-Simulation
+# -- Batch simulation
 def multi_fs():
     fsx = mkfs(clean=True)
     for sam in ("bat1", "bat2", "bat3", "bat5"):
@@ -45,8 +45,8 @@ def multi_fs():
     return fsx
 dn1, dn2 = add_user("bat1", "Batch Eins"), add_user("bat2", "Batch Zwei")
 dn3 = add_user("bat3", "Batch Drei")
-D[dn3]["userAccountControl"] = ["512"]                      # noch aktiv -> gesperrt
-dn5 = add_user("bat5", "Batch Fuenf")                        # Ordner ohne Zugriff -> gesperrt (ohne Besitzuebernahme)
+D[dn3]["userAccountControl"] = ["512"]                      # still active -> blocked
+dn5 = add_user("bat5", "Batch Fuenf")                        # folder without access -> blocked (without ownership takeover)
 set_cfg(False)
 adm_b = fresh_admin("10.50.0.4")
 FSX["fs"] = multi_fs()
@@ -71,7 +71,7 @@ none_ready = bs([dn3])
 check("Nichts bereit -> kein Plan", none_ready["planId"] is None and none_ready["readyCount"] == 0)
 bsim = bs([dn1, dn2, dn3, dn5])
 
-# -- Bestaetigung
+# -- Confirmation
 ex = lambda plan, count, pw="Pass1", who=adm_b, bg=None: dele.execute_deletion_batch(N(planId=plan, confirmCount=count, password=pw), bg or BackgroundTasks(), who)
 ok, e = raises(lambda: ex(bsim["planId"], 3), 400); check("Falsche Anzahl -> 400", ok and "Anzahl" in e.detail)
 ok, e = raises(lambda: ex(bsim["planId"], 2, pw="nein"), 403); check("Falsches Passwort -> 403", ok)
@@ -79,7 +79,7 @@ ok, e = raises(lambda: ex("unbekannt", 2), 400); check("Unbekannter Plan -> 400"
 ok, e = raises(lambda: ex(bsim["planId"], 2, who=fresh_admin("10.50.0.5")), 400); check("Plan an Sitzung gebunden", ok)
 check("Nach Fehleingaben noch nichts geloescht", dn1 in D and dn2 in D and not writes(FSX["fs"]))
 
-# -- Ausfuehren als Hintergrundauftrag
+# -- Run as a background job
 sent = []
 orig_send = dele.send_notification_email
 dele.send_notification_email = lambda *a, **k: sent.append(a)
@@ -101,7 +101,7 @@ at = audit_text()
 check("Audit: Eintrag je Konto und Sammeleintrag", at.count('"action": "deletion-execute"') >= 2 and '"action": "deletion-batch"' in at and "bat1" in at and "Pass1" not in at)
 check("Genau eine Sammelmail", len(sent) == 1 and "2/2" in sent[0][1] and "bat1" in sent[0][2] and "bat2" in sent[0][2], sent)
 
-# -- Teilweise: gesperrte Datei, Konto in Bearbeitung
+# -- Partial: locked file, account being processed
 for sam, nm in (("bat6", "Batch Sechs"), ("bat7", "Batch Sieben"), ("bat8", "Batch Acht")):
     add_user(sam, nm)
 dn6, dn7, dn8 = (f"CN={n},OU=Disabled," + B for n in ("Batch Sechs", "Batch Sieben", "Batch Acht"))
@@ -112,8 +112,8 @@ for sam in ("bat6", "bat7", "bat8"):
     fsx.tree[HOME.lower() + sam + "\\f.txt"] = 3
 FSX["fs"] = fsx
 bsim = bs([dn6, dn7, dn8])
-fsx.locked.add(HOME.lower() + "bat7\\f.txt")                 # erst nach der Simulation gesperrt
-dele._running.add(dn8.lower())                              # parallel schon in Arbeit
+fsx.locked.add(HOME.lower() + "bat7\\f.txt")                 # locked only after the simulation
+dele._running.add(dn8.lower())                              # already in progress in parallel
 sent.clear(); bgb = BackgroundTasks()
 started = ex(bsim["planId"], 3, bg=bgb); run_tasks(bgb)
 dele._running.discard(dn8.lower())
@@ -125,7 +125,7 @@ check("Sammelmail nennt die Probleme", len(sent) == 1 and "Problemen" in sent[0]
 dele.send_notification_email = orig_send
 smtp(False)
 
-# -- Geschuetzte Konten (Domaenen-Admin) lassen sich nicht loeschen, auch nicht deaktiviert in der Loesch-OU
+# -- Protected accounts (Domain Admin) cannot be deleted, not even when disabled in the deletion OU
 dnA = add_user("dadm", "Deleted Admin")
 D[dnA]["tokenGroups"] = ["S-1-5-21-1-2-3-512", "S-1-5-21-1-2-3-513"]
 D[dnA]["adminCount"] = ["1"]
@@ -140,7 +140,7 @@ lst = {x["sam"]: x for x in dele.get_deletion_users(adm_g)["users"]}
 check("Loesch-Liste markiert das Konto als geschuetzt", "Domänen-Admins" in lst["dadm"]["protected"] and lst["bat3"]["protected"] == "" and not any(k.startswith("_") for k in lst["dadm"]))
 check("Nichts wurde angefasst", dnA in D and HOME.lower() + "dadm" in FSX["fs"].tree and not writes(FSX["fs"]))
 
-# -- Domaene ohne Profile, Ordnerumleitung und Basisordner: Konto loeschen ganz ohne Speicherort
+# -- Domain without profiles, folder redirection and home folders: delete the account without any storage location
 def no_backend(user):
     raise AssertionError("Dateizugriff darf ohne aktiven Speicherort nicht geoeffnet werden")
 dele.save_deletion_config(cfg_m(profile=loc_m(), folderRedirection=loc_m(), home=loc_m()), adm)

@@ -1,4 +1,4 @@
-"""Dateiserver-Logik (fileshare.py): Pfadpruefung, Scan, Loeschen, Besitzuebernahme, Fehlerabbildung, Basisordner."""
+"""File server logic (fileshare.py): path checks, scan, deletion, ownership takeover, error mapping, home folders."""
 
 import errno
 import unittest
@@ -10,12 +10,12 @@ from samonboarding.fileshare import FsEntry, FsError
 
 
 class MemoryShare:
-    """Kleines In-Memory-Dateisystem mit den Methoden eines SmbBackend."""
+    """Small in-memory file system with the methods of an SmbBackend."""
 
     def __init__(self, tree, reparse=(), denied=(), locked=(), no_takeover=()):
-        self.tree = {k.lower(): v for k, v in tree.items()}  # Pfad -> Groesse (Datei) oder Liste (Ordner)
+        self.tree = {k.lower(): v for k, v in tree.items()}  # path -> size (file) or list (folder)
         self.reparse = {x.lower() for x in reparse}
-        self.denied = {x.lower() for x in denied}  # Zugriff verweigert, bis der Besitz uebernommen wurde
+        self.denied = {x.lower() for x in denied}  # access denied until ownership has been taken
         self.locked = {x.lower() for x in locked}
         self.no_takeover = {x.lower() for x in no_takeover}
         self.taken = []
@@ -64,7 +64,7 @@ class MemoryShare:
         self.calls.append(("rmdir", path))
         node = self._check(path)
         if path.lower() in self.reparse:
-            self._unlink(path)  # nur die Verknuepfung, das Ziel bleibt
+            self._unlink(path)  # only the link, the target stays
             return
         if not isinstance(node, list) or node:
             raise FsError("other", "Ordner ist nicht leer.")
@@ -113,7 +113,7 @@ class PathTests(unittest.TestCase):
         self.assertEqual(fs.parse_unc("\\\\FS1\\Profiles$\\a\\b"), ("FS1", "Profiles$", ["a", "b"]))
         self.assertEqual(fs.parse_unc("//fs1/p$/a/"), ("fs1", "p$", ["a"]))
 
-    def test_parse_unc_lehnt_gefaehrliches_ab(self):
+    def test_parse_unc_rejects_dangerous_paths(self):
         bad = [
             "C:\\x",
             "\\\\fs1",
@@ -140,61 +140,61 @@ class PathTests(unittest.TestCase):
         self.assertFalse(fs.is_strictly_below("\\\\fs1\\p$\\userX\\a", "\\\\fs1\\p$\\user"))
         self.assertFalse(fs.is_strictly_below("\\\\fs2\\p$\\a", "\\\\fs1\\p$"))
 
-    def test_build_targets_profil_mit_endungen(self):
+    def test_build_targets_profile_with_suffixes(self):
         loc = {"enabled": True, "roots": ["\\\\fs1\\profiles$"], "useAdAttr": True, "suffixes": ["V2", "V6"]}
         targets = fs.build_targets("profile", loc, "aalt", "\\\\fs1\\profiles$\\%username%")
         self.assertEqual([t["path"] for t in targets], ["\\\\fs1\\profiles$\\aalt.V2", "\\\\fs1\\profiles$\\aalt.V6"])
 
-    def test_build_targets_fremder_pfad_wird_uebersprungen(self):
+    def test_build_targets_foreign_path_is_skipped(self):
         loc = {"enabled": True, "roots": ["\\\\fs1\\home$"], "useAdAttr": True}
         target = fs.build_targets("home", loc, "aalt", "\\\\evil\\x$\\aalt")[0]
         self.assertTrue(target["skip"])
         self.assertEqual(fs.build_targets("home", {"enabled": False, "roots": ["\\\\a\\b"]}, "x"), [])
 
-    def test_build_targets_kurzname_mit_tilde(self):
-        """ADMINI~1 koennte auf dem Dateiserver der Kurzname von 'Administrator' sein - nie automatisch loeschen."""
+    def test_build_targets_short_name_with_tilde(self):
+        """ADMINI~1 could be the short name of 'Administrator' on the file server - never delete automatically."""
         targets = fs.build_targets("home", {"enabled": True, "roots": ["\\\\fs1\\home$"]}, "ADMINI~1")
         self.assertTrue(all(t["skip"] for t in targets))
 
-    def test_build_targets_boeser_benutzername(self):
+    def test_build_targets_malicious_username(self):
         target = fs.build_targets("folderRedirection", {"enabled": True, "roots": ["\\\\fs1\\r$"]}, "..")[0]
         self.assertTrue(target["skip"])
         self.assertEqual(target["path"], "")
 
 
 class ScanTests(unittest.TestCase):
-    def test_zaehlt_und_folgt_verknuepfungen_nicht(self):
+    def test_counts_and_does_not_follow_links(self):
         share = sample(reparse=[ROOT + "\\Docs\\Sub"])
         result = fs.scan_tree(share, ROOT)
         self.assertEqual((result.files, result.dirs, result.size, result.reparse), (2, 1, 15, 1))
 
-    def test_ohne_zugriff_wird_gemeldet(self):
+    def test_no_access_is_reported(self):
         share = sample(denied=[ROOT + "\\Docs"])
         result = fs.scan_tree(share, ROOT)
         self.assertEqual(result.denied, [ROOT + "\\Docs"])
 
 
 class DeleteTests(unittest.TestCase):
-    def test_loescht_alles(self):
+    def test_deletes_everything(self):
         share = sample()
         result = fs.delete_tree(share, ROOT)
         self.assertEqual((result.files, result.dirs, result.error_count), (2, 3, 0))
         self.assertNotIn(ROOT.lower(), share.tree)
 
-    def test_verknuepfung_wird_nur_selbst_entfernt(self):
+    def test_link_itself_is_removed_only(self):
         target = "\\\\fs\\elsewhere\\important.txt"
         share = sample(reparse=[ROOT + "\\Docs\\Sub"])
         share.tree[target.lower()] = 99
-        share.tree[ROOT.lower() + "\\docs\\sub"] = ["child"]  # Inhalt "hinter" der Verknuepfung
+        share.tree[ROOT.lower() + "\\docs\\sub"] = ["child"]  # content "behind" the link
         share.tree[ROOT.lower() + "\\docs\\sub\\child"] = 7
         result = fs.delete_tree(share, ROOT)
         self.assertEqual((result.links, result.error_count), (1, 0))
-        self.assertIn(ROOT.lower() + "\\docs\\sub\\child", share.tree)  # nie hineingegangen
+        self.assertIn(ROOT.lower() + "\\docs\\sub\\child", share.tree)  # never entered
         self.assertIn(target.lower(), share.tree)
         self.assertNotIn(("listdir", ROOT + "\\Docs\\Sub"), share.calls)
 
-    def test_ordner_wird_zwischendurch_zur_verknuepfung(self):
-        """Wird ein Unterordner nach dem Auflisten durch eine Junction ersetzt, wird nur sie entfernt (kein Folgen)."""
+    def test_folder_becomes_link_in_between(self):
+        """If a subfolder is replaced by a junction after listing, only the junction is removed (not followed)."""
         share = sample()
         sub = ROOT + "\\Docs\\Sub"
 
@@ -208,14 +208,14 @@ class DeleteTests(unittest.TestCase):
         self.assertEqual(result.links, 1)
         self.assertNotIn(("listdir", sub), share.calls)
 
-    def test_ohne_erlaubnis_keine_besitzuebernahme(self):
+    def test_no_takeover_without_permission(self):
         share = sample(locked=[ROOT + "\\readme.txt"])
         result = fs.delete_tree(share, ROOT)
         self.assertEqual(result.error_count > 0, True)
         self.assertEqual(share.taken, [])
-        self.assertIn(ROOT.lower(), share.tree)  # Ordner bleibt, weil nicht leer
+        self.assertIn(ROOT.lower(), share.tree)  # folder stays because it is not empty
 
-    def test_mit_erlaubnis_wird_besitz_uebernommen(self):
+    def test_ownership_is_taken_with_permission(self):
         share = sample(locked=[ROOT + "\\readme.txt"], denied=[ROOT + "\\Docs"])
         result = fs.delete_tree(share, ROOT, takeover=True)
         self.assertEqual(result.error_count, 0)
@@ -223,23 +223,23 @@ class DeleteTests(unittest.TestCase):
         self.assertCountEqual(share.taken, [ROOT + "\\readme.txt", ROOT + "\\Docs"])
         self.assertNotIn(ROOT.lower(), share.tree)
 
-    def test_besitzuebernahme_scheitert_wird_gemeldet(self):
+    def test_failed_takeover_is_reported(self):
         share = sample(locked=[ROOT + "\\readme.txt"], no_takeover=[ROOT + "\\readme.txt"])
         result = fs.delete_tree(share, ROOT, takeover=True)
         self.assertGreaterEqual(result.error_count, 1)
         self.assertTrue(any("Besitzübernahme" in e for e in result.errors))
-        self.assertNotIn(ROOT.lower() + "\\docs\\a.txt", share.tree)  # alles andere wurde trotzdem geloescht
+        self.assertNotIn(ROOT.lower() + "\\docs\\a.txt", share.tree)  # everything else was deleted anyway
 
-    def test_fehlerliste_ist_begrenzt(self):
+    def test_error_list_is_capped(self):
         names = [f"f{i}.txt" for i in range(fs.MAX_REPORTED_ERRORS + 15)]
         tree = {"\\\\fs\\home$": ["anna"], ROOT: names}
         tree.update({f"{ROOT}\\{n}": 1 for n in names})
         share = MemoryShare(tree, locked=[f"{ROOT}\\{n}" for n in names])
         result = fs.delete_tree(share, ROOT)
-        self.assertEqual(result.error_count, len(names) + 1)  # + der nicht leere Ordner
+        self.assertEqual(result.error_count, len(names) + 1)  # + the non-empty folder
         self.assertEqual(len(result.errors), fs.MAX_REPORTED_ERRORS)
 
-    def test_ungueltige_namen_werden_nicht_angefasst(self):
+    def test_invalid_names_are_not_touched(self):
         share = sample()
         share.listdir = lambda path: [FsEntry("..", True, 0, False), FsEntry("a\\b", False, 1, False)]
         result = fs.delete_tree(share, ROOT)
@@ -273,12 +273,12 @@ class TranslateTests(unittest.TestCase):
         for status, kind in cases.items():
             self.assertEqual(self.kind(self.Err(status, errno.EPERM)), kind, hex(status))
 
-    def test_sharing_violation_ist_nicht_zugriff_verweigert(self):
+    def test_sharing_violation_is_not_access_denied(self):
         err = fs._translate(self.Err(0xC0000043, errno.EPERM))
         self.assertEqual(err.kind, "locked")
         self.assertIn("Benutzung", err.message)
 
-    def test_errno_und_netzwerk(self):
+    def test_errno_and_network(self):
         self.assertEqual(self.kind(self.Err(None, errno.EACCES)), "denied")
         self.assertEqual(self.kind(self.Err(None, errno.ENOENT)), "notfound")
         self.assertEqual(self.kind(self.Err(None, errno.EEXIST)), "exists")
@@ -286,7 +286,7 @@ class TranslateTests(unittest.TestCase):
         self.assertEqual(self.kind(TimeoutError("x")), "unreachable")
         self.assertEqual(self.kind(ValueError("irgendwas")), "other")
 
-    def test_fserror_bleibt_unveraendert(self):
+    def test_fserror_stays_unchanged(self):
         original = FsError("auth", "x")
         self.assertIs(fs._translate(original), original)
 
@@ -294,24 +294,24 @@ class TranslateTests(unittest.TestCase):
 class HomeFolderTests(unittest.TestCase):
     SID = "S-1-5-21-1-2-3-1105"
 
-    def test_legt_ordner_an_und_vergibt_rechte(self):
+    def test_creates_folder_and_grants_permissions(self):
         share = MemoryShare({"\\\\fs\\home$": []})
         self.assertEqual(fs.create_home_folder(share, "\\\\fs\\home$\\anna", self.SID), "created")
         self.assertIn("\\\\fs\\home$\\anna", share.tree)
         self.assertIn(("grant", "\\\\fs\\home$\\anna", self.SID), share.calls)
 
-    def test_vorhandener_ordner_wird_nicht_angefasst(self):
+    def test_existing_folder_is_not_touched(self):
         share = MemoryShare({"\\\\fs\\home$": ["anna"], "\\\\fs\\home$\\anna": []})
         self.assertEqual(fs.create_home_folder(share, "\\\\fs\\home$\\anna", self.SID), "exists")
         self.assertFalse([c for c in share.calls if c[0] == "grant"])
 
-    def test_fehlender_elternordner_und_freigabe(self):
+    def test_missing_parent_folder_and_share(self):
         share = MemoryShare({"\\\\fs\\home$": []})
         with self.assertRaises(FsError) as ctx:
             fs.create_home_folder(share, "\\\\fs\\home$\\team\\anna", self.SID)
         self.assertEqual(ctx.exception.kind, "notfound")
 
-    def test_freigabe_selbst_und_ungueltige_pfade(self):
+    def test_share_itself_and_invalid_paths(self):
         share = MemoryShare({"\\\\fs\\home$": []})
         for bad in ("\\\\fs\\home$", "C:\\Users\\anna", "\\\\fs\\home$\\..\\x"):
             with self.assertRaises(FsError, msg=bad):

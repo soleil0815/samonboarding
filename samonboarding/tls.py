@@ -1,17 +1,18 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 # Copyright (C) 2026 Die SAMONBOARDING-Autoren
-"""HTTPS-Zertifikat: eigenes Zertifikat verwenden oder beim ersten Start ein selbstsigniertes erzeugen.
+"""HTTPS certificate: use an own certificate or generate a self-signed one on first start.
 
-Reihenfolge:
-  1. TLS_CERT_FILE / TLS_KEY_FILE (Standard data/tls/cert.pem und data/tls/key.pem), falls beide vorhanden
-  2. sonst wird ein selbstsigniertes Zertifikat nach data/tls/ geschrieben (10 Jahre gueltig, Namen aus TLS_HOSTNAMES)
+Order:
+  1. TLS_CERT_FILE / TLS_KEY_FILE (default data/tls/cert.pem and data/tls/key.pem), if both exist
+  2. otherwise a self-signed certificate is written to data/tls/ (valid for 10 years, names from TLS_HOSTNAMES)
 
-Eigenes Zertifikat (z. B. von der internen CA): in der Oberflaeche unter "Zertifikat" hochladen (PFX/P12 oder
-Zertifikat + Schluessel) - es gilt sofort, ohne Neustart. Alternativ cert.pem (inkl. Zwischenzertifikate) und key.pem
-nach data/tls/ legen und den Container neu starten. `cryptography` ist ueber smbprotocol/pypsrp bereits installiert.
+Own certificate (e.g. from the internal CA): upload it in the UI under "Zertifikat" (PFX/P12 or
+certificate + key) - it takes effect immediately, without a restart. Alternatively place cert.pem (incl. intermediate
+certificates) and key.pem in data/tls/ and restart the container. `cryptography` is already installed via
+smbprotocol/pypsrp.
 
-Austausch im laufenden Betrieb: Der Server fragt bei jeder neuen TLS-Verbindung (SNI-Callback) das aktuelle Zertifikat
-ab. Bestehende Verbindungen behalten das alte, neue bekommen sofort das neue.
+Hot swap: the server fetches the current certificate on every new TLS connection (SNI callback). Existing
+connections keep the old one, new ones get the new one immediately.
 """
 
 import datetime
@@ -28,7 +29,7 @@ from . import config
 
 log = logging.getLogger(__name__)
 
-# Moderne Verschluesselung (TLS 1.2/1.3 mit Forward Secrecy); TLS 1.3 nutzt immer sichere Verfahren
+# Modern encryption (TLS 1.2/1.3 with forward secrecy); TLS 1.3 always uses secure ciphers
 CIPHERS = "ECDHE+AESGCM:ECDHE+CHACHA20:DHE+AESGCM"
 MAX_UPLOAD_BYTES = 1024 * 1024
 WARN_DAYS = 30
@@ -36,11 +37,11 @@ WARN_DAYS = 30
 _lock = threading.Lock()
 _active: dict[str, ssl.SSLContext | None] = {
     "ctx": None
-}  # aktueller SSLContext fuer neue Verbindungen (None = der des Servers)
+}  # current SSLContext for new connections (None = the server's own)
 
 
 class CertError(ValueError):
-    """Verstaendliche Meldung fuer die Oberflaeche."""
+    """Human-readable message for the UI."""
 
 
 def _names():
@@ -87,7 +88,7 @@ def generate_self_signed(cert_file, key_file, names=None):
     )
     os.makedirs(os.path.dirname(cert_file) or ".", exist_ok=True)
     os.makedirs(os.path.dirname(key_file) or ".", exist_ok=True)
-    # Schluessel nur fuer den Eigentuemer lesbar anlegen
+    # create the key readable by the owner only
     fd = os.open(key_file, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
     with os.fdopen(fd, "wb") as f:
         f.write(
@@ -103,7 +104,7 @@ def generate_self_signed(cert_file, key_file, names=None):
 
 
 def is_self_signed(cert_file):
-    """True, wenn Aussteller = Inhaber. Dann kein HSTS, sonst liesse sich die Zertifikatswarnung nicht wegklicken."""
+    """True if issuer = subject. Then no HSTS, otherwise the certificate warning could not be clicked away."""
     try:
         from cryptography import x509
 
@@ -115,7 +116,7 @@ def is_self_signed(cert_file):
 
 
 def ensure_certificate():
-    """Liefert (cert_file, key_file, self_signed); erzeugt bei Bedarf ein selbstsigniertes Zertifikat."""
+    """Returns (cert_file, key_file, self_signed); generates a self-signed certificate if needed."""
     cert_file, key_file = config.TLS_CERT_FILE, config.TLS_KEY_FILE
     if os.path.isfile(cert_file) and os.path.isfile(key_file):
         self_signed = is_self_signed(cert_file)
@@ -136,7 +137,7 @@ def ensure_certificate():
 
 
 # ---------------------------------------------------------------------------
-# Austausch im laufenden Betrieb
+# Hot swap
 # ---------------------------------------------------------------------------
 def make_context(cert_file, key_file):
     ctx = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
@@ -154,7 +155,7 @@ def _sni_callback(ssl_obj, server_name, base_ctx):
 
 
 def activate(base_ctx):
-    """Haengt den Austausch an den SSLContext des Servers (einmal beim Start)."""
+    """Hooks the hot swap into the server's SSLContext (once at startup)."""
     base_ctx.minimum_version = ssl.TLSVersion.TLSv1_2
     base_ctx.sni_callback = _sni_callback
     _active["ctx"] = base_ctx
@@ -162,12 +163,12 @@ def activate(base_ctx):
 
 
 def _set_hsts_flag(cert_file):
-    # main.py sendet HSTS nur bei einem eigenen (vertrauenswuerdigen) Zertifikat
+    # main.py sends HSTS only with an own (trusted) certificate
     os.environ["SAMONBOARDING_TLS_SELF_SIGNED"] = "1" if is_self_signed(cert_file) else "0"
 
 
 def reload_active():
-    """Laedt die Dateien neu; neue Verbindungen bekommen sofort das neue Zertifikat. False = Neustart noetig."""
+    """Reloads the files; new connections get the new certificate immediately. False = restart required."""
     ctx = make_context(config.TLS_CERT_FILE, config.TLS_KEY_FILE)
     _set_hsts_flag(config.TLS_CERT_FILE)
     if _active["ctx"] is None:
@@ -177,7 +178,7 @@ def reload_active():
 
 
 # ---------------------------------------------------------------------------
-# Anzeige
+# Display
 # ---------------------------------------------------------------------------
 def _load_pem_chain(data):
     from cryptography import x509
@@ -241,7 +242,7 @@ def current_info():
 
 
 def check_expiry():
-    """Warnung ins Protokoll, wenn das Zertifikat bald ablaeuft (taeglich aufgerufen)."""
+    """Logs a warning when the certificate expires soon (called daily)."""
     try:
         info = current_info()
     except Exception as e:
@@ -255,10 +256,10 @@ def check_expiry():
 
 
 # ---------------------------------------------------------------------------
-# Hochladen und pruefen
+# Upload and validate
 # ---------------------------------------------------------------------------
 def _certs_from(data, what):
-    """PEM (auch mehrere) oder DER."""
+    """PEM (also multiple) or DER."""
     from cryptography import x509
 
     if not data:
@@ -269,7 +270,7 @@ def _certs_from(data, what):
         except ValueError:
             if b"CERTIFICATE-----" in data:
                 raise CertError(f"{what}: Die Datei enthält kein lesbares Zertifikat.") from None
-            return []  # z. B. nur ein Schluessel in der Datei
+            return []  # e.g. only a key in the file
     try:
         return [x509.load_der_x509_certificate(data)]
     except ValueError:
@@ -304,11 +305,11 @@ def _same_key(cert, key):
 
 
 def _order_chain(leaf, others):
-    """Zwischenzertifikate in der Reihenfolge vom Server-Zertifikat Richtung Wurzel; Doppelte entfernen."""
+    """Intermediate certificates ordered from the server certificate towards the root; removes duplicates."""
     chain, current, pool = [], leaf, [c for c in others if c != leaf]
     while pool:
         nxt = next((c for c in pool if c.subject == current.issuer), None)
-        if nxt is None or nxt.subject == nxt.issuer:  # Wurzel braucht der Browser nicht
+        if nxt is None or nxt.subject == nxt.issuer:  # the browser does not need the root
             break
         chain.append(nxt)
         pool.remove(nxt)
@@ -317,7 +318,7 @@ def _order_chain(leaf, others):
 
 
 def parse_upload(pfx=None, cert=None, key=None, chain=None, password=""):
-    """Liest PFX/P12 oder Zertifikat + Schluessel (+ Kette). Liefert (key, leaf, chain, warnings)."""
+    """Reads PFX/P12 or certificate + key (+ chain). Returns (key, leaf, chain, warnings)."""
     from cryptography.hazmat.primitives.asymmetric import ec, rsa
     from cryptography.hazmat.primitives.serialization import pkcs12
 
@@ -393,7 +394,7 @@ def _backup_current():
 
 
 def install(priv, leaf, chain):
-    """Schreibt Zertifikat und Schluessel (vorher Probe mit OpenSSL), sichert die alten als *.prev, aktiviert sofort."""
+    """Writes certificate and key (tested with OpenSSL first), backs up old ones as *.prev, activates immediately."""
     from cryptography.hazmat.primitives import serialization
 
     cert_pem = b"".join(c.public_bytes(serialization.Encoding.PEM) for c in [leaf, *chain])
@@ -404,7 +405,7 @@ def install(priv, leaf, chain):
         cert_tmp = _write(config.TLS_CERT_FILE, cert_pem)
         key_tmp = _write(config.TLS_KEY_FILE, key_pem, private=True)
         try:
-            make_context(cert_tmp, key_tmp)  # nimmt OpenSSL es an?
+            make_context(cert_tmp, key_tmp)  # does OpenSSL accept it?
         except (ssl.SSLError, OSError) as e:
             for t in (cert_tmp, key_tmp):
                 os.remove(t)
@@ -420,7 +421,7 @@ _DNS_LABEL = re.compile(r"^(?!-)[A-Za-z0-9-]{1,63}(?<!-)$")
 
 
 def _valid_name(name):
-    """IP-Adresse oder DNS-Name (ASCII, Teile bis 63 Zeichen, optional '*.' am Anfang)."""
+    """IP address or DNS name (ASCII, labels up to 63 characters, optional '*.' prefix)."""
     try:
         ipaddress.ip_address(name)
         return True
@@ -431,10 +432,10 @@ def _valid_name(name):
 
 
 def install_self_signed(names):
-    """Neues selbstsigniertes Zertifikat (z. B. zurueck vom eigenen), alte Dateien als *.prev.
+    """New self-signed certificate (e.g. switching back from an own one), old files as *.prev.
 
-    Erst in temporaere Dateien schreiben und pruefen, dann tauschen - bei einem Fehler bleibt das bisherige
-    Zertifikat unveraendert in Betrieb."""
+    Write to temporary files and validate first, then swap - on error the previous certificate stays in
+    service unchanged."""
     clean = []
     for n in names or []:
         n = str(n).strip()

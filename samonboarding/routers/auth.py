@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 # Copyright (C) 2026 Die SAMONBOARDING-Autoren
-"""Anmeldung: Login, Logout, aktuelle Sitzung und oeffentliche Konfiguration."""
+"""Authentication: login, logout, current session and public configuration."""
 
 import logging
 
@@ -39,7 +39,7 @@ def get_public_config():
 
 @router.get("/api/host-notices")
 def get_host_notices(user: dict = Depends(get_current_user)):
-    """Hinweise zum Betrieb (nur fuer Administratoren): z. B. eine veraltete docker-compose.yml."""
+    """Operational notices (administrators only): e.g. an outdated docker-compose.yml."""
     if user.get("role") != "Administrator":
         return {"notices": []}
     notice = datastate.compose_notice()
@@ -58,8 +58,8 @@ def get_me(user: dict = Depends(get_current_user)):
     }
 
 
-# AD-Untercodes der Anmeldung (data xxx) -> verstaendliche Meldung. Andere Einzelheiten nur ins Protokoll, nicht an
-# einen noch nicht angemeldeten Browser.
+# AD logon sub-codes (data xxx) -> readable message. Other details go only to the log, not to a browser
+# that is not yet logged in.
 BIND_REASONS = {
     "52e": "LDAP-Anmeldung fehlgeschlagen. Bitte Zugangsdaten prüfen.",
     "530": "Anmeldung zu dieser Uhrzeit nicht erlaubt.",
@@ -96,8 +96,8 @@ def login(credentials: LoginModel, request: Request, response: Response):
     key = throttle_key(request, clean_user)
     attempt = throttle_check(key)
 
-    # Genau EIN Bind-Versuch pro Anmeldung: jeder fehlgeschlagene Versuch zaehlt gegen die AD-Kontosperre.
-    # Wer "DOMAIN\\user" oder "user@suffix" eingibt, wird unveraendert verwendet; sonst user@domain.
+    # Exactly ONE bind attempt per login: every failed attempt counts towards the AD account lockout.
+    # Input of "DOMAIN\\user" or "user@suffix" is used unchanged; otherwise user@domain.
     bind_user = typed if ("\\" in typed or "@" in typed) else f"{typed}@{domain}"
 
     try:
@@ -111,7 +111,7 @@ def login(credentials: LoginModel, request: Request, response: Response):
         )
         raise HTTPException(status_code=401, detail=bind_error_message(str(e))) from None
     except Exception:
-        throttle_release(key, attempt)  # z. B. DC nicht erreichbar: kein falsches Passwort
+        throttle_release(key, attempt)  # e.g. DC unreachable: not a wrong password
         raise
 
     if not role:
@@ -120,9 +120,9 @@ def login(credentials: LoginModel, request: Request, response: Response):
         raise HTTPException(status_code=403, detail=role_err)
 
     throttle_clear(key)
-    clean_user = sam or clean_user  # der echte sAMAccountName (z. B. bei Anmeldung per UPN)
-    # Nur die Adresse aus dem AD (Attribut mail): eine erratene <name>@<AD-Domaene> kann bei einem Sammelpostfach oder
-    # einer anderen Person landen - die Mails enthalten Startpasswoerter. Ohne mail-Attribut gehen keine Mails raus.
+    clean_user = sam or clean_user  # the real sAMAccountName (e.g. when logging in via UPN)
+    # Only the address from AD (mail attribute): a guessed <name>@<AD domain> may end up in a shared mailbox or
+    # with another person - the emails contain initial passwords. Without a mail attribute, no emails are sent.
     email = user_mail or ""
     token = create_session(
         {
@@ -139,7 +139,7 @@ def login(credentials: LoginModel, request: Request, response: Response):
         value=token,
         httponly=True,
         samesite="strict",
-        secure=True,  # die Anwendung laeuft nur ueber HTTPS; ohne max_age endet das Cookie mit dem Browser
+        secure=True,  # the application runs over HTTPS only; without max_age the cookie ends with the browser session
     )
     audit(clean_user, "login", ok=True, role=role)
     return {

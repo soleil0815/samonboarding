@@ -1,4 +1,4 @@
-"""Szenario: Template-Felder (Basisordner, Laufwerk, Skript) und Basisordner-Anlage beim Onboarding."""
+"""Scenario: template fields (home folder, drive, script) and home folder creation during onboarding."""
 import os
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -57,7 +57,7 @@ check("Onboarding: homeDirectory mit %username% ersetzt", a["homedirectory"] == 
 check("Onboarding: homeDrive H:, scriptPath, profilePath", a["homedrive"] == "H:" and a["scriptpath"] == "logon.bat" and a["profilepath"] == "\\\\fs\\p$\\" + r["samAccountName"])
 check("Onboarding ohne Warnungen", r["warnings"] == [], r["warnings"])
 
-# Altes/ungueltiges Template in der Datei (vor der Validierung gespeichert)
+# old/invalid template in the file (saved before validation)
 tm = json.load(open(M["TEMPLATES_FILE"], encoding="utf-8"))
 tm[0].update(homeDrive="Q", homeDirectory="C:\\lokal")
 json.dump(tm, open(M["TEMPLATES_FILE"], "w", encoding="utf-8"))
@@ -70,7 +70,7 @@ json.dump(tm, open(M["TEMPLATES_FILE"], "w", encoding="utf-8"))
 r = onboard()
 check("Altes Template: kaputtes Laufwerk -> Warnung, Konto trotzdem angelegt", r["status"] == "success" and any("ungültig" in w for w in r["warnings"]))
 
-# ---- Basisordner beim Onboarding anlegen ----
+# ---- Create the home folder during onboarding ----
 import samonboarding.acl as acl  # noqa: E402
 import ldap3  # noqa: E402
 from samonboarding.fileshare import FsError  # noqa: E402
@@ -85,7 +85,7 @@ ok, e = raises(lambda: T.sanitize_template(tmpl(createHomeFolder=True, homeDirec
 check("Anlegen ohne Pfad abgelehnt", ok)
 
 class HomeFS:
-    """Simuliertes Dateisystem fuer das Anlegen: Freigabe und vorhandene Ordner."""
+    """Simulated file system for creation: share and existing folders."""
     def __init__(self, existing=("\\\\fs\\home$",), fail_grant=None, always_exists=False):
         self.always_exists = always_exists
         self.dirs = {x.lower() for x in existing}
@@ -153,13 +153,13 @@ O.make_backend = broken
 r = onboard_t(hid, first="Hans5")
 check("Dateiserver nicht erreichbar -> Warnung, Konto bleibt", r["status"] == "success" and any("Anmeldung" in w for w in r["warnings"]))
 
-# ohne Flag: Dateiserver wird gar nicht angefasst
+# without the flag: the file server is not touched at all
 O.make_backend = lambda user: (_ for _ in ()).throw(AssertionError("darf nicht aufgerufen werden"))
 r = onboard()
 check("Ohne createHomeFolder kein Dateizugriff", r["status"] == "success")
 ldap3.Connection.add = orig_add
 
-# ---- Exchange-Postfach (eigener Server): nur fuer Templates mit E-Mail-Modus 'exchange'
+# ---- Exchange mailbox (own server): only for templates with e-mail mode 'exchange'
 import samonboarding.exchange as X  # noqa: E402
 import samonboarding.routers.settings as ST  # noqa: E402
 XM = M["ExchangeConfigModel"]

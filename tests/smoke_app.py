@@ -1,9 +1,9 @@
-"""Rauchtest mit den ECHTEN Paketen (FastAPI, Starlette): Startet die Anwendung im Speicher und stellt Anfragen.
+"""Smoke test with the REAL packages (FastAPI, Starlette): starts the application in memory and sends requests.
 
-Wird von update.sh beim Festschreiben neuer Python-Pakete ausgefuehrt (die Unit-Tests laufen sonst mit
-Ersatzmodulen). Kein unittest-Modul (Name beginnt nicht mit test_), braucht kein Netz und keinen DC.
+Run by update.sh when pinning new Python packages (the unit tests otherwise run with
+stub modules). Not a unittest module (name does not start with test_), needs no network and no DC.
 
-    python tests/smoke_app.py      -> Rueckgabewert 0 = alles in Ordnung
+    python tests/smoke_app.py      -> exit code 0 = all good
 """
 
 import asyncio
