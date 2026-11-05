@@ -7,6 +7,9 @@ Update on the server: `sudo sh update.sh` or `docker compose pull && docker comp
 
 Entries starting with "Security:" or "Fixed:" are marked accordingly in the interface.
 
+## 2.0.5 – 2026-11-05
+- Security: smaller image – the package manager apt (with its helpers), Perl and the Debian helpers built on it are removed after the build, and no program keeps the setuid/setgid bit any more. The program needs none of them; vulnerabilities in these packages (like CVE-2026-109518 in apt) no longer affect the image. The Debian package list stays, so the daily scan still checks every remaining package.
+
 ## 2.0.4 – 2026-11-04
 - New: a "Buy me a coffee" button at the end of the menu for administrators – for anyone who wants to support the development. It is a plain link to buymeacoffee.com; nothing is loaded from there and operators do not see it.
 

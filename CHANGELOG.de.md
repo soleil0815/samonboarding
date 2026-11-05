@@ -7,6 +7,9 @@ Update auf dem Server: `sudo sh update.sh` oder `docker compose pull && docker c
 
 Einträge, die mit „Sicherheit:“ oder „Behoben:“ beginnen, werden in der Oberfläche entsprechend markiert.
 
+## 2.0.5 – 2026-11-05
+- Sicherheit: schlankeres Image – die Paketverwaltung apt (samt Helfern), Perl und die darauf aufbauenden Debian-Helfer werden nach dem Bau entfernt, und kein Programm behält mehr das setuid/setgid-Recht. Das Programm braucht nichts davon; Lücken in diesen Paketen (wie CVE-2026-109518 in apt) betreffen das Image nicht mehr. Die Debian-Paketliste bleibt erhalten, damit der tägliche Scan alle übrigen Pakete weiter prüft.
+
 ## 2.0.4 – 2026-11-04
 - Neu: Schaltfläche „Buy me a coffee“ am Ende des Menüs für Administratoren – für alle, die die Entwicklung unterstützen möchten. Es ist ein einfacher Link zu buymeacoffee.com; von dort wird nichts geladen, und Operatoren sehen ihn nicht.
 

@@ -223,6 +223,41 @@ class ImageContentTests(unittest.TestCase):
         self.assertNotIn("npm", final.replace("COPY --from=assets", ""))  # Node/npm only in the build stage
         self.assertIn("scripts/", (ROOT / ".dockerignore").read_text(encoding="utf-8").split())
 
+    def test_package_manager_perl_and_setuid_removed(self):
+        """apt, Perl and the setuid bits are removed after the build; dpkg stays so Trivy can check the packages."""
+        docker = (ROOT / "Dockerfile").read_text(encoding="utf-8")
+        final = docker[docker.index("FROM ${PYTHON_IMAGE}") :]
+        block = final[final.index("purge() {") : final.index("USER ${APP_UID}")]
+        self.assertLess(final.index("apt-get $apt_opts full-upgrade"), final.index("purge() {"))  # used first
+        self.assertLess(final.index("useradd"), final.index("purge() {"))
+        for package in ("apt libapt-pkg7.0 sqv debian-archive-keyring", "adduser", "debconf", "perl-base"):
+            self.assertIn(f"purge {package};", block)
+        self.assertIn("find / -xdev -type f -perm /6000 -exec chmod ug-s {} +", block)
+        self.assertIn('test -z "$(find / -xdev -type f -perm /6000)"', block)
+        self.assertIn("command -v dpkg-query", block)  # the package list stays readable for Trivy
+        self.assertNotIn("purge dpkg", block)
+        lock = (ROOT / "os-packages.lock").read_text(encoding="utf-8")
+        for package in ("apt", "libapt-pkg7.0", "sqv", "debian-archive-keyring", "adduser", "debconf", "perl-base"):
+            self.assertNotRegex(lock, rf"(?m)^(amd64|arm64) {re.escape(package)}=", package)
+        self.assertRegex(lock, r"(?m)^amd64 dpkg=")
+
+    @unittest.skipUnless(Path("/app/static").is_dir(), "only in the image")
+    def test_inside_the_image(self):
+        import shutil
+        import subprocess
+
+        for gone in ("apt", "apt-get", "perl", "adduser", "dpkg-reconfigure"):
+            self.assertIsNone(shutil.which(gone), gone)
+        self.assertIsNotNone(shutil.which("dpkg-query"))
+        self.assertIsNotNone(shutil.which("setpriv"))
+        found = subprocess.run(
+            ["find", "/usr", "/etc", "/opt", "-xdev", "-type", "f", "-perm", "/6000"],
+            capture_output=True,
+            text=True,
+            check=False,
+        ).stdout.split()
+        self.assertEqual(found, [])
+
 
 if __name__ == "__main__":
     unittest.main()
