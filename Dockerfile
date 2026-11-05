@@ -108,6 +108,26 @@ RUN groupadd --gid ${APP_UID} samonboarding \
  && chmod 755 /app/docker-entrypoint.sh /app/update.sh \
  && test -x /usr/bin/setpriv \
  && mkdir -p /app/data && chown ${APP_UID}:${APP_UID} /app/data && chmod 700 /app/data
+
+# Remove what the running program never needs (fewer attack surface and fewer scanner findings):
+# - the package manager apt and its helpers (only needed above to bring the Debian packages to the snapshot state)
+# - Perl and the Debian helpers built on it (debconf, adduser); Perl has several security notices every year
+# dpkg itself stays, so Trivy can still read the package list and check every remaining Debian package.
+# Then no file keeps the setuid/setgid bit (su, passwd, mount, ...): a second safeguard besides no-new-privileges.
+# The checks at the end stop the build if anything of it is still there.
+RUN set -eu; \
+    purge() { dpkg --purge --force-remove-essential --force-remove-protected --force-depends "$@"; }; \
+    purge apt libapt-pkg7.0 sqv debian-archive-keyring; \
+    purge adduser; \
+    purge debconf; \
+    purge perl-base; \
+    rm -rf /etc/apt /var/lib/apt /var/cache/apt /var/log/apt /var/cache/debconf /etc/perl /usr/share/perl /usr/lib/*/perl*; \
+    find / -xdev -type f -perm /6000 -exec chmod ug-s {} +; \
+    for gone in apt apt-get dpkg-reconfigure perl adduser; do \
+      if command -v "$gone" >/dev/null 2>&1; then echo "still in the image: $gone"; exit 1; fi; \
+    done; \
+    test -z "$(find / -xdev -type f -perm /6000)"; \
+    command -v dpkg-query >/dev/null; test -x /usr/bin/setpriv
 USER ${APP_UID}:${APP_UID}
 
 # HTTPS only: there is no HTTP port. Certificate from data/tls/ or self-signed on the first start
