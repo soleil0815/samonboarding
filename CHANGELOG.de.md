@@ -7,6 +7,11 @@ Update auf dem Server: `sudo sh update.sh` oder `docker compose pull && docker c
 
 Einträge, die mit „Sicherheit:“ oder „Behoben:“ beginnen, werden in der Oberfläche entsprechend markiert.
 
+## 2.2.0 – 2026-11-08
+- Neu: eine Startseite „Was steht an?“ direkt nach der Anmeldung. Drei Karten zeigen, wie viele aktive Konten sich seit 90 Tagen nicht angemeldet haben, wie viele Konten gesperrt sind und – für Administratoren – wie viele deaktivierte Konten bereit zum Löschen sind. Ein Klick öffnet die passende Liste; die inaktiven Konten erscheinen dabei älteste zuerst. Die Zahlen stammen aus den Kontolisten, die das Programm ohnehin liest.
+- Neu: Schnellsuche mit Strg+K (am Mac ⌘K) für Personen und Seiten. Eine Person öffnet sich in der Benutzerverwaltung, schon gefiltert; durchsucht werden nur Konten, die man ohnehin sehen darf.
+- Geändert: Das Menü ist in „Aufgaben“ und „Einstellungen“ gegliedert. Onboarding heißt jetzt „Neuer Mitarbeiter“, Offboarding „Austritt“; Zahlen neben den Menüpunkten zeigen, wie viele Konten dort warten.
+
 ## 2.1.0 – 2026-11-08
 - Neu: Die Offboarding-Liste zeigt, wann sich jedes Konto zuletzt angemeldet hat (Datum und „vor … Tagen“ oder „nie“, ab 90 Tagen hervorgehoben), und lässt sich danach sortieren – älteste zuerst, neueste zuerst oder nach Namen. Der Wert stammt aus `lastLogonTimestamp`, den Active Directory nur alle 9–14 Tage zwischen den Domänencontrollern abgleicht; er ist also ungefähr. Er wird nur angezeigt, nie gespeichert oder protokolliert.
 

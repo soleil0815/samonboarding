@@ -69,7 +69,9 @@ These five points explain the whole concept:
 
 ### Interface
 
-The navigation follows the life cycle of an account: **joining** (*Onboarding*), **maintenance** (*Benutzerverwaltung* = user management, *Passwort zurücksetzen* = password reset), **leaving** (*Offboarding*) and **deletion** (*Konten löschen*). Below that are setup (*Templates*, *E-Mail-Benachrichtigung*, *AD-Struktur*) and help. Feedback appears as a message in the bottom right corner. Errors and long messages stay until you close them. On tablets and phones the navigation opens from the menu icon in the top left.
+After signing in, the **home page** shows what needs doing: active accounts without a logon for 90 days, locked accounts and (for administrators) accounts ready to be deleted. One click opens the matching list. Under **Tasks** the navigation follows the life cycle of an account: **New employee** (onboarding), **User management**, **Reset password**, **Leaving** (offboarding) and **Delete accounts**; numbers next to them show how many accounts are waiting. Below that are **Settings** (templates, e-mail notification, AD structure, reports, certificate) and help. **Ctrl + K** opens the quick search for people and pages. Feedback appears as a message in the bottom right corner. Errors and long messages stay until you close them. On tablets and phones the navigation opens from the menu icon in the top left.
+
+![Home page “What needs doing?”: cards for accounts without a logon for 90 days, locked accounts and accounts ready to be deleted, the grouped menu with counters on the left](docs/images/start-en.png)
 
 **Language:** the interface is available in **German and English**. Switch with *DE / EN* at the bottom of the sidebar or in the top right corner of the sign-in page. The browser remembers the choice; on the first visit the browser language is used. Server messages and notification mails use the chosen language. Names, OUs, groups and paths from AD are never translated. The English texts are in `samonboarding/web/i18n.json` (German text → English text, with placeholders `{0}` for values).
 
@@ -721,7 +723,7 @@ The application speaks **HTTPS only** (port 9500). There is no unencrypted port;
 **Certificate:**
 
 1. **Without your own certificate**, the application creates a self-signed one (valid for 10 years) in `data/tls/` on first start. The browser warns once. To get the right name into the certificate, set `TLS_HOSTNAMES` in `.env`, or create a new self-signed certificate with the right names in the interface under **Certificate**.
-2. **Your own certificate** (e.g. from your internal CA, recommended): upload it in the interface under **Setup → Certificate** (administrators only). It takes effect **immediately, without a restart**. New connections get the new certificate; reload the page once.
+2. **Your own certificate** (e.g. from your internal CA, recommended): upload it in the interface under **Settings → Certificate** (administrators only). It takes effect **immediately, without a restart**. New connections get the new certificate; reload the page once.
    - **PFX/P12** with password, e.g. from the Windows certificate manager (*Export → Yes, export the private key*). Intermediate certificates are included.
    - **Certificate + key** as PEM or DER (`.pem`, `.crt`, `.cer`, `.key`); the key may be password-protected. Intermediate certificates optionally as a separate file or inside the certificate file.
    - Before applying, the application checks: do certificate and key belong together? Is it valid (not expired)? Is the key strong enough (RSA from 2048 bits, or ECDSA)? Does the server accept it? It warns if the certificate expires soon, has no subject alternative names (SAN) or intermediate certificates are missing.

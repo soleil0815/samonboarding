@@ -7,6 +7,11 @@ Update on the server: `sudo sh update.sh` or `docker compose pull && docker comp
 
 Entries starting with "Security:" or "Fixed:" are marked accordingly in the interface.
 
+## 2.2.0 – 2026-11-08
+- New: a home page "What needs doing?" right after signing in. Three cards show how many active accounts have not logged on for 90 days, how many accounts are locked and – for administrators – how many disabled accounts are ready to be deleted. One click opens the matching list; the inactive accounts open sorted oldest first. The numbers come from the account lists the program already reads.
+- New: quick search with Ctrl+K (⌘K on a Mac) for people and pages. A person opens in user management, already filtered; only accounts you may see anyway are searched.
+- Changed: the menu is grouped into "Tasks" and "Settings". Onboarding is now called "New employee", offboarding "Leaving"; counters next to the menu items show how many accounts are waiting.
+
 ## 2.1.0 – 2026-11-08
 - New: the offboarding list shows when each account last logged on (date and "… days ago", or "never"; highlighted from 90 days) and can be sorted by it – oldest first, newest first or by name. The value comes from `lastLogonTimestamp`, which Active Directory synchronises between the domain controllers only every 9–14 days, so it is approximate. It is only displayed, never stored or logged.
 

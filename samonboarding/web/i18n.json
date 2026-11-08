@@ -684,6 +684,7 @@
   "Stufe": "Level",
   "Suchen (Benutzer, Aktion, Ziel, Text)": "Search (user, action, target, text)",
   "Suchen …": "Search …",
+  "Strg K": "Ctrl K",
   "TLS mode": "TLS mode",
   "TLS-Modus": "TLS mode",
   "Tel. Privat": "Home phone",
@@ -877,7 +878,45 @@
   "Ungefähr: Active Directory gleicht diesen Wert nur alle 9–14 Tage zwischen den Domänencontrollern ab. Klicken zum Sortieren.": "Approximate: Active Directory synchronises this value between the domain controllers only every 9–14 days. Click to sort.",
   "nie": "never",
   "heute": "today",
-  "vor 1 Tag": "1 day ago"
+  "vor 1 Tag": "1 day ago",
+  "Aktive Konten in den Offboarding-OUs, ältestes zuerst": "Active accounts in the offboarding OUs, oldest first",
+  "Aktive Konten ohne Anmeldung seit 90 Tagen": "Active accounts without a logon for 90 days",
+  "Alles in Ordnung": "All fine",
+  "Aufgaben": "Tasks",
+  "Austritt durchführen": "Offboard an account",
+  "Austritte prüfen →": "Review leavers →",
+  "Bereit zum Löschen": "Ready to be deleted",
+  "Deaktivierte Konten": "Disabled accounts",
+  "Deaktivierte Konten, bereit zum Löschen": "Disabled accounts, ready to be deleted",
+  "Die letzte Anmeldung ist ein Näherungswert: Das AD gleicht sie nur alle 9 bis 14 Tage ab.": "The last logon is approximate: AD only synchronises it every 9 to 14 days.",
+  "Einstellungen": "Settings",
+  "Gesperrte Konten": "Locked accounts",
+  "Guten Abend": "Good evening",
+  "Guten Morgen": "Good morning",
+  "Guten Tag": "Hello",
+  "Keine Person und keine Seite gefunden.": "No person and no page found.",
+  "Konten ohne Anmeldung seit 90 Tagen": "Accounts without a logon for 90 days",
+  "Konten werden geladen …": "Loading accounts …",
+  "Liste nicht lesbar": "List not readable",
+  "Löschen vorbereiten →": "Prepare deletion →",
+  "Name, Anmeldename, E-Mail oder Seite …": "Name, logon name, e-mail or page …",
+  "Neuen Mitarbeiter anlegen": "Create new employee",
+  "Neuer Mitarbeiter": "New employee",
+  "Noch nicht eingerichtet: Quell-OUs unter „Austritt“ festlegen": "Not set up yet: choose the source OUs under “Leaving”",
+  "Noch nicht eingerichtet: Quell-OUs unter „Passwort zurücksetzen“ festlegen": "Not set up yet: choose the source OUs under “Reset password”",
+  "Person suchen": "Search person",
+  "Personen": "People",
+  "Schnellsuche": "Quick search",
+  "Schnellzugriff": "Quick access",
+  "Seiten": "Pages",
+  "Start": "Home",
+  "Treffer": "Results",
+  "Was steht an? Die Zahlen kommen direkt aus dem AD.": "What needs doing? The numbers come straight from AD.",
+  "Zu erledigen": "To do",
+  "Zu viele falsche Kennwörter": "Too many wrong passwords",
+  "Zugang wiederherstellen →": "Restore access →",
+  "deaktiviert": "disabled",
+  "öffnet": "opens"
  },
  "patterns": [
   [
@@ -1663,6 +1702,10 @@
   [
    "vor {0} Tagen",
    "{0} days ago"
+  ],
+  [
+   "davon {0} nie angemeldet",
+   "{0} of them never logged on"
   ]
  ]
 }
