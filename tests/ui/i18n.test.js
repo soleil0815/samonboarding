@@ -22,6 +22,8 @@ console.assert(api.tr('  Konto suchen...  ') === '  Search account...  ', 'exakt
 console.assert(api.trText('Benutzerkonten aufräumen, in andere OUs\n                verschieben und Gruppenmitgliedschaften anpassen') === 'Tidy up user accounts, move them to other OUs and adjust group memberships', 'Zeilenumbruch im Quelltext');
 // patterns with numbers
 console.assert(api.tr('6 Konten') === '6 accounts', 'Zaehler');
+console.assert(api.tr('Stand 14:32 · aktualisiert sich jede Minute') === 'As of 14:32 · refreshes every minute', 'Startseite Stand');
+console.assert(api.tr('davon 2 nie angemeldet') === '2 of them never logged on', 'Startseite nie angemeldet');
 // nested: reason and action are translated as well
 console.assert(api.tr('Dieses Konto ist geschützt (Mitglied von „Domänen-Admins“) und darf nicht offgeboardet werden. Soll es trotzdem bearbeitet werden, zuerst die Mitgliedschaft im AD entfernen.')
   === 'This account is protected (Member of “Domain Admins”) and must not be offboarded. If it really has to be processed, remove the membership in AD first.', 'verschachtelt');

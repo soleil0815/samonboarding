@@ -7,6 +7,11 @@ Update auf dem Server: `sudo sh update.sh` oder `docker compose pull && docker c
 
 Einträge, die mit „Sicherheit:“ oder „Behoben:“ beginnen, werden in der Oberfläche entsprechend markiert.
 
+## 2.2.1 – 2026-11-08
+- Geändert: Die Startseite zeigt ihre Zahlen gleich nach der Anmeldung. Sie werden jetzt zuerst und gleichzeitig gelesen, noch bevor OUs, Gruppen und Templates für die anderen Bereiche geladen sind.
+- Schneller bei großen Verzeichnissen: Für die Startseite zählt jetzt der Domänencontroller selbst (Suchfilter wie „aktiv und seit 90 Tagen nicht angemeldet“ oder „gesperrt“). Gelesen werden nur die passenden Konten mit sehr wenigen Attributen, und der Browser bekommt nur die Zahlen statt drei kompletter Kontolisten – auch bei Tausenden Konten schnell. Weiterhin live, mit dem eigenen AD-Konto und nur in den freigegebenen OUs.
+- Neu: Solange die Startseite offen ist, liest sie ihre Zahlen jede Minute und beim Zurückkehren in den Browser-Tab frisch vom Domänencontroller – ein Klick auf „Aktualisieren“ ist nicht mehr nötig. Im Browser wird nichts gespeichert. Nach 10 Minuten ohne Aktivität hört das automatische Auffrischen auf, damit ein unbeaufsichtigter Bildschirm die Sitzung nicht offen hält.
+
 ## 2.2.0-s1 – 2026-11-08
 - Sicherheit: Sicherheitsupdate ohne Programmänderung: gleiches Programm, aktualisierte Pakete.
 - Basis-Images:

@@ -18,13 +18,13 @@ const calls = [];
 const fetch = async url => { calls.push(url); const r = replies[url.split('?')[0]]; return r ? {ok: true, json: async () => r} : {ok: false, json: async () => ({})}; };
 const f = new Function('document', 'window', 'navigator', 'alert', 'fetch', 'confirm',
   src.replace(/document\.addEventListener\("DOMContentLoaded"[\s\S]*?\}\);\s*\n/, '') + `
-return {dashboardCounts, greeting, mergePeople, filterPeople, loadDashboard, renderPalette, paletteKey, paletteChoose, openPalette,
+return {greeting, mergePeople, filterPeople, loadDashboard, renderPalette, paletteKey, paletteChoose, openPalette,
   setRole: r => { currentUserRole = r; }, setMe: n => { currentLoggedInUsername = n; }, tab: () => currentTab, sort: () => offSort,
   openInactiveAccounts, stubTabs: () => { refreshAllLdapData = async () => {}; }, setVisible: v => { appVisible = () => v; }};`);
 const api = f(doc, {}, {language: 'de'}, () => {}, fetch, () => true);
 api.stubTabs();
 
-// counting: active, not protected, not oneself, last logon older than 90 days or never
+// lists for the quick search
 const off = [
   {dn: 'a', sam: 'a', name: 'Anna', disabled: false, lastLogon: iso(120 * day)},
   {dn: 'b', sam: 'b', name: 'Ben', disabled: false, lastLogon: null},
@@ -34,13 +34,6 @@ const off = [
   {dn: 'm', sam: 'IT.Admin', name: 'Ich', disabled: false, lastLogon: null},
 ];
 const pwd = [{dn: 'a', sam: 'a', name: 'Anna', locked: true}, {dn: 'x', sam: 'x', name: 'Xaver Moll', locked: false, mail: 'x.moll@firma.local'}];
-const del = [{dn: 'd', sam: 'd', disabled: true}, {dn: 'm', sam: 'it.admin', disabled: true, self: true}, {dn: 'p', disabled: true, protected: 'x'}, {dn: 'q', disabled: false}];
-const c = api.dashboardCounts(off, pwd, del, now, 'it.admin');
-console.assert(c.inactive === 2 && c.never === 1, 'inactive: Anna (120 days) and Ben (never) ' + JSON.stringify(c));
-console.assert(c.locked === 1, 'one locked account');
-console.assert(c.deletable === 1, 'only disabled, not self, not protected');
-console.assert(api.dashboardCounts(null, null, null, now, '').inactive === 0, 'missing lists count as zero');
-console.assert(api.dashboardCounts([{sam: 'z', disabled: false, lastLogon: iso(90 * day - 1000)}], [], [], now, '').inactive === 0, 'just under 90 days is not inactive');
 
 // greeting by hour
 console.assert(api.greeting(8) === 'Guten Morgen' && api.greeting(14) === 'Guten Tag' && api.greeting(20) === 'Guten Abend' && api.greeting(2) === 'Guten Abend', 'greeting');
@@ -56,33 +49,35 @@ console.assert(api.filterPeople(people, 'a', 8)[0].dn === 'a', 'exact login name
 console.assert(api.filterPeople(people, 'e', 2).length === 2, 'limit');
 
 (async () => {
-  // dashboard for an administrator: counters and menu badges
-  replies['/api/offboarding/users'] = {users: off};
-  replies['/api/pwdreset/users'] = {users: pwd};
-  replies['/api/deletion/users'] = {users: del};
+  // dashboard for an administrator: only numbers from /api/dashboard, never lists
+  replies['/api/dashboard'] = {status: 'success', inactive: {count: 2, never: 1}, locked: {count: 1}, deletion: {count: 3}};
   api.setRole('Administrator');
   api.setMe('it.admin');
   await api.loadDashboard(true);
-  console.assert(calls.includes('/api/deletion/users?frisch=1'), 'Aktualisieren reads fresh');
-  console.assert(els['dash-locked-num'].textContent === '1' && els['dash-delete-num'].textContent === '1', 'counters');
-  console.assert(els['dash-inactive-num'].textContent === String(api.dashboardCounts(off, pwd, del, Date.now(), 'it.admin').inactive), 'inactive counter');
+  console.assert(calls.length === 1 && calls[0] === '/api/dashboard', 'one request for the numbers: ' + calls);
+  console.assert(els['dash-inactive-num'].textContent === '2' && els['dash-inactive-sub'].textContent === 'davon 1 nie angemeldet', 'inactive counter');
+  console.assert(els['dash-locked-num'].textContent === '1' && els['dash-delete-num'].textContent === '3', 'counters');
   console.assert(els['nav-badge-pwdreset'].textContent === '1' && !els['nav-badge-pwdreset'].classList.contains('hidden'), 'badge shown');
+  console.assert(els['nav-badge-delete'].textContent === '3', 'deletion badge');
   console.assert(els['start-name'].textContent === ', it.admin', 'name in the greeting');
 
-  // operator: the deletion list is not requested
-  calls.length = 0;
+  // zero: calm card, no badge
+  replies['/api/dashboard'] = {status: 'success', inactive: {count: 0, never: 0}, locked: {count: 0}, deletion: null};
   api.setRole('Account Operator');
   await api.loadDashboard(false);
-  console.assert(!calls.some(u => u.startsWith('/api/deletion')), 'operators do not read the deletion list');
+  console.assert(els['dash-locked-sub'].textContent === 'Alles in Ordnung' && els['nav-badge-pwdreset'].classList.contains('hidden'), 'nothing locked');
   console.assert(els['nav-badge-delete'].classList.contains('hidden'), 'no deletion badge for operators');
 
-  // not configured: no number, a hint instead, no badge
-  replies['/api/pwdreset/users'] = {users: [], warning: 'Keine Quell-OUs für Passwort-Reset konfiguriert.'};
+  // not configured / not readable / DC unreachable: no number, no badge, never a false "0"
+  replies['/api/dashboard'] = {status: 'success', inactive: {error: 'Liste nicht lesbar'}, locked: {warning: 'Keine Quell-OUs für Passwort-Reset konfiguriert.'}, deletion: null};
   await api.loadDashboard(false);
   console.assert(els['dash-locked-num'].textContent === '–' && els['dash-locked-sub'].textContent.includes('Noch nicht eingerichtet'), 'not configured');
-  console.assert(els['nav-badge-pwdreset'].classList.contains('hidden'), 'no badge when not configured');
-  replies['/api/pwdreset/users'] = {users: pwd};
+  console.assert(els['dash-inactive-num'].textContent === '–' && els['dash-inactive-sub'].textContent === 'Liste nicht lesbar', 'not readable');
+  console.assert(els['nav-badge-offboard'].classList.contains('hidden'), 'no badge without a number');
+  delete replies['/api/dashboard'];
   await api.loadDashboard(false);
+  console.assert(els['dash-locked-num'].textContent === '–' && els['dash-asof'].textContent.includes('nicht erreichbar'), 'DC unreachable');
+  api.setRole('Administrator');
 
   // card "inactive": offboarding opens sorted oldest first
   await api.openInactiveAccounts();
@@ -90,6 +85,8 @@ console.assert(api.filterPeople(people, 'e', 2).length === 2, 'limit');
 
   // quick search: Ctrl+K opens, choosing a person opens the right page with the search filled in
   replies['/api/usermgmt/users'] = {users: [{dn: 'a', sam: 'a', name: 'Anna'}]};
+  replies['/api/offboarding/users'] = {users: off};
+  replies['/api/pwdreset/users'] = {users: pwd};
   api.setVisible(true);
   el('palette').classList.add('hidden');
   let prevented = false;

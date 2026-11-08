@@ -29,7 +29,7 @@ Dieses Dokument beschreibt, welche personenbezogenen Daten SAMONBOARDING verarbe
 
 | Daten | Wo | Zweck |
 |---|---|---|
-| Kontodaten im AD (Name, Benutzername, E-Mail, Abteilung, Firma, Telefon, Manager, OU, Gruppen; in der Offboarding-Liste zusätzlich die ungefähre letzte Anmeldung `lastLogonTimestamp` – nur angezeigt, nie gespeichert oder protokolliert) | **Im Active Directory**, nicht in der Anwendung. SAMONBOARDING liest und schreibt sie nur dort | Kontoverwaltung |
+| Kontodaten im AD (Name, Benutzername, E-Mail, Abteilung, Firma, Telefon, Manager, OU, Gruppen; in der Offboarding-Liste zusätzlich die ungefähre letzte Anmeldung `lastLogonTimestamp` – nur angezeigt, nie gespeichert oder protokolliert; die Startseite bekommt davon nur Anzahlen, keine Namen) | **Im Active Directory**, nicht in der Anwendung. SAMONBOARDING liest und schreibt sie nur dort | Kontoverwaltung |
 | Berichte – Änderungen: Zeitpunkt, ausführender Benutzer, Aktion, Zielkonto (DN), Ergebnis, ggf. Fehlermeldung. **Keine Passwörter** | `data/reports.db` (SQLite, Tabelle `audit`) | Nachvollziehbarkeit, Sicherheit |
 | Berichte – Protokoll: Meldungen des Programms ab Stufe *Info* (z. B. Verbindungsfehler); kann Kontonamen oder Pfade enthalten. **Keine Passwörter, keine IP-Adressen je Zugriff** | `data/reports.db` (Tabelle `applog`) | Betrieb, Fehlersuche |
 | Wiederherstellungs-Einträge: Benutzername, Name, frühere OU, Gruppen, ob aktiv, wann und von wem offgeboardet. **Keine Passwörter** | `data/offboarding.db` (SQLite) | Rückgängig machen eines versehentlichen Offboardings |

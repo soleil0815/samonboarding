@@ -30,7 +30,7 @@ SAMONBOARDING ist eine Weboberfläche für den Lebenszyklus von Benutzerkonten i
 
 | Menüpunkt | Wofür |
 |---|---|
-| **Start** | Was steht an? Konten ohne Anmeldung seit 90 Tagen, gesperrte Konten und (für Administratoren) Konten, die bereit zum Löschen sind – ein Klick öffnet die passende Liste |
+| **Start** | Was steht an? Konten ohne Anmeldung seit 90 Tagen, gesperrte Konten und (für Administratoren) Konten, die bereit zum Löschen sind – ein Klick öffnet die passende Liste. Die Zahlen kommen live vom DC und frischen sich jede Minute selbst auf, solange die Startseite offen ist |
 | **Neuer Mitarbeiter** (Onboarding) | Neues Konto nach einem Template anlegen |
 | **Benutzerverwaltung** | Konto in eine andere OU verschieben, Gruppen pflegen |
 | **Passwort zurücksetzen** | Neues Passwort setzen, Kontosperre aufheben |

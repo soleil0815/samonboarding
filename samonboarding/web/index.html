@@ -256,6 +256,7 @@
         .dash-sub { font-size: 12px; color: var(--ink-400); }
         .dash-go { margin-top: auto; padding-top: 8px; font-size: 13px; font-weight: 700; color: var(--iris-300); }
         .dash-card.is-calm .dash-num { color: var(--ink-400); }
+        .dash-card[aria-busy="true"] .dash-num { opacity: .45; }
         .quick-actions { display: flex; flex-wrap: wrap; gap: 10px; }
         .quick-action { display: inline-flex; align-items: center; gap: 9px; padding: 11px 16px; border-radius: 12px; background: rgba(24, 30, 48, .8); border: 1px solid var(--ink-800); color: var(--ink-100); font-size: 14px; font-weight: 600; }
         .quick-action:hover { border-color: var(--iris-500); color: #fff; }
@@ -473,6 +474,7 @@
                         <div>
                             <h2 class="page-title"><span id="start-greeting">Guten Tag</span><span id="start-name" translate="no"></span></h2>
                             <p class="text-slate-400">Was steht an? Die Zahlen kommen direkt aus dem AD.</p>
+                            <p id="dash-asof" class="text-xs text-slate-500" aria-live="polite">Wird vom DC gelesen …</p>
                         </div>
                         <button onclick="refreshAllLdapData(true)" class="px-4 py-2 bg-slate-900 border border-slate-800 text-cyan-400 rounded-xl text-xs font-medium hover:bg-slate-800 transition-all"><i class="fa-solid fa-rotate mr-1"></i> Aktualisieren</button>
                     </div>
@@ -1715,6 +1717,7 @@
                     document.getElementById('role-display').textContent = data.role;
                     showDirectory(data.directory);
                     startIdleWatch(data.idleMinutes);
+                startDashAutoRefresh();
                     
                     setupRoleVisibility(data.role);
                     checkNews();
@@ -1795,6 +1798,9 @@
         function freshQuery(force) { return force === true ? '?frisch=1' : ''; }
         async function refreshAllLdapData(force) {
             force = force === true;
+            // The start page needs none of the settings below: its counters start at once and in parallel,
+            // so they are visible right after sign-in instead of after OUs, groups and templates
+            const dashboard = currentTab === 'start' ? safeLoad(loadDashboard, force) : null;
             await safeLoad(loadInfrastructure, force);
             await safeLoad(loadTemplates);
             if(currentUserRole === "Administrator") await safeLoad(loadExchangeConfig);
@@ -1803,8 +1809,9 @@
             await safeLoad(loadUserMgmtConfig);
             await safeLoad(loadSmtpConfig);
             await safeLoad(loadDeletionConfig);
-            const loadList = TAB_LISTS[currentTab];
+            const loadList = currentTab === 'start' ? null : TAB_LISTS[currentTab];
             if(loadList) await safeLoad(loadList, force);
+            if(dashboard) await dashboard;
             await safeLoad(loadReferenceCheck, force);
             await safeLoad(loadHostNotices);
         }
@@ -1973,6 +1980,7 @@
                 document.getElementById('role-display').textContent = data.role;
                 showDirectory(data.directory);
                 startIdleWatch(data.idleMinutes);
+                startDashAutoRefresh();
                 
                 setupRoleVisibility(data.role);
                 checkNews();
@@ -3158,21 +3166,6 @@
         // Start page: what needs doing, counted from the existing lists
         // (no extra AD query: the server answers from its 60-second cache)
         // ---------------------------------------------------------------
-        const INACTIVE_DAYS = 90;
-        let dashData = {offboard: null, pwdreset: null, deletion: null};
-
-        // Pure counting, so it can be tested without a DOM. now = milliseconds.
-        function dashboardCounts(offUsers, pwdUsers, delUsers, now, self) {
-            const me = String(self || '').toLowerCase();
-            const limit = now - INACTIVE_DAYS * 86400000;
-            const inactive = (offUsers || []).filter(u => !u.disabled && !u.protected && String(u.sam || '').toLowerCase() !== me
-                && (!u.lastLogon || Date.parse(u.lastLogon) < limit));
-            const never = inactive.filter(u => !u.lastLogon).length;
-            const locked = (pwdUsers || []).filter(u => u.locked).length;
-            const deletable = (delUsers || []).filter(u => u.disabled && !u.self && !u.protected).length;
-            return {inactive: inactive.length, never, locked, deletable};
-        }
-
         function greeting(hour) {
             if(hour < 5) return 'Guten Abend';
             if(hour < 11) return 'Guten Morgen';
@@ -3205,33 +3198,83 @@
             b.classList.toggle('hidden', !count);
         }
 
+        let dashLoading = false;
         async function loadDashboard(force) {
+            if(dashLoading) return;
+            dashLoading = true;
+            try { await loadDashboardNow(force); } finally { dashLoading = false; }
+        }
+
+        async function loadDashboardNow(force) {
             const g = document.getElementById('start-greeting');
             if(g) g.textContent = greeting(new Date().getHours());
             const nm = document.getElementById('start-name');
             if(nm) nm.textContent = currentLoggedInUsername ? ', ' + currentLoggedInUsername : '';
             const admin = currentUserRole === 'Administrator';
-            const [off, pwd, del] = await Promise.all([
-                fetchList('/api/offboarding/users', force),
-                fetchList('/api/pwdreset/users', force),
-                admin ? fetchList('/api/deletion/users', force) : Promise.resolve({users: null, warning: ''}),
-            ]);
-            dashData = {offboard: off.users, pwdreset: pwd.users, deletion: del.users};
-            const c = dashboardCounts(off.users, pwd.users, del.users, Date.now(), currentLoggedInUsername);
-            if(off.users === null) setDashCard('inactive', '–', 'Liste nicht lesbar', true);
-            else if(off.warning) setDashCard('inactive', '–', 'Noch nicht eingerichtet: Quell-OUs unter „Austritt“ festlegen', true);
-            else setDashCard('inactive', String(c.inactive), c.never ? `davon ${c.never} nie angemeldet` : 'Aktive Konten in den Offboarding-OUs, ältestes zuerst', !c.inactive);
-            if(pwd.users === null) setDashCard('locked', '–', 'Liste nicht lesbar', true);
-            else if(pwd.warning) setDashCard('locked', '–', 'Noch nicht eingerichtet: Quell-OUs unter „Passwort zurücksetzen“ festlegen', true);
-            else setDashCard('locked', String(c.locked), c.locked ? 'Zu viele falsche Kennwörter' : 'Alles in Ordnung', !c.locked);
-            if(admin) {
-                if(del.users === null) setDashCard('delete', '–', 'Liste nicht lesbar', true);
-                else if(del.warning) setDashCard('delete', '–', 'Die Löschfunktion ist nicht aktiviert.', true);
-                else setDashCard('delete', String(c.deletable), 'Deaktivierte Konten', !c.deletable);
+            const cards = ['inactive', 'locked', 'delete'];
+            cards.forEach(k => { const card = document.getElementById('dash-' + k); if(card) card.setAttribute('aria-busy', 'true'); });
+            // Only numbers: the DC counts with search filters, the browser never receives account lists here
+            let data = null;
+            try {
+                const res = await fetch('/api/dashboard');
+                if(res.ok) data = await res.json();
+            } catch(e) { data = null; }
+            cards.forEach(k => { const card = document.getElementById('dash-' + k); if(card) card.setAttribute('aria-busy', 'false'); });
+            renderDashboard(data, admin);
+        }
+
+        // One card from one answer section: {count, never?} | {warning} | {error} | null (no answer)
+        function dashSection(key, part, notSet, sub, calmSub) {
+            if(!part || part.error) { setDashCard(key, '–', 'Liste nicht lesbar', true); return 0; }
+            if(part.warning) { setDashCard(key, '–', notSet, true); return 0; }
+            const n = Number(part.count) || 0;
+            setDashCard(key, String(n), n ? sub(part) : calmSub, !n);
+            return n;
+        }
+
+        function renderDashboard(data, admin) {
+            const asof = document.getElementById('dash-asof');
+            if(asof) {
+                if(data) {
+                    const t = new Date().toLocaleTimeString(uiLang === 'en' ? 'en-GB' : 'de-DE', {hour: '2-digit', minute: '2-digit'});
+                    asof.textContent = `Stand ${t} · aktualisiert sich jede Minute`;
+                } else {
+                    asof.textContent = 'Der DC ist gerade nicht erreichbar – neuer Versuch in einer Minute.';
+                }
             }
-            setNavBadge('offboard', off.warning ? 0 : c.inactive);
-            setNavBadge('pwdreset', pwd.warning ? 0 : c.locked);
-            setNavBadge('delete', admin && !del.warning ? c.deletable : 0);
+            const d = data || {};
+            const inactive = dashSection('inactive', d.inactive, 'Noch nicht eingerichtet: Quell-OUs unter „Austritt“ festlegen',
+                p => p.never ? `davon ${p.never} nie angemeldet` : 'Aktive Konten in den Offboarding-OUs, ältestes zuerst',
+                'Aktive Konten in den Offboarding-OUs, ältestes zuerst');
+            const locked = dashSection('locked', d.locked, 'Noch nicht eingerichtet: Quell-OUs unter „Passwort zurücksetzen“ festlegen',
+                () => 'Zu viele falsche Kennwörter', 'Alles in Ordnung');
+            const deletable = admin ? dashSection('delete', d.deletion, 'Die Löschfunktion ist nicht aktiviert.', () => 'Deaktivierte Konten', 'Deaktivierte Konten') : 0;
+            setNavBadge('offboard', inactive);
+            setNavBadge('pwdreset', locked);
+            setNavBadge('delete', deletable);
+        }
+
+        // Live without clicking: while the start page is open and the browser tab is visible, the counters
+        // are read fresh from the DC every minute and when returning to the tab - nothing is kept in the
+        // browser. Without user activity for 10 minutes it stops, so an unattended screen does not keep
+        // the session alive (every request extends it on the server).
+        const DASH_REFRESH_MS = 60000;
+        const DASH_ACTIVE_MS = 10 * 60000;
+        function dashAutoRefreshDue(now) {
+            if(currentTab !== 'start' || !appVisible()) return false;
+            if(typeof document.visibilityState === 'string' && document.visibilityState !== 'visible') return false;
+            const box = document.getElementById('palette');
+            if(box && box.classList && !box.classList.contains('hidden')) return false;
+            return now - Math.max(lastActivity || 0, sharedActivity() || 0) < DASH_ACTIVE_MS;
+        }
+        function dashAutoRefresh() {
+            if(dashAutoRefreshDue(Date.now())) safeLoad(loadDashboard, true);
+        }
+        let dashTimer = null;
+        function startDashAutoRefresh() {
+            if(dashTimer) return;
+            dashTimer = setInterval(dashAutoRefresh, DASH_REFRESH_MS);
+            document.addEventListener('visibilitychange', dashAutoRefresh);
         }
 
         // Card "no logon for 90 days": open the offboarding list, oldest logon first
@@ -3294,8 +3337,8 @@
         async function loadPalettePeople() {
             const [mgmt, off, pwd] = await Promise.all([
                 fetchList('/api/usermgmt/users'),
-                dashData.offboard ? Promise.resolve({users: dashData.offboard}) : fetchList('/api/offboarding/users'),
-                dashData.pwdreset ? Promise.resolve({users: dashData.pwdreset}) : fetchList('/api/pwdreset/users'),
+                fetchList('/api/offboarding/users'),
+                fetchList('/api/pwdreset/users'),
             ]);
             palettePeople = mergePeople([['usermgmt', mgmt.users], ['offboard', off.users], ['pwdreset', pwd.users]]);
             paletteLoaded = true;

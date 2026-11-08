@@ -16,6 +16,7 @@ from .config import DATA_DIR, HTTPS_PORT, VERSION
 from .routers import (
     auth,
     certificate,
+    dashboard,
     deletion,
     infrastructure,
     manual,
@@ -203,6 +204,7 @@ async def _security_headers(request: Request, call_next):
 
 for _module in (
     auth,
+    dashboard,
     settings,
     usermgmt,
     offboarding,
