@@ -7,6 +7,10 @@ Update auf dem Server: `sudo sh update.sh` oder `docker compose pull && docker c
 
 Einträge, die mit „Sicherheit:“ oder „Behoben:“ beginnen, werden in der Oberfläche entsprechend markiert.
 
+## 2.2.4 – 2026-11-08
+- Startseite: Man sieht, dass etwas passiert. Solange der Domänencontroller gefragt wird, laufen auf den Karten die Sekunden mit („Wird vom DC gelesen … 3 s“, später „aktualisiert … 3 s“); ist das Ergebnis da, zählen die Zahlen bis zu ihrem Wert hoch (nach dem Auffrischen vom bisherigen Wert aus). Ist im System „Bewegung reduzieren“ eingeschaltet, stehen die Zahlen sofort da.
+- Der Ladebalken oben ist deutlicher.
+
 ## 2.2.3 – 2026-11-08
 - Schnellere Anmeldung: Die Rolle (Administrator oder Operator) kommt jetzt aus den Gruppen-SIDs des eigenen Kontos (`tokenGroups`, eine günstige Abfrage). Die teure verschachtelte Gruppensuche über die ganze Domäne läuft nur noch, wenn das nicht schon entscheidet. Die eigene Operator-Gruppe (z. B. CO-ADMIN) wird einmal über ihren Namen gesucht.
 - Schnellere Listen in allen Modulen: Die Prüfung auf geschützte Konten (Domänen-Admins usw.) braucht je privilegierter Gruppe eine verschachtelte Suche über die Domäne. Sie läuft jetzt einmal pro Minute und Sitzung statt bei jeder Liste (Offboarding, Löschen, Startseite doppelt) und wird bei jeder Änderung verworfen; jede Aktion wird weiterhin live geprüft.
