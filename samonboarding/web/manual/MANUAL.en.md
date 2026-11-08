@@ -47,7 +47,7 @@ SAMONBOARDING is a web interface for the life cycle of user accounts in Active D
 
 The menu is grouped into **Tasks** (Home to Delete accounts) and **Settings** (Templates to Certificate). Numbers next to a menu item show how many accounts are waiting there.
 
-**Quick search (Ctrl + K, on a Mac ⌘ + K):** opens a search field for people and pages. Search by name, logon name or e-mail, choose with the arrow keys and open with Enter. A person opens in user management, already filtered. If the account is not released there, leaving or password reset opens instead. Only accounts you may see in these areas anyway are searched. Esc closes the search.
+**Quick search (Ctrl + K, on a Mac ⌘ + K):** opens a search field for people and pages. Search by name, logon name or e-mail, choose with the arrow keys and open with Enter. A person opens in user management, already filtered. If the account is not released there, leaving or password reset opens instead. From two characters the DC searches directly in AD (at most 10 hits), only in the OUs released for user management, leaving and password reset, with your own AD account. The search text is never stored or logged. Esc closes the search.
 
 Good to know:
 

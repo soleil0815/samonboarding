@@ -7,6 +7,10 @@ Update auf dem Server: `sudo sh update.sh` oder `docker compose pull && docker c
 
 Einträge, die mit „Sicherheit:“ oder „Behoben:“ beginnen, werden in der Oberfläche entsprechend markiert.
 
+## 2.2.2 – 2026-11-08
+- Schneller bei großen Verzeichnissen: Die Schnellsuche (Strg+K) fragt jetzt direkt den Domänencontroller – ab zwei Zeichen, kurz nach dem letzten Tastendruck, höchstens 10 Treffer – statt komplette Kontolisten in den Browser zu laden. Jedes getippte Wort muss im Namen, Anmeldenamen oder in der E-Mail vorkommen. Gesucht wird nur in den OUs, die für Benutzerverwaltung, Austritt und Passwort zurücksetzen freigegeben sind, mit dem eigenen AD-Konto; der Suchtext wird nie gespeichert oder protokolliert.
+- Schneller nach der Anmeldung: Die AD-Struktur (alle OUs, Gruppen und Benutzer) wird nur noch auf den Seiten geladen, die sie zeigen oder bearbeiten – Neuer Mitarbeiter, Templates, AD-Struktur und die OU-Einstellungen der Listen –, nicht mehr für Startseite, Berichte, Zertifikat, E-Mail-Benachrichtigung und Handbuch.
+
 ## 2.2.1 – 2026-11-08
 - Geändert: Die Startseite zeigt ihre Zahlen gleich nach der Anmeldung. Sie werden jetzt zuerst und gleichzeitig gelesen, noch bevor OUs, Gruppen und Templates für die anderen Bereiche geladen sind.
 - Schneller bei großen Verzeichnissen: Für die Startseite zählt jetzt der Domänencontroller selbst (Suchfilter wie „aktiv und seit 90 Tagen nicht angemeldet“ oder „gesperrt“). Gelesen werden nur die passenden Konten mit sehr wenigen Attributen, und der Browser bekommt nur die Zahlen statt drei kompletter Kontolisten – auch bei Tausenden Konten schnell. Weiterhin live, mit dem eigenen AD-Konto und nur in den freigegebenen OUs.

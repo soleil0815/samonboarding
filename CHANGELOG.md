@@ -7,6 +7,10 @@ Update on the server: `sudo sh update.sh` or `docker compose pull && docker comp
 
 Entries starting with "Security:" or "Fixed:" are marked accordingly in the interface.
 
+## 2.2.2 – 2026-11-08
+- Faster with large directories: the quick search (Ctrl+K) now asks the domain controller directly – from two characters, shortly after the last key, at most 10 hits – instead of loading complete account lists into the browser. Every typed word must appear in the name, logon name or e-mail. Only the OUs released for user management, leaving and password reset are searched, with your own AD account; the search text is never stored or logged.
+- Faster after signing in: the AD structure (all OUs, groups and users) is only loaded on the pages that show or edit it – new employee, templates, AD structure and the OU settings of the lists – and no longer for the home page, reports, certificate, e-mail notification or the manual.
+
 ## 2.2.1 – 2026-11-08
 - Changed: the home page shows its numbers right after signing in. They are now read first and in parallel, before OUs, groups and templates are loaded for the other areas.
 - Faster with large directories: the domain controller now counts for the home page itself (search filters such as "enabled and no logon for 90 days" or "locked"). Only the matching accounts are read, with very few attributes, and the browser receives only the numbers instead of three complete account lists – fast even with thousands of accounts. Still live, with your own AD account and only in the released OUs.

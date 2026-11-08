@@ -30,7 +30,7 @@ el('palette').classList.add('hidden');
   api.setTab('start');
   await api.refreshAllLdapData();
   console.assert(calls.filter(u => u === '/api/dashboard').length === 1, 'numbers read once: ' + calls);
-  console.assert(order.indexOf('infra-end') > 0, 'settings still loaded');
+  console.assert(!order.includes('infra-start') && order.includes('loadTemplates'), 'start page: no AD structure, small settings still loaded');
   console.assert(!order.includes('loadOffboardingUsers'), 'no second list load for the start page');
   console.assert(els['dash-asof'].textContent.startsWith('Stand ') && els['dash-asof'].textContent.endsWith('aktualisiert sich jede Minute'), 'as-of time shown');
   console.assert(els['dash-inactive'].attrs['aria-busy'] === 'false', 'busy state cleared');
@@ -42,7 +42,7 @@ el('palette').classList.add('hidden');
   calls.push = u => { marks.push('fetch:' + u.split('?')[0]); return origPush(u); };
   order.push = n => { marks.push(n); return Array.prototype.push.call(order, n); };
   await api.refreshAllLdapData();
-  console.assert(marks.indexOf('fetch:/api/dashboard') < marks.indexOf('infra-end'), 'counters start before settings finish: ' + marks.slice(0, 4));
+  console.assert(marks[0] === 'fetch:/api/dashboard', 'counters are requested first: ' + marks.slice(0, 4));
   calls.push = origPush;
 
   // 2. other pages are unchanged: no start page lists
@@ -50,6 +50,19 @@ el('palette').classList.add('hidden');
   api.setTab('hire');
   await api.refreshAllLdapData();
   console.assert(!calls.includes('/api/dashboard'), 'onboarding does not read the start page numbers');
+  console.assert(order.includes('infra-end'), 'onboarding loads the AD structure');
+  for (const t of ['reports', 'cert', 'faq', 'smtp']) {
+    order.length = 0;
+    api.setTab(t);
+    await api.refreshAllLdapData();
+    console.assert(!order.includes('infra-start'), t + ': no AD structure');
+  }
+  for (const t of ['templates', 'infra', 'usermgmt', 'offboard', 'pwdreset', 'delete']) {
+    order.length = 0;
+    api.setTab(t);
+    await api.refreshAllLdapData();
+    console.assert(order.includes('infra-end'), t + ': AD structure loaded');
+  }
 
   // 3. automatic refresh: only on the start page, app visible, tab visible, recently active, search closed
   const now = Date.now();

@@ -45,7 +45,7 @@ SAMONBOARDING ist eine Weboberfläche für den Lebenszyklus von Benutzerkonten i
 
 Die Menüpunkte sind in **Aufgaben** (Start bis Konten löschen) und **Einstellungen** (Templates bis Zertifikat) gruppiert. Zahlen neben einem Menüpunkt zeigen, wie viele Konten dort warten.
 
-**Schnellsuche (Strg + K, am Mac ⌘ + K):** Öffnet ein Suchfeld für Personen und Seiten. Nach Name, Anmeldename oder E-Mail suchen, mit den Pfeiltasten wählen und mit Enter öffnen. Eine Person öffnet sich in der Benutzerverwaltung, schon nach ihr gefiltert. Ist sie dort nicht freigegeben, öffnet sich Austritt oder Passwort zurücksetzen. Gesucht wird nur in den Konten, die du in diesen Bereichen ohnehin sehen darfst. Esc schließt die Suche.
+**Schnellsuche (Strg + K, am Mac ⌘ + K):** Öffnet ein Suchfeld für Personen und Seiten. Nach Name, Anmeldename oder E-Mail suchen, mit den Pfeiltasten wählen und mit Enter öffnen. Eine Person öffnet sich in der Benutzerverwaltung, schon nach ihr gefiltert. Ist sie dort nicht freigegeben, öffnet sich Austritt oder Passwort zurücksetzen. Ab zwei Zeichen sucht der DC direkt im AD (höchstens 10 Treffer), und zwar nur in den OUs, die für Benutzerverwaltung, Austritt und Passwort zurücksetzen freigegeben sind, mit deinem eigenen AD-Konto. Der Suchtext wird nirgends gespeichert oder protokolliert. Esc schließt die Suche.
 
 Wichtig zu wissen:
 
