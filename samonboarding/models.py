@@ -154,3 +154,7 @@ class CertUploadModel(BaseModel):
 
 class CertSelfSignedModel(BaseModel):
     names: list[str] = []
+
+
+class PeopleSearchModel(BaseModel):
+    q: str = ""

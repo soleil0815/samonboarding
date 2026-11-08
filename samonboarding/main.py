@@ -23,6 +23,7 @@ from .routers import (
     news,
     offboarding,
     onboarding,
+    people,
     privacy_info,
     pwdreset,
     restore,
@@ -205,6 +206,7 @@ async def _security_headers(request: Request, call_next):
 for _module in (
     auth,
     dashboard,
+    people,
     settings,
     usermgmt,
     offboarding,

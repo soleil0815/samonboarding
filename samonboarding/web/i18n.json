@@ -896,7 +896,6 @@
   "Guten Tag": "Hello",
   "Keine Person und keine Seite gefunden.": "No person and no page found.",
   "Konten ohne Anmeldung seit 90 Tagen": "Accounts without a logon for 90 days",
-  "Konten werden geladen …": "Loading accounts …",
   "Liste nicht lesbar": "List not readable",
   "Löschen vorbereiten →": "Prepare deletion →",
   "Name, Anmeldename, E-Mail oder Seite …": "Name, logon name, e-mail or page …",
@@ -918,7 +917,8 @@
   "deaktiviert": "disabled",
   "öffnet": "opens",
   "Wird vom DC gelesen …": "Reading from the DC …",
-  "Der DC ist gerade nicht erreichbar – neuer Versuch in einer Minute.": "The DC cannot be reached right now – trying again in a minute."
+  "Der DC ist gerade nicht erreichbar – neuer Versuch in einer Minute.": "The DC cannot be reached right now – trying again in a minute.",
+  "Suche im AD …": "Searching AD …"
  },
  "patterns": [
   [

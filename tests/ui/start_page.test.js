@@ -15,38 +15,23 @@ const now = Date.parse('2026-11-08T10:00:00Z');
 const iso = ms => new Date(now - ms).toISOString();
 const replies = {};
 const calls = [];
-const fetch = async url => { calls.push(url); const r = replies[url.split('?')[0]]; return r ? {ok: true, json: async () => r} : {ok: false, json: async () => ({})}; };
+const bodies = [];
+const fetch = async (url, opts) => {
+  calls.push(url);
+  if (opts && opts.body) bodies.push([url, opts.method, JSON.parse(opts.body)]);
+  const r = typeof replies[url.split('?')[0]] === 'function' ? replies[url.split('?')[0]](opts) : replies[url.split('?')[0]];
+  return r ? {ok: true, json: async () => r} : {ok: false, json: async () => ({})};
+};
 const f = new Function('document', 'window', 'navigator', 'alert', 'fetch', 'confirm',
   src.replace(/document\.addEventListener\("DOMContentLoaded"[\s\S]*?\}\);\s*\n/, '') + `
-return {greeting, mergePeople, filterPeople, loadDashboard, renderPalette, paletteKey, paletteChoose, openPalette,
+return {greeting, loadDashboard, renderPalette, paletteInput, paletteKey, paletteChoose, openPalette,
   setRole: r => { currentUserRole = r; }, setMe: n => { currentLoggedInUsername = n; }, tab: () => currentTab, sort: () => offSort,
   openInactiveAccounts, stubTabs: () => { refreshAllLdapData = async () => {}; }, setVisible: v => { appVisible = () => v; }};`);
 const api = f(doc, {}, {language: 'de'}, () => {}, fetch, () => true);
 api.stubTabs();
 
-// lists for the quick search
-const off = [
-  {dn: 'a', sam: 'a', name: 'Anna', disabled: false, lastLogon: iso(120 * day)},
-  {dn: 'b', sam: 'b', name: 'Ben', disabled: false, lastLogon: null},
-  {dn: 'c', sam: 'c', name: 'Carl', disabled: false, lastLogon: iso(10 * day)},
-  {dn: 'd', sam: 'd', name: 'Dora', disabled: true, lastLogon: iso(400 * day)},
-  {dn: 'e', sam: 'e', name: 'Emil', disabled: false, protected: 'Domänen-Admins', lastLogon: iso(400 * day)},
-  {dn: 'm', sam: 'IT.Admin', name: 'Ich', disabled: false, lastLogon: null},
-];
-const pwd = [{dn: 'a', sam: 'a', name: 'Anna', locked: true}, {dn: 'x', sam: 'x', name: 'Xaver Moll', locked: false, mail: 'x.moll@firma.local'}];
-
 // greeting by hour
 console.assert(api.greeting(8) === 'Guten Morgen' && api.greeting(14) === 'Guten Tag' && api.greeting(20) === 'Guten Abend' && api.greeting(2) === 'Guten Abend', 'greeting');
-
-// people: one entry per account, management list wins
-const people = api.mergePeople([['usermgmt', [{dn: 'a', sam: 'a', name: 'Anna'}]], ['offboard', off], ['pwdreset', pwd]]);
-console.assert(people.length === 7 && people.find(p => p.dn === 'a').tab === 'usermgmt' && people.find(p => p.dn === 'b').tab === 'offboard'
-  && people.find(p => p.dn === 'x').tab === 'pwdreset', 'merged by DN');
-console.assert(api.filterPeople(people, '', 8).length === 0, 'empty query shows no people');
-console.assert(api.filterPeople(people, 'moll', 8)[0].dn === 'x', 'surname word');
-console.assert(api.filterPeople(people, 'firma.local', 8)[0].dn === 'x', 'mail');
-console.assert(api.filterPeople(people, 'a', 8)[0].dn === 'a', 'exact login name first');
-console.assert(api.filterPeople(people, 'e', 2).length === 2, 'limit');
 
 (async () => {
   // dashboard for an administrator: only numbers from /api/dashboard, never lists
@@ -84,24 +69,60 @@ console.assert(api.filterPeople(people, 'e', 2).length === 2, 'limit');
   console.assert(api.tab() === 'offboard' && api.sort() === 'asc', 'offboarding, oldest first');
 
   // quick search: Ctrl+K opens, choosing a person opens the right page with the search filled in
-  replies['/api/usermgmt/users'] = {users: [{dn: 'a', sam: 'a', name: 'Anna'}]};
-  replies['/api/offboarding/users'] = {users: off};
-  replies['/api/pwdreset/users'] = {users: pwd};
+  // the DC searches: the browser sends the text by POST and gets at most a few hits
+  replies['/api/people'] = opts => {
+    const q = JSON.parse(opts.body).q.toLowerCase();
+    const all = [{dn: 'x', sam: 'x', name: 'Xaver Moll', mail: 'x.moll@firma.local', disabled: false, tab: 'pwdreset'},
+                 {dn: 'a', sam: 'a', name: 'Anna', mail: '', disabled: false, tab: 'usermgmt'}];
+    return {status: 'success', people: all.filter(p => (p.name + ' ' + p.mail).toLowerCase().includes(q))};
+  };
   api.setVisible(true);
   el('palette').classList.add('hidden');
   let prevented = false;
   await listeners.keydown({ctrlKey: true, key: 'k', preventDefault() { prevented = true; }});
   await new Promise(r => setTimeout(r, 0));
   console.assert(prevented && !els.palette.classList.contains('hidden'), 'Ctrl+K opens the quick search');
-  els['palette-input'].value = 'moll';
-  api.renderPalette();
+  calls.length = 0; bodies.length = 0;
+  els['palette-input'].value = 'm';
+  api.paletteInput();
+  await new Promise(r => setTimeout(r, 300));
+  console.assert(!calls.includes('/api/people'), 'one character: no search');
+  for (const typed of ['mo', 'mol', 'moll']) { els['palette-input'].value = typed; api.paletteInput(); }
+  console.assert(els['palette-list'].innerHTML.includes('Suche im AD'), 'searching hint');
+  await new Promise(r => setTimeout(r, 300));
+  console.assert(calls.filter(u => u === '/api/people').length === 1, 'typing quickly: one search only');
+  console.assert(bodies.length === 1 && bodies[0][1] === 'POST' && bodies[0][2].q === 'moll' && !calls.some(u => u.includes('moll')), 'search text in the body, never in the URL');
   console.assert(els['palette-list'].innerHTML.includes('Xaver Moll') && els['palette-list'].innerHTML.includes('Passwort zurücksetzen'), 'hit with target page');
   api.paletteKey({key: 'Enter', preventDefault() {}});
   await new Promise(r => setTimeout(r, 0));
   console.assert(api.tab() === 'pwdreset' && els['pwdreset-search'].value === 'x' && els.palette.classList.contains('hidden'), 'opens password reset filtered');
 
-  // pages are found by name; hidden pages (operators) are not offered
+  // an answer that arrives after the text changed is ignored
   await api.openPalette();
+  let releaseOld = null;
+  replies['/api/people'] = opts => {
+    const q = JSON.parse(opts.body).q;
+    if (q === 've') return new Promise(r => { releaseOld = () => r({status: 'success', people: [{dn: 'old', sam: 'old', name: 'Veraltet', mail: '', tab: 'usermgmt'}]}); });
+    return {status: 'success', people: [{dn: 'x', sam: 'x', name: 'Xaver Moll', mail: '', tab: 'pwdreset'}]};
+  };
+  els['palette-input'].value = 've';
+  api.paletteInput();
+  await new Promise(r => setTimeout(r, 300));  // first search sent, answer still outstanding
+  els['palette-input'].value = 'xav';
+  api.paletteInput();
+  await new Promise(r => setTimeout(r, 300));
+  releaseOld();
+  await new Promise(r => setTimeout(r, 10));
+  console.assert(!els['palette-list'].innerHTML.includes('Veraltet') && els['palette-list'].innerHTML.includes('Xaver'), 'stale answer not shown');
+
+  // closing forgets the hits
+  api.paletteKey({key: 'Escape', preventDefault() {}});
+  await api.openPalette();
+  els['palette-input'].value = 'moll';
+  api.renderPalette();
+  console.assert(!els['palette-list'].innerHTML.includes('Xaver'), 'hits are not kept after closing');
+
+  // pages are found by name; hidden pages (operators) are not offered
   els['nav-reports'].style.display = 'none';
   els['nav-templates'].style.display = '';
   els['palette-input'].value = 'bericht';

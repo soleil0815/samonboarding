@@ -1171,7 +1171,7 @@
                 <i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i>
                 <input type="text" id="palette-input" autocomplete="off" spellcheck="false" placeholder="Name, Anmeldename, E-Mail oder Seite …"
                        role="combobox" aria-expanded="true" aria-controls="palette-list" aria-autocomplete="list"
-                       oninput="renderPalette()" onkeydown="paletteKey(event)">
+                       oninput="paletteInput()" onkeydown="paletteKey(event)">
                 <span class="kbd" translate="no">Esc</span>
             </div>
             <div id="palette-list" class="palette-list" role="listbox" aria-label="Treffer"></div>
@@ -1788,6 +1788,7 @@
         async function safeLoad(fn, ...args) {
             try { await fn(...args); } catch(e) { console.warn('Laden fehlgeschlagen:', e); }
         }
+        const INFRA_TABS = new Set(['hire', 'templates', 'infra', 'usermgmt', 'offboard', 'pwdreset', 'delete']);
         const TAB_LISTS = {
             start: force => loadDashboard(force),
             usermgmt: force => loadUserMgmtUsers(force),
@@ -1801,7 +1802,9 @@
             // The start page needs none of the settings below: its counters start at once and in parallel,
             // so they are visible right after sign-in instead of after OUs, groups and templates
             const dashboard = currentTab === 'start' ? safeLoad(loadDashboard, force) : null;
-            await safeLoad(loadInfrastructure, force);
+            // The AD structure (all OUs, groups and users) is the largest query: only the pages that show
+            // or edit OUs/groups load it (templates, onboarding, AD structure and the OU settings of the lists)
+            if(INFRA_TABS.has(currentTab)) await safeLoad(loadInfrastructure, force);
             await safeLoad(loadTemplates);
             if(currentUserRole === "Administrator") await safeLoad(loadExchangeConfig);
             await safeLoad(loadOffboardingConfig);
@@ -3173,15 +3176,6 @@
             return 'Guten Abend';
         }
 
-        async function fetchList(url, force) {
-            try {
-                const res = await fetch(url + freshQuery(force));
-                if(!res.ok) return {users: null, warning: ''};
-                const data = await res.json();
-                return {users: data.users || [], warning: data.warning || ''};
-            } catch(e) { return {users: null, warning: ''}; }
-        }
-
         function setDashCard(key, num, sub, calm) {
             const n = document.getElementById('dash-' + key + '-num');
             if(n) n.textContent = num;
@@ -3303,45 +3297,47 @@
         let palettePeople = [];
         let paletteItems = [];
         let paletteIndex = 0;
-        let paletteLoaded = false;
-
-        // One entry per account; it opens where it can be worked on (management first, then leaving, then password)
-        function mergePeople(lists) {
-            const seen = new Map();
-            lists.forEach(([tab, users]) => (users || []).forEach(u => {
-                if(!u || !u.dn || seen.has(u.dn)) return;
-                seen.set(u.dn, {dn: u.dn, name: u.name || u.sam, sam: u.sam || '', mail: u.mail || '', disabled: !!u.disabled, tab});
-            }));
-            return [...seen.values()];
-        }
-
-        function filterPeople(people, query, max) {
-            const q = String(query || '').trim().toLowerCase();
-            if(!q) return [];
-            const score = p => {
-                const name = String(p.name).toLowerCase(), sam = p.sam.toLowerCase(), mail = p.mail.toLowerCase();
-                if(sam === q || name === q) return 0;
-                if(sam.startsWith(q) || name.startsWith(q) || name.split(' ').some(w => w.startsWith(q))) return 1;
-                if(name.includes(q) || sam.includes(q) || mail.includes(q)) return 2;
-                return 9;
-            };
-            return people.map(p => [score(p), p]).filter(([s]) => s < 9)
-                .sort((a, b) => a[0] - b[0] || String(a[1].name).localeCompare(String(b[1].name))).slice(0, max || 8).map(([, p]) => p);
-        }
 
         function visiblePage(tab) {
             const btn = document.getElementById('nav-' + tab);
             return !!btn && btn.style.display !== 'none';
         }
 
-        async function loadPalettePeople() {
-            const [mgmt, off, pwd] = await Promise.all([
-                fetchList('/api/usermgmt/users'),
-                fetchList('/api/offboarding/users'),
-                fetchList('/api/pwdreset/users'),
-            ]);
-            palettePeople = mergePeople([['usermgmt', mgmt.users], ['offboard', off.users], ['pwdreset', pwd.users]]);
-            paletteLoaded = true;
+        // People are searched by the DC (POST /api/people): from 2 characters, 250 ms after the last key,
+        // at most 10 hits. Only the newest answer counts; nothing is kept after the search is closed.
+        let paletteQuery = '';
+        let paletteSearching = false;
+        let paletteSeq = 0;
+        let paletteTimer = null;
+        const PALETTE_MIN = 2;
+        const PALETTE_DELAY = 250;
+
+        function paletteInput() {
+            const q = document.getElementById('palette-input').value.trim();
+            if(paletteTimer) clearTimeout(paletteTimer);
+            paletteTimer = null;
+            if(q.length < PALETTE_MIN) {
+                paletteSeq++;
+                palettePeople = []; paletteQuery = ''; paletteSearching = false;
+            } else {
+                paletteSearching = true;
+                paletteTimer = setTimeout(() => searchPeople(q), PALETTE_DELAY);
+            }
+            renderPalette();
+        }
+
+        async function searchPeople(q) {
+            const seq = ++paletteSeq;
+            let people = [];
+            try {
+                const res = await fetch('/api/people', {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({q})});
+                if(res.ok) people = ((await res.json()) || {}).people || [];
+            } catch(e) { people = []; }
+            if(seq !== paletteSeq) return;  // a newer search is under way
+            palettePeople = people;
+            paletteQuery = q;
+            paletteSearching = false;
+            renderPalette();
         }
 
         async function openPalette() {
@@ -3352,14 +3348,18 @@
             const input = document.getElementById('palette-input');
             input.value = '';
             input.focus();
+            paletteSeq++;
+            palettePeople = []; paletteQuery = ''; paletteSearching = false;
             renderPalette();
-            await loadPalettePeople();
-            if(!box.classList.contains('hidden')) renderPalette();
         }
 
         function closePalette() {
             const box = document.getElementById('palette');
             if(box) box.classList.add('hidden');
+            if(paletteTimer) clearTimeout(paletteTimer);
+            paletteTimer = null;
+            paletteSeq++;
+            palettePeople = []; paletteQuery = '';
         }
 
         function renderPalette() {
@@ -3369,7 +3369,7 @@
             const q = input.value.trim().toLowerCase();
             const pages = PALETTE_PAGES.filter(p => visiblePage(p.tab) && (!q || tr(p.label).toLowerCase().includes(q) || p.label.toLowerCase().includes(q)
                 || (p.sub && p.sub.toLowerCase().includes(q))));
-            const people = filterPeople(palettePeople, q, 8);
+            const people = paletteQuery && paletteQuery.toLowerCase() === q ? palettePeople : [];
             paletteItems = [...people.map(p => ({kind: 'person', p})), ...pages.map(p => ({kind: 'page', p}))];
             paletteIndex = Math.min(paletteIndex, Math.max(0, paletteItems.length - 1));
             if(!q) paletteIndex = 0;
@@ -3385,9 +3385,9 @@
                         + `<span class="p-sub"><span translate="no">${esc(p.sam)}${p.mail ? ' · ' + esc(p.mail) : ''}</span>${p.disabled ? ' · <span>deaktiviert</span>' : ''} · <span>öffnet</span> <span>${esc(where)}</span></span></span></button>`;
                     i++;
                 });
-            } else if(q && !paletteLoaded) {
-                html += '<p class="palette-empty">Konten werden geladen …</p>';
-            } else if(q && q.length >= 2 && !pages.length) {
+            } else if(paletteSearching) {
+                html += '<p class="palette-empty">Suche im AD …</p>';
+            } else if(q.length >= PALETTE_MIN && !pages.length) {
                 html += '<p class="palette-empty">Keine Person und keine Seite gefunden.</p>';
             }
             if(pages.length) {
