@@ -22,7 +22,7 @@ STEPS = {
     "protect": ("protect", "Schutzpruefung"),
 }
 
-_current = contextvars.ContextVar("samonboarding_timing", default=None)
+_current: contextvars.ContextVar[dict[str, float] | None] = contextvars.ContextVar("samonboarding_timing", default=None)
 
 
 def start():
