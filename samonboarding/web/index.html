@@ -574,12 +574,13 @@
                                         <th class="p-3.5">Name</th>
                                         <th class="p-3.5">sAMAccountName</th>
                                         <th class="p-3.5">E-Mail</th>
+                                        <th class="p-3.5" aria-sort="none" id="off-sort-head"><button type="button" onclick="toggleOffboardSort()" class="inline-flex items-center gap-1.5 hover:text-white" title="Ungefähr: Active Directory gleicht diesen Wert nur alle 9–14 Tage zwischen den Domänencontrollern ab. Klicken zum Sortieren."><span>Letzte Anmeldung</span><i id="off-sort-icon" class="fa-solid fa-sort text-slate-500" aria-hidden="true"></i></button></th>
                                         <th class="p-3.5">Status</th>
                                         <th class="p-3.5 text-right">Aktion</th>
                                     </tr>
                                 </thead>
                                 <tbody id="offboard-user-list" class="divide-y divide-slate-800/60">
-                                    <tr><td colspan="6" class="p-6 text-center text-slate-500 italic">Lade Benutzer oder keine Quell-OUs konfiguriert...</td></tr>
+                                    <tr><td colspan="7" class="p-6 text-center text-slate-500 italic">Lade Benutzer oder keine Quell-OUs konfiguriert...</td></tr>
                                 </tbody>
                             </table>
                         </div>
@@ -2275,7 +2276,7 @@
             if(res.ok) {
                 const data = await res.json();
                 cachedOffboardUsers = data.users || [];
-                renderOffboardTable(cachedOffboardUsers);
+                filterOffboardTable();
             }
         }
 
@@ -2613,12 +2614,43 @@
             await loadOffboardRecords();
         }
 
+        // Sorting by last logon: '' = as delivered (by name), 'asc' = oldest first ("never" at the top), 'desc' = newest first
+        let offSort = '';
+
+        function sortOffboardUsers(users) {
+            if(!offSort) return users;
+            const time = u => u.lastLogon ? Date.parse(u.lastLogon) : -Infinity;
+            const dir = offSort === 'asc' ? 1 : -1;
+            return users.slice().sort((a, b) => (time(a) - time(b)) * dir || a.name.localeCompare(b.name));
+        }
+
+        function toggleOffboardSort() {
+            offSort = offSort === '' ? 'asc' : offSort === 'asc' ? 'desc' : '';
+            const icon = document.getElementById('off-sort-icon');
+            if(icon) icon.className = 'fa-solid ' + (offSort === 'asc' ? 'fa-sort-up text-cyan-400' : offSort === 'desc' ? 'fa-sort-down text-cyan-400' : 'fa-sort text-slate-500');
+            const head = document.getElementById('off-sort-head');
+            if(head) head.setAttribute('aria-sort', offSort === 'asc' ? 'ascending' : offSort === 'desc' ? 'descending' : 'none');
+            filterOffboardTable();
+        }
+
+        // Last logon as date plus "x days ago"; the value is approximate (lastLogonTimestamp, synchronised every 9-14 days)
+        function lastLogonCell(iso) {
+            if(!iso) return `<span class="text-slate-500 italic">nie</span>`;
+            const d = new Date(iso);
+            if(isNaN(d.getTime())) return '-';
+            const loc = uiLang === 'en' ? 'en-GB' : 'de-DE';
+            const days = Math.max(0, Math.floor((Date.now() - d.getTime()) / 86400000));
+            const ago = days === 0 ? 'heute' : days === 1 ? 'vor 1 Tag' : `vor ${days} Tagen`;
+            const tone = days >= 90 ? 'text-amber-400' : 'text-slate-400';
+            return `<span class="text-slate-300">${d.toLocaleDateString(loc)}</span><br><span class="${tone} text-[10px]">${ago}</span>`;
+        }
+
         function filterOffboardTable() {
             const query = document.getElementById('offboard-search').value.toLowerCase();
             const filtered = cachedOffboardUsers.filter(u => 
                 u.name.toLowerCase().includes(query) || u.sam.toLowerCase().includes(query) || (u.mail && u.mail.toLowerCase().includes(query))
             );
-            renderOffboardTable(filtered);
+            renderOffboardTable(sortOffboardUsers(filtered));
         }
 
         function renderOffboardTable(users) {
@@ -2630,7 +2662,7 @@
             updateOffboardSelection();
 
             if(users.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="6" class="p-6 text-center text-slate-500 italic">Keine passenden Benutzer gefunden.</td></tr>`;
+                tbody.innerHTML = `<tr><td colspan="7" class="p-6 text-center text-slate-500 italic">Keine passenden Benutzer gefunden.</td></tr>`;
                 return;
             }
 
@@ -2660,6 +2692,7 @@
                         <td class="p-3.5 text-white font-sans font-medium">${nt(u.name)}</td>
                         <td class="p-3.5 text-cyan-400">${nt(u.sam)}</td>
                         <td class="p-3.5 text-slate-300">${nt(u.mail || '-')}</td>
+                        <td class="p-3.5 whitespace-nowrap">${lastLogonCell(u.lastLogon)}</td>
                         <td class="p-3.5">${statusBadge}</td>
                         <td class="p-3.5 text-right">${actionBtn}</td>
                     </tr>

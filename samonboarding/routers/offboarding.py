@@ -21,6 +21,7 @@ from ..ldap_client import (
     ldap_error_text,
     member_change_ok,
     row_display_name,
+    row_filetime,
     row_uac,
 )
 from ..mailer import render_mail, send_notification_email
@@ -53,13 +54,19 @@ def _get_offboarding_users(user):
             "sam": row.text("sAMAccountName"),
             "mail": row.text("mail"),
             "disabled": bool(row_uac(row) & 2),
+            # replicated to every DC, but only updated every 9-14 days (msDS-LogonTimeSyncInterval): an
+            # approximate value; None = never logged on. Only displayed, never stored or logged.
+            "lastLogon": row_filetime(row, "lastLogonTimestamp"),
             "ou": ou,
             "_adminCount": row.text("adminCount") == "1",
         }
 
     with ad_session(user) as conn:
         users = collect_users(
-            conn, source_ous, ["sAMAccountName", "displayName", "cn", "userAccountControl", "mail", "adminCount"], build
+            conn,
+            source_ous,
+            ["sAMAccountName", "displayName", "cn", "userAccountControl", "mail", "adminCount", "lastLogonTimestamp"],
+            build,
         )
         mark_protected(conn, users)
     return {"status": "success", "users": users}
