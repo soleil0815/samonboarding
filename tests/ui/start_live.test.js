@@ -29,8 +29,7 @@ el('palette').classList.add('hidden');
   api.setRole('Administrator');
   api.setTab('start');
   await api.refreshAllLdapData();
-  const firstList = calls.findIndex(u => u.startsWith('/api/offboarding/users'));
-  console.assert(firstList >= 0 && calls.some(u => u.startsWith('/api/pwdreset/users')) && calls.some(u => u.startsWith('/api/deletion/users')), 'all three lists read');
+  console.assert(calls.filter(u => u === '/api/dashboard').length === 1, 'numbers read once: ' + calls);
   console.assert(order.indexOf('infra-end') > 0, 'settings still loaded');
   console.assert(!order.includes('loadOffboardingUsers'), 'no second list load for the start page');
   console.assert(els['dash-asof'].textContent.startsWith('Stand ') && els['dash-asof'].textContent.endsWith('aktualisiert sich jede Minute'), 'as-of time shown');
@@ -43,14 +42,14 @@ el('palette').classList.add('hidden');
   calls.push = u => { marks.push('fetch:' + u.split('?')[0]); return origPush(u); };
   order.push = n => { marks.push(n); return Array.prototype.push.call(order, n); };
   await api.refreshAllLdapData();
-  console.assert(marks.indexOf('fetch:/api/offboarding/users') < marks.indexOf('infra-end'), 'counters start before settings finish: ' + marks.slice(0, 4));
+  console.assert(marks.indexOf('fetch:/api/dashboard') < marks.indexOf('infra-end'), 'counters start before settings finish: ' + marks.slice(0, 4));
   calls.push = origPush;
 
   // 2. other pages are unchanged: no start page lists
   calls.length = 0;
   api.setTab('hire');
   await api.refreshAllLdapData();
-  console.assert(!calls.some(u => u.startsWith('/api/offboarding/users')), 'onboarding does not read the start page lists');
+  console.assert(!calls.includes('/api/dashboard'), 'onboarding does not read the start page numbers');
 
   // 3. automatic refresh: only on the start page, app visible, tab visible, recently active, search closed
   const now = Date.now();
@@ -73,16 +72,16 @@ el('palette').classList.add('hidden');
   console.assert(api.dashAutoRefreshDue(now) === false, 'not while the quick search is open');
   el('palette').classList.add('hidden');
 
-  // the refresh reads fresh from the DC (frisch=1), never from a cache
+  // the refresh asks the DC (the endpoint is never cached)
   calls.length = 0;
   api.dashAutoRefresh();
   await new Promise(r => setTimeout(r, 10));
-  console.assert(calls.length === 3 && calls.every(u => u.endsWith('?frisch=1')), 'fresh read: ' + calls);
+  console.assert(calls.length === 1 && calls[0] === '/api/dashboard', 'refresh: ' + calls);
 
   // overlapping refreshes do not double the requests
   calls.length = 0;
   await Promise.all([api.loadDashboard(true), api.loadDashboard(true)]);
-  console.assert(calls.length === 3, 'no overlapping loads: ' + calls.length);
+  console.assert(calls.length === 1, 'no overlapping loads: ' + calls.length);
 
   // nothing is written to browser storage
   console.assert(!Object.keys(store).some(k => /dash|count|user/i.test(k)), 'no counters in browser storage: ' + Object.keys(store));

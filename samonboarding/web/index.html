@@ -3166,21 +3166,6 @@
         // Start page: what needs doing, counted from the existing lists
         // (no extra AD query: the server answers from its 60-second cache)
         // ---------------------------------------------------------------
-        const INACTIVE_DAYS = 90;
-        let dashData = {offboard: null, pwdreset: null, deletion: null};
-
-        // Pure counting, so it can be tested without a DOM. now = milliseconds.
-        function dashboardCounts(offUsers, pwdUsers, delUsers, now, self) {
-            const me = String(self || '').toLowerCase();
-            const limit = now - INACTIVE_DAYS * 86400000;
-            const inactive = (offUsers || []).filter(u => !u.disabled && !u.protected && String(u.sam || '').toLowerCase() !== me
-                && (!u.lastLogon || Date.parse(u.lastLogon) < limit));
-            const never = inactive.filter(u => !u.lastLogon).length;
-            const locked = (pwdUsers || []).filter(u => u.locked).length;
-            const deletable = (delUsers || []).filter(u => u.disabled && !u.self && !u.protected).length;
-            return {inactive: inactive.length, never, locked, deletable};
-        }
-
         function greeting(hour) {
             if(hour < 5) return 'Guten Abend';
             if(hour < 11) return 'Guten Morgen';
@@ -3226,34 +3211,47 @@
             const nm = document.getElementById('start-name');
             if(nm) nm.textContent = currentLoggedInUsername ? ', ' + currentLoggedInUsername : '';
             const admin = currentUserRole === 'Administrator';
-            ['inactive', 'locked', 'delete'].forEach(k => { const card = document.getElementById('dash-' + k); if(card) card.setAttribute('aria-busy', 'true'); });
-            const [off, pwd, del] = await Promise.all([
-                fetchList('/api/offboarding/users', force),
-                fetchList('/api/pwdreset/users', force),
-                admin ? fetchList('/api/deletion/users', force) : Promise.resolve({users: null, warning: ''}),
-            ]);
-            dashData = {offboard: off.users, pwdreset: pwd.users, deletion: del.users};
-            ['inactive', 'locked', 'delete'].forEach(k => { const card = document.getElementById('dash-' + k); if(card) card.setAttribute('aria-busy', 'false'); });
+            const cards = ['inactive', 'locked', 'delete'];
+            cards.forEach(k => { const card = document.getElementById('dash-' + k); if(card) card.setAttribute('aria-busy', 'true'); });
+            // Only numbers: the DC counts with search filters, the browser never receives account lists here
+            let data = null;
+            try {
+                const res = await fetch('/api/dashboard');
+                if(res.ok) data = await res.json();
+            } catch(e) { data = null; }
+            cards.forEach(k => { const card = document.getElementById('dash-' + k); if(card) card.setAttribute('aria-busy', 'false'); });
+            renderDashboard(data, admin);
+        }
+
+        // One card from one answer section: {count, never?} | {warning} | {error} | null (no answer)
+        function dashSection(key, part, notSet, sub, calmSub) {
+            if(!part || part.error) { setDashCard(key, '–', 'Liste nicht lesbar', true); return 0; }
+            if(part.warning) { setDashCard(key, '–', notSet, true); return 0; }
+            const n = Number(part.count) || 0;
+            setDashCard(key, String(n), n ? sub(part) : calmSub, !n);
+            return n;
+        }
+
+        function renderDashboard(data, admin) {
             const asof = document.getElementById('dash-asof');
             if(asof) {
-                const t = new Date().toLocaleTimeString(uiLang === 'en' ? 'en-GB' : 'de-DE', {hour: '2-digit', minute: '2-digit'});
-                asof.textContent = `Stand ${t} · aktualisiert sich jede Minute`;
+                if(data) {
+                    const t = new Date().toLocaleTimeString(uiLang === 'en' ? 'en-GB' : 'de-DE', {hour: '2-digit', minute: '2-digit'});
+                    asof.textContent = `Stand ${t} · aktualisiert sich jede Minute`;
+                } else {
+                    asof.textContent = 'Der DC ist gerade nicht erreichbar – neuer Versuch in einer Minute.';
+                }
             }
-            const c = dashboardCounts(off.users, pwd.users, del.users, Date.now(), currentLoggedInUsername);
-            if(off.users === null) setDashCard('inactive', '–', 'Liste nicht lesbar', true);
-            else if(off.warning) setDashCard('inactive', '–', 'Noch nicht eingerichtet: Quell-OUs unter „Austritt“ festlegen', true);
-            else setDashCard('inactive', String(c.inactive), c.never ? `davon ${c.never} nie angemeldet` : 'Aktive Konten in den Offboarding-OUs, ältestes zuerst', !c.inactive);
-            if(pwd.users === null) setDashCard('locked', '–', 'Liste nicht lesbar', true);
-            else if(pwd.warning) setDashCard('locked', '–', 'Noch nicht eingerichtet: Quell-OUs unter „Passwort zurücksetzen“ festlegen', true);
-            else setDashCard('locked', String(c.locked), c.locked ? 'Zu viele falsche Kennwörter' : 'Alles in Ordnung', !c.locked);
-            if(admin) {
-                if(del.users === null) setDashCard('delete', '–', 'Liste nicht lesbar', true);
-                else if(del.warning) setDashCard('delete', '–', 'Die Löschfunktion ist nicht aktiviert.', true);
-                else setDashCard('delete', String(c.deletable), 'Deaktivierte Konten', !c.deletable);
-            }
-            setNavBadge('offboard', off.warning ? 0 : c.inactive);
-            setNavBadge('pwdreset', pwd.warning ? 0 : c.locked);
-            setNavBadge('delete', admin && !del.warning ? c.deletable : 0);
+            const d = data || {};
+            const inactive = dashSection('inactive', d.inactive, 'Noch nicht eingerichtet: Quell-OUs unter „Austritt“ festlegen',
+                p => p.never ? `davon ${p.never} nie angemeldet` : 'Aktive Konten in den Offboarding-OUs, ältestes zuerst',
+                'Aktive Konten in den Offboarding-OUs, ältestes zuerst');
+            const locked = dashSection('locked', d.locked, 'Noch nicht eingerichtet: Quell-OUs unter „Passwort zurücksetzen“ festlegen',
+                () => 'Zu viele falsche Kennwörter', 'Alles in Ordnung');
+            const deletable = admin ? dashSection('delete', d.deletion, 'Die Löschfunktion ist nicht aktiviert.', () => 'Deaktivierte Konten', 'Deaktivierte Konten') : 0;
+            setNavBadge('offboard', inactive);
+            setNavBadge('pwdreset', locked);
+            setNavBadge('delete', deletable);
         }
 
         // Live without clicking: while the start page is open and the browser tab is visible, the counters
@@ -3339,8 +3337,8 @@
         async function loadPalettePeople() {
             const [mgmt, off, pwd] = await Promise.all([
                 fetchList('/api/usermgmt/users'),
-                dashData.offboard ? Promise.resolve({users: dashData.offboard}) : fetchList('/api/offboarding/users'),
-                dashData.pwdreset ? Promise.resolve({users: dashData.pwdreset}) : fetchList('/api/pwdreset/users'),
+                fetchList('/api/offboarding/users'),
+                fetchList('/api/pwdreset/users'),
             ]);
             palettePeople = mergePeople([['usermgmt', mgmt.users], ['offboard', off.users], ['pwdreset', pwd.users]]);
             paletteLoaded = true;

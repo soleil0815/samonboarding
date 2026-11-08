@@ -9,6 +9,7 @@ Entries starting with "Security:" or "Fixed:" are marked accordingly in the inte
 
 ## 2.2.1 – 2026-11-08
 - Changed: the home page shows its numbers right after signing in. They are now read first and in parallel, before OUs, groups and templates are loaded for the other areas.
+- Faster with large directories: the domain controller now counts for the home page itself (search filters such as "enabled and no logon for 90 days" or "locked"). Only the matching accounts are read, with very few attributes, and the browser receives only the numbers instead of three complete account lists – fast even with thousands of accounts. Still live, with your own AD account and only in the released OUs.
 - New: while the home page is open, its numbers are read fresh from the domain controller every minute and when you return to the browser tab, so there is no need to click "Refresh". Nothing is stored in the browser. After 10 minutes without activity the automatic refresh stops, so an unattended screen does not keep the session alive.
 
 ## 2.2.0-s1 – 2026-11-08

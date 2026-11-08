@@ -29,7 +29,7 @@ This document describes the personal data SAMONBOARDING processes: where it is k
 
 | Data | Where | Purpose |
 |---|---|---|
-| Account data in AD (name, user name, e-mail, department, company, phone, manager, OU, groups; in the offboarding list also the approximate last logon `lastLogonTimestamp` – only displayed, never stored or logged) | **In Active Directory**, not in the application. SAMONBOARDING only reads and writes it there | Account management |
+| Account data in AD (name, user name, e-mail, department, company, phone, manager, OU, groups; in the offboarding list also the approximate last logon `lastLogonTimestamp` – only displayed, never stored or logged; the home page receives only counts from it, no names) | **In Active Directory**, not in the application. SAMONBOARDING only reads and writes it there | Account management |
 | Reports – changes: time, acting user, action, target account (DN), result, error message if any. **No passwords** | `data/reports.db` (SQLite, table `audit`) | Accountability, security |
 | Reports – log: program messages from level *Info* upwards (e.g. connection errors); may contain account names or paths. **No passwords, no per-request IP addresses** | `data/reports.db` (table `applog`) | Operation, troubleshooting |
 | Restore entries: user name, name, previous OU, groups, whether enabled, when and by whom offboarded. **No passwords** | `data/offboarding.db` (SQLite) | Undoing an accidental offboarding |

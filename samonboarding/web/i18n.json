@@ -917,7 +917,8 @@
   "Zugang wiederherstellen →": "Restore access →",
   "deaktiviert": "disabled",
   "öffnet": "opens",
-  "Wird vom DC gelesen …": "Reading from the DC …"
+  "Wird vom DC gelesen …": "Reading from the DC …",
+  "Der DC ist gerade nicht erreichbar – neuer Versuch in einer Minute.": "The DC cannot be reached right now – trying again in a minute."
  },
  "patterns": [
   [
