@@ -363,6 +363,7 @@ docker compose logs -f
 ```
 
 ---
+**When something is slow:** every request that takes longer than one second is logged with its duration per step, for example `Langsam: GET /api/offboarding/users 2.9 s (Verbindung 0.1 s, Suche 0.4 s, Schutzpruefung 2.4 s)` – durations only, never names or search terms. Show them with `sudo docker compose logs samonboarding | grep Langsam`. The browser shows the same durations in the developer tools (Network → Timing, "Server-Timing").
 
 ## 17. Common questions and errors
 

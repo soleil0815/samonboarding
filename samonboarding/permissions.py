@@ -7,7 +7,7 @@ import logging
 import ldap3
 from fastapi import HTTPException
 
-from . import acl, protection
+from . import acl, protection, timing
 from .config import CUSTOM_OPERATOR_GROUP, USER_FILTER
 from .dn import dn_in_any, ldap_escape
 from .ldap_client import ldap_search
@@ -33,6 +33,26 @@ def _domain_rid(sid):
         return None
     rid = sid.rsplit("-", 1)[-1]
     return int(rid) if rid.isdigit() else None
+
+
+def _role_from(sids, custom_hit):
+    """Administrator, Account Operator or None - recognized by SIDs, never by group names."""
+    if sids & ADMIN_SIDS or any(_domain_rid(s) in ADMIN_DOMAIN_RIDS for s in sids):
+        return "Administrator"
+    if sids & OPERATOR_SIDS or custom_hit:
+        return "Account Operator"
+    return None
+
+
+def _custom_group_sids(conn, search_base):
+    """SID(s) of the own operator group (CUSTOM_OPERATOR_GROUP), looked up by its name."""
+    rows = ldap_search(
+        conn, search_base, f"(&(objectClass=group)(sAMAccountName={ldap_escape(CUSTOM_OPERATOR_GROUP)}))", ["objectSid"]
+    )
+    out = set()
+    for row in rows:
+        out |= _group_sids(row)
+    return out
 
 
 def _group_sids(row):
@@ -154,28 +174,29 @@ def check_user_role(conn, search_base, username, bind_user="", raise_errors=Fals
         user_mail = me.text("mail")
         sam = me.text("sAMAccountName") or username
 
-        # 1. tokenGroups: all groups incl. nested and primary group, as SIDs
-        sids, _ok = protection.read_sids(conn, me.dn, "tokenGroups")
-        sids = set(sids)
-        # 2. nested group search: returns names (for CUSTOM_OPERATOR_GROUP) and additionally the SIDs
-        groups = ldap_search(
-            conn,
-            search_base,
-            f"(&(objectClass=group)(member:1.2.840.113556.1.4.1941:={ldap_escape(me.dn)}))",
-            ["sAMAccountName", "objectSid"],
-        )
-        group_names = set()
-        for g in groups:
-            group_names.add(g.text("sAMAccountName").lower())
-            sids |= _group_sids(g)
-
-        is_admin = bool(sids & ADMIN_SIDS) or any(_domain_rid(s) in ADMIN_DOMAIN_RIDS for s in sids)
-        is_operator = bool(sids & OPERATOR_SIDS) or bool(CUSTOM_OPERATOR_GROUP and CUSTOM_OPERATOR_GROUP in group_names)
-
-        if is_admin:
-            return "Administrator", None, user_mail, sam
-        if is_operator:
-            return "Account Operator", None, user_mail, sam
+        with timing.timed("role"):
+            # 1. tokenGroups: all groups incl. nested and primary group, as SIDs - one cheap read of the own
+            #    account. The own operator group (CUSTOM_OPERATOR_GROUP) is looked up once by name (indexed).
+            sids, token_ok = protection.read_sids(conn, me.dn, "tokenGroups")
+            sids = set(sids)
+            custom_hit = bool(CUSTOM_OPERATOR_GROUP and token_ok and _custom_group_sids(conn, search_base) & sids)
+            role = _role_from(sids, custom_hit)
+            if role is None:
+                # 2. Only if tokenGroups does not already decide (unreadable, or no role found): the nested
+                #    group search across the domain. It is expensive (especially on Samba), so it is the fallback.
+                groups = ldap_search(
+                    conn,
+                    search_base,
+                    f"(&(objectClass=group)(member:1.2.840.113556.1.4.1941:={ldap_escape(me.dn)}))",
+                    ["sAMAccountName", "objectSid"],
+                )
+                group_names = set()
+                for g in groups:
+                    group_names.add(g.text("sAMAccountName").lower())
+                    sids |= _group_sids(g)
+                role = _role_from(sids, bool(CUSTOM_OPERATOR_GROUP and CUSTOM_OPERATOR_GROUP in group_names))
+        if role:
+            return role, None, user_mail, sam
         if CUSTOM_OPERATOR_GROUP:
             denied = (
                 "Zugriff verweigert: Sie müssen Mitglied der Domänen-Admins, der Administratoren, "

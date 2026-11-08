@@ -4,6 +4,7 @@
 
 import logging
 import os
+import time
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Request
@@ -11,7 +12,7 @@ from fastapi.responses import JSONResponse
 from ldap3.core.exceptions import LDAPException
 from starlette.middleware.base import BaseHTTPMiddleware
 
-from . import i18n, offboard_store, privacy, reports
+from . import i18n, offboard_store, privacy, reports, timing
 from .config import DATA_DIR, HTTPS_PORT, VERSION
 from .routers import (
     auth,
@@ -172,6 +173,24 @@ async def _https_only(request: Request, call_next):
     if request.url.scheme != "https" and os.environ.get("ALLOW_HTTP", "").lower() not in ("1", "true", "yes"):
         return JSONResponse(status_code=403, content={"detail": "Nur über HTTPS erreichbar."})
     return await call_next(request)
+
+
+@_http_middleware
+async def _timing(request: Request, call_next):
+    """Duration of API requests per step: Server-Timing header, slow requests in the log (durations only)."""
+    if not request.url.path.startswith("/api/"):
+        return await call_next(request)
+    token = timing.start()
+    began = time.perf_counter()
+    try:
+        resp = await call_next(request)
+    finally:
+        total = time.perf_counter() - began
+        steps = timing.stop(token)
+        if total >= timing.SLOW_SECONDS:
+            log.info(timing.slow_message(request.method, request.url.path, steps, total))
+    resp.headers["Server-Timing"] = timing.server_timing(steps, total)
+    return resp
 
 
 # Registered last = outermost layer: the security headers are also set on responses rejected early

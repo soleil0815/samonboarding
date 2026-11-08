@@ -918,7 +918,12 @@
   "öffnet": "opens",
   "Wird vom DC gelesen …": "Reading from the DC …",
   "Der DC ist gerade nicht erreichbar – neuer Versuch in einer Minute.": "The DC cannot be reached right now – trying again in a minute.",
-  "Suche im AD …": "Searching AD …"
+  "Suche im AD …": "Searching AD …",
+  "Anmeldung läuft …": "Signing in …",
+  "Anmeldung am Domain Controller, Berechtigungen werden geprüft …": "Signing in at the domain controller, checking permissions …",
+  "Der Server ist nicht erreichbar.": "The server cannot be reached.",
+  "Daten werden vom Domain Controller gelesen": "Reading data from the domain controller",
+  "aktualisiert …": "refreshing …"
  },
  "patterns": [
   [

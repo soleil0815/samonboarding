@@ -7,6 +7,13 @@ Update auf dem Server: `sudo sh update.sh` oder `docker compose pull && docker c
 
 Einträge, die mit „Sicherheit:“ oder „Behoben:“ beginnen, werden in der Oberfläche entsprechend markiert.
 
+## 2.2.3 – 2026-11-08
+- Schnellere Anmeldung: Die Rolle (Administrator oder Operator) kommt jetzt aus den Gruppen-SIDs des eigenen Kontos (`tokenGroups`, eine günstige Abfrage). Die teure verschachtelte Gruppensuche über die ganze Domäne läuft nur noch, wenn das nicht schon entscheidet. Die eigene Operator-Gruppe (z. B. CO-ADMIN) wird einmal über ihren Namen gesucht.
+- Schnellere Listen in allen Modulen: Die Prüfung auf geschützte Konten (Domänen-Admins usw.) braucht je privilegierter Gruppe eine verschachtelte Suche über die Domäne. Sie läuft jetzt einmal pro Minute und Sitzung statt bei jeder Liste (Offboarding, Löschen, Startseite doppelt) und wird bei jeder Änderung verworfen; jede Aktion wird weiterhin live geprüft.
+- Schnellere Seiten: Die Kontoliste der Seite startet sofort, gleichzeitig mit den Einstellungen. Alle Gruppen der Domäne werden nur noch für Neuer Mitarbeiter, Templates und AD-Struktur geladen, alle Benutzer nur für Templates – die anderen Seiten brauchen nur die OUs.
+- Neu: Man sieht, dass etwas passiert – der Anmelde-Button zeigt „Anmeldung läuft …“, ein dünner Ladebalken oben läuft, solange der Domänencontroller gefragt wird, die Startseite zeigt beim ersten Lesen Platzhalter und danach „aktualisiert …“, die Tabellen zeigen beim Laden einen Kreisel.
+- Neu: Anfragen, die länger als eine Sekunde dauern, stehen mit ihrer Dauer je Schritt im Protokoll (Verbindung, Suche, Rollenprüfung, Schutzprüfung) – nur Zeiten, nie Namen. Dieselben Zahlen zeigen die Entwicklertools des Browsers (Server-Timing).
+
 ## 2.2.2 – 2026-11-08
 - Schneller bei großen Verzeichnissen: Die Schnellsuche (Strg+K) fragt jetzt direkt den Domänencontroller – ab zwei Zeichen, kurz nach dem letzten Tastendruck, höchstens 10 Treffer – statt komplette Kontolisten in den Browser zu laden. Jedes getippte Wort muss im Namen, Anmeldenamen oder in der E-Mail vorkommen. Gesucht wird nur in den OUs, die für Benutzerverwaltung, Austritt und Passwort zurücksetzen freigegeben sind, mit dem eigenen AD-Konto; der Suchtext wird nie gespeichert oder protokolliert.
 - Schneller nach der Anmeldung: Die AD-Struktur (alle OUs, Gruppen und Benutzer) wird nur noch auf den Seiten geladen, die sie zeigen oder bearbeiten – Neuer Mitarbeiter, Templates, AD-Struktur und die OU-Einstellungen der Listen –, nicht mehr für Startseite, Berichte, Zertifikat, E-Mail-Benachrichtigung und Handbuch.
