@@ -361,6 +361,7 @@ docker compose logs -f
 ```
 
 ---
+**Wenn etwas langsam ist:** Jede Anfrage, die länger als eine Sekunde dauert, steht im Protokoll mit ihrer Dauer je Schritt, zum Beispiel `Langsam: GET /api/offboarding/users 2.9 s (Verbindung 0.1 s, Suche 0.4 s, Schutzpruefung 2.4 s)` – nur Zeiten, nie Namen oder Suchbegriffe. Anzeigen mit `sudo docker compose logs samonboarding | grep Langsam`. Dieselben Zeiten zeigt der Browser in den Entwicklertools (Netzwerk → Timing, „Server-Timing“).
 
 ## 17. Häufige Fragen und Fehler
 

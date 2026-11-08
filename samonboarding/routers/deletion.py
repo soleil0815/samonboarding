@@ -211,7 +211,7 @@ def _get_deletion_users(user):
             ["sAMAccountName", "displayName", "cn", "userAccountControl", "mail", "adminCount"],
             build,
         )
-        mark_protected(conn, users)
+        mark_protected(conn, users, user)
     return {"status": "success", "users": users}
 
 

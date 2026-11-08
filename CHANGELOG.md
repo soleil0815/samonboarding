@@ -7,6 +7,13 @@ Update on the server: `sudo sh update.sh` or `docker compose pull && docker comp
 
 Entries starting with "Security:" or "Fixed:" are marked accordingly in the interface.
 
+## 2.2.3 – 2026-11-08
+- Faster sign-in: the role (administrator or operator) is now taken from the account's own group SIDs (`tokenGroups`, one cheap read). The expensive nested group search across the whole domain only runs if that does not already decide. Your own operator group (e.g. CO-ADMIN) is looked up once by its name.
+- Faster lists in every module: the check for protected accounts (Domain Admins etc.) needs one nested search per privileged group across the domain. It now runs once per minute and session instead of on every list (offboarding, deletion, home page twice), and is discarded on every change; every action is still checked live.
+- Faster pages: each page's own account list starts at once, in parallel with the settings. All groups of the domain are only loaded for new employee, templates and AD structure, all users only for templates – the other pages need only the OUs.
+- New: you can see that something is happening – the sign-in button shows "Signing in …", a thin progress bar at the top runs while the domain controller is being asked, the home page shows placeholders while reading for the first time and "refreshing …" afterwards, and the tables show a spinner while loading.
+- New: requests that take longer than one second are logged with their duration per step (connection, search, role check, protection check) – durations only, never names. The browser developer tools show the same numbers (Server-Timing).
+
 ## 2.2.2 – 2026-11-08
 - Faster with large directories: the quick search (Ctrl+K) now asks the domain controller directly – from two characters, shortly after the last key, at most 10 hits – instead of loading complete account lists into the browser. Every typed word must appear in the name, logon name or e-mail. Only the OUs released for user management, leaving and password reset are searched, with your own AD account; the search text is never stored or logged.
 - Faster after signing in: the AD structure (all OUs, groups and users) is only loaded on the pages that show or edit it – new employee, templates, AD structure and the OU settings of the lists – and no longer for the home page, reports, certificate, e-mail notification or the manual.

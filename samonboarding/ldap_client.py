@@ -13,6 +13,7 @@ import ldap3
 from fastapi import HTTPException
 from ldap3.core.exceptions import LDAPBindError, LDAPCommunicationError, LDAPException, LDAPOperationResult
 
+from . import timing
 from .config import CONFIG_FILE, LDAP_ALLOW_PLAIN, LDAP_CA_FILE, USER_FILTER, default_config
 from .errors import AdError, DcUnreachable
 from .sessions import drop_session
@@ -140,14 +141,15 @@ def ldap_connection(dc_ip, bind_user, password):
                 server = ldap3.Server(
                     dc_ip, port=port, use_ssl=use_ssl, tls=_tls_config(), get_info=ldap3.NONE, connect_timeout=5
                 )
-                conn = ldap3.Connection(
-                    server,
-                    user=bind_user,
-                    password=password,
-                    authentication=ldap3.SIMPLE,
-                    auto_bind=True,
-                    receive_timeout=30,  # a hanging DC must not block a worker thread forever
-                )
+                with timing.timed("connect"):
+                    conn = ldap3.Connection(
+                        server,
+                        user=bind_user,
+                        password=password,
+                        authentication=ldap3.SIMPLE,
+                        auto_bind=True,
+                        receive_timeout=30,  # a hanging DC must not block a worker thread forever
+                    )
                 if not use_ssl:
                     log.warning("Unverschluesselte LDAP-Verbindung zu %s (Port 389) - LDAPS nicht erreichbar", dc_ip)
                 break
@@ -284,12 +286,13 @@ def ad_session(user):
 def ldap_search(conn, base, flt, attrs, scope=ldap3.SUBTREE, page_size=500):
     """Paged search (bypasses the AD limit of 1000). Raises an LDAPException on server errors."""
     rows = []
-    for entry in conn.extend.standard.paged_search(
-        base, flt, search_scope=scope, attributes=attrs, paged_size=page_size, generator=True
-    ):
-        if entry.get("type") != "searchResEntry":
-            continue
-        rows.append(Row(entry["dn"], entry.get("attributes")))
+    with timing.timed("search"):
+        for entry in conn.extend.standard.paged_search(
+            base, flt, search_scope=scope, attributes=attrs, paged_size=page_size, generator=True
+        ):
+            if entry.get("type") != "searchResEntry":
+                continue
+            rows.append(Row(entry["dn"], entry.get("attributes")))
     # without raise_exceptions, ldap3 raises no error here - an abort (DC busy, time limit, OU missing,
     # no permissions) would otherwise look like "nothing found" or an incomplete list
     result = getattr(conn, "result", None) or {}

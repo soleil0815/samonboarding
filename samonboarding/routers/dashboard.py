@@ -75,14 +75,14 @@ def search_ous(conn, ous, flt, attrs):
     return rows
 
 
-def count_actionable(conn, rows, me):
+def count_actionable(conn, rows, me, user=None):
     """Without one's own account and without protected accounts (they cannot be offboarded/deleted here)."""
     entries = [
         {"dn": r.dn, "_adminCount": r.text("adminCount") == "1", "row": r}
         for r in rows
         if r.text("sAMAccountName").lower() != me
     ]
-    mark_protected(conn, entries)
+    mark_protected(conn, entries, user)
     return [e["row"] for e in entries if not e.get("protected")]
 
 
@@ -108,7 +108,7 @@ def get_dashboard(user: dict = Depends(get_current_user)):
             rows = search_ous(
                 conn, off_ous, inactive_filter(time.time()), ["sAMAccountName", "adminCount", "lastLogonTimestamp"]
             )
-            rows = count_actionable(conn, rows, me)
+            rows = count_actionable(conn, rows, me, user)
             return {"count": len(rows), "never": sum(1 for r in rows if row_filetime(r, "lastLogonTimestamp") is None)}
 
         def locked():
@@ -121,7 +121,7 @@ def get_dashboard(user: dict = Depends(get_current_user)):
             if not cfg["enabled"] or not cfg["disabledOu"]:
                 return {"warning": "Die Löschfunktion ist nicht aktiviert."}
             rows = search_ous(conn, [cfg["disabledOu"]], DISABLED_FILTER, ["sAMAccountName", "adminCount"])
-            return {"count": len(count_actionable(conn, rows, me))}
+            return {"count": len(count_actionable(conn, rows, me, user))}
 
         result["inactive"] = section(inactive)
         result["locked"] = section(locked)

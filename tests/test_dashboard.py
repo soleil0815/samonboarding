@@ -56,7 +56,7 @@ def run(user, directory, off_ous=("OU=MA,DC=f",), pwd_ous=("OU=MA,DC=f",), delet
             return {"sourceOus": list(off_ous)}
         return {"sourceOus": list(pwd_ous)}
 
-    def mark(conn, entries):
+    def mark(conn, entries, user=None):
         for e in entries:
             e.pop("_adminCount", None)
             e["protected"] = "Domänen-Admins" if e["dn"] in protected else ""

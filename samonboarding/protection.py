@@ -11,7 +11,7 @@ import logging
 
 import ldap3
 
-from . import acl
+from . import acl, listcache, timing
 from .dn import ldap_escape
 
 log = logging.getLogger(__name__)
@@ -252,16 +252,24 @@ def privileged_map(conn, base):
     return out
 
 
-def mark_protected(conn, users):
+def mark_protected(conn, users, user=None):
     """Adds the field 'protected' (reason) to lists. First with a bulk query (fast); if that fails (e.g. a
-    directory without the required search features), each account is checked individually."""
+    directory without the required search features), each account is checked individually.
+
+    With `user` the result of the bulk query is kept for the session like the account lists (listcache:
+    60 seconds, discarded on every change) - it needs one nested search per privileged group across the
+    domain, the most expensive query of the lists. Only for DISPLAY: every action is checked live anyway."""
     for entry in users:
         entry.pop("_adminCount", None)
     if not users:
         return users
     base = ",".join(p for p in users[0]["dn"].split(",") if p.strip().lower().startswith("dc="))
     try:
-        known = privileged_map(conn, base)
+        with timing.timed("protect"):
+            if user is not None:
+                known = listcache.cached(user, "privileged-map:" + base.lower(), lambda: privileged_map(conn, base))
+            else:
+                known = privileged_map(conn, base)
     except Exception as e:
         log.info("Sammelpruefung geschuetzter Konten nicht moeglich (%s) - pruefe einzeln", e)
         known = None

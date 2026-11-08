@@ -67,6 +67,7 @@ def main():
         for name in ("content-security-policy", "x-frame-options", "x-content-type-options"):
             expect(name in headers, f"Sicherheits-Header {name} fehlt")
         expect(headers.get("cache-control") == "no-store", "Cache-Control no-store fehlt bei /api/")
+        expect("total;dur=" in headers.get("server-timing", ""), "Server-Timing fehlt bei /api/")
 
         status, headers, _ = await call(app, "/api/public-config", scheme="http")
         expect(status == 403, f"HTTP ohne TLS: Status {status} statt 403")
@@ -81,6 +82,8 @@ def main():
 
         status, _, body = await call(app, "/")
         expect(status == 200 and b"<html" in body.lower(), f"Startseite: Status {status}")
+        status, headers, _ = await call(app, "/")
+        expect("server-timing" not in headers, "Server-Timing nur bei /api/")
 
     asyncio.run(run())
     if problems:
