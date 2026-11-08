@@ -7,6 +7,10 @@ Update auf dem Server: `sudo sh update.sh` oder `docker compose pull && docker c
 
 Einträge, die mit „Sicherheit:“ oder „Behoben:“ beginnen, werden in der Oberfläche entsprechend markiert.
 
+## 2.2.1 – 2026-11-08
+- Geändert: Die Startseite zeigt ihre Zahlen gleich nach der Anmeldung. Sie werden jetzt zuerst und gleichzeitig gelesen, noch bevor OUs, Gruppen und Templates für die anderen Bereiche geladen sind.
+- Neu: Solange die Startseite offen ist, liest sie ihre Zahlen jede Minute und beim Zurückkehren in den Browser-Tab frisch vom Domänencontroller – ein Klick auf „Aktualisieren“ ist nicht mehr nötig. Im Browser wird nichts gespeichert. Nach 10 Minuten ohne Aktivität hört das automatische Auffrischen auf, damit ein unbeaufsichtigter Bildschirm die Sitzung nicht offen hält.
+
 ## 2.2.0-s1 – 2026-11-08
 - Sicherheit: Sicherheitsupdate ohne Programmänderung: gleiches Programm, aktualisierte Pakete.
 - Basis-Images:

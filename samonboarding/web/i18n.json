@@ -916,7 +916,8 @@
   "Zu viele falsche Kennwörter": "Too many wrong passwords",
   "Zugang wiederherstellen →": "Restore access →",
   "deaktiviert": "disabled",
-  "öffnet": "opens"
+  "öffnet": "opens",
+  "Wird vom DC gelesen …": "Reading from the DC …"
  },
  "patterns": [
   [
@@ -1706,6 +1707,10 @@
   [
    "davon {0} nie angemeldet",
    "{0} of them never logged on"
+  ],
+  [
+   "Stand {0} · aktualisiert sich jede Minute",
+   "As of {0} · refreshes every minute"
   ]
  ]
 }

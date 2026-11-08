@@ -7,6 +7,10 @@ Update on the server: `sudo sh update.sh` or `docker compose pull && docker comp
 
 Entries starting with "Security:" or "Fixed:" are marked accordingly in the interface.
 
+## 2.2.1 – 2026-11-08
+- Changed: the home page shows its numbers right after signing in. They are now read first and in parallel, before OUs, groups and templates are loaded for the other areas.
+- New: while the home page is open, its numbers are read fresh from the domain controller every minute and when you return to the browser tab, so there is no need to click "Refresh". Nothing is stored in the browser. After 10 minutes without activity the automatic refresh stops, so an unattended screen does not keep the session alive.
+
 ## 2.2.0-s1 – 2026-11-08
 - Security: security update without program changes: same program, updated packages.
 - Base images:
