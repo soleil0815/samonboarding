@@ -7,6 +7,10 @@ Update on the server: `sudo sh update.sh` or `docker compose pull && docker comp
 
 Entries starting with "Security:" or "Fixed:" are marked accordingly in the interface.
 
+## 2.2.4 – 2026-11-08
+- Home page: you can see that something is happening. While the domain controller is being asked, the cards show the seconds passing ("Reading from the DC … 3 s", later "refreshing … 3 s"); when the result arrives, the numbers count up to their value (from the previous value after a refresh). With "reduce motion" switched on in the system, the numbers appear at once.
+- The progress bar at the top is more visible.
+
 ## 2.2.3 – 2026-11-08
 - Faster sign-in: the role (administrator or operator) is now taken from the account's own group SIDs (`tokenGroups`, one cheap read). The expensive nested group search across the whole domain only runs if that does not already decide. Your own operator group (e.g. CO-ADMIN) is looked up once by its name.
 - Faster lists in every module: the check for protected accounts (Domain Admins etc.) needs one nested search per privileged group across the domain. It now runs once per minute and session instead of on every list (offboarding, deletion, home page twice), and is discarded on every change; every action is still checked live.

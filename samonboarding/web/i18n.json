@@ -1717,6 +1717,14 @@
   [
    "Stand {0} · aktualisiert sich jede Minute",
    "As of {0} · refreshes every minute"
+  ],
+  [
+   "Wird vom DC gelesen … {0} s",
+   "Reading from the DC … {0} s"
+  ],
+  [
+   "aktualisiert … {0} s",
+   "refreshing … {0} s"
   ]
  ]
 }

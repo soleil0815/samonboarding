@@ -32,7 +32,7 @@ SAMONBOARDING is a web interface for the life cycle of user accounts in Active D
 
 | Menu | Purpose |
 |---|---|
-| **Home** | What needs doing? Accounts without a logon for 90 days, locked accounts and (for administrators) accounts ready to be deleted – one click opens the matching list. The numbers come live from the DC and refresh themselves every minute while the home page is open |
+| **Home** | What needs doing? Accounts without a logon for 90 days, locked accounts and (for administrators) accounts ready to be deleted – one click opens the matching list. The numbers come live from the DC and refresh themselves every minute while the home page is open. While reading, the cards show the seconds passing; when the result arrives, the numbers count up |
 | **New employee** (onboarding) | Create a new account from a template |
 | **User management** | Move an account to another OU, maintain groups |
 | **Reset password** | Set a new password, unlock an account |
