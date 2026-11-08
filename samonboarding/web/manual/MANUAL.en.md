@@ -139,6 +139,8 @@ Offboarding **disables** an account, **removes it from all groups** and moves it
 
 Not possible: your own account and protected accounts (with a lock).
 
+**Last logon:** the column shows when the account last logged on (date and "… days ago", highlighted in yellow from 90 days), or **never**. Click the heading to sort: oldest first, click again for newest first, a third click goes back to sorting by name. The value is **approximate**: Active Directory synchronises it between the domain controllers only every 9–14 days. That is enough for "still in use or gone for a long time?"; "3 days ago" can also mean "yesterday".
+
 ---
 
 ## 8. Undoing an offboarding

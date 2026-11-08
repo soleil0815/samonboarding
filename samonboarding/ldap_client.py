@@ -6,7 +6,7 @@ import logging
 import ssl
 import unicodedata
 from contextlib import contextmanager, suppress
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import Any
 
 import ldap3
@@ -50,6 +50,24 @@ class Row:
         if isinstance(value, (list, tuple)):
             return [str(v) for v in value]
         return [str(value)]
+
+
+FILETIME_NEVER = (0, 0x7FFFFFFFFFFFFFFF)  # AD: 0 = never, max = "no value" (e.g. accountExpires)
+FILETIME_EPOCH_OFFSET = 11644473600  # seconds between 1601-01-01 (FILETIME) and 1970-01-01
+
+
+def row_filetime(row, name):
+    """AD time value (FILETIME, 100 ns since 1601) as ISO 8601 in UTC, or None for "never"/missing/invalid."""
+    try:
+        value = int(_first(row.get(name)))
+    except (TypeError, ValueError):
+        return None
+    if value in FILETIME_NEVER or value < 0:
+        return None
+    seconds = value / 10_000_000 - FILETIME_EPOCH_OFFSET
+    if not 0 < seconds < 253402300800:  # 1970 .. 9999
+        return None
+    return datetime.fromtimestamp(seconds, tz=UTC).replace(microsecond=0).isoformat().replace("+00:00", "Z")
 
 
 def row_uac(row):

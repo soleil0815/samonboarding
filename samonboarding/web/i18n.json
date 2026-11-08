@@ -872,7 +872,12 @@
   "Diese Objekte wurden gelöscht und unter gleichem Namen neu angelegt. Das neue Objekt übernehmen?": "These objects were deleted and created again under the same name. Accept the new object?",
   "Der Pfad enthält '~' (Kurzname) - wird nicht automatisch gelöscht.": "The path contains '~' (short name) - it will not be deleted automatically.",
   "Das Fenster zum Drucken wurde blockiert. Bitte Pop-ups für diese Seite erlauben.": "The print window was blocked. Please allow pop-ups for this page.",
-  "Die Entwicklung unterstützen (öffnet buymeacoffee.com)": "Support the development (opens buymeacoffee.com)"
+  "Die Entwicklung unterstützen (öffnet buymeacoffee.com)": "Support the development (opens buymeacoffee.com)",
+  "Letzte Anmeldung": "Last logon",
+  "Ungefähr: Active Directory gleicht diesen Wert nur alle 9–14 Tage zwischen den Domänencontrollern ab. Klicken zum Sortieren.": "Approximate: Active Directory synchronises this value between the domain controllers only every 9–14 days. Click to sort.",
+  "nie": "never",
+  "heute": "today",
+  "vor 1 Tag": "1 day ago"
  },
  "patterns": [
   [
@@ -1654,6 +1659,10 @@
   [
    "Benutzername '{0}' enthält '~' - Ordner werden nicht automatisch gelöscht.",
    "User name '{0}' contains '~' - folders are not deleted automatically."
+  ],
+  [
+   "vor {0} Tagen",
+   "{0} days ago"
   ]
  ]
 }

@@ -137,6 +137,8 @@ Beim Offboarding wird ein Konto **deaktiviert**, aus **allen Gruppen entfernt** 
 
 Nicht möglich: das eigene Konto und geschützte Konten (mit Schloss).
 
+**Letzte Anmeldung:** Die Spalte zeigt, wann sich das Konto zuletzt angemeldet hat (Datum und „vor … Tagen“, ab 90 Tagen gelb hervorgehoben), oder **nie**. Ein Klick auf die Überschrift sortiert: älteste zuerst, noch ein Klick neueste zuerst, ein dritter Klick wieder nach Namen. Der Wert ist **ungefähr**: Active Directory gleicht ihn nur alle 9–14 Tage zwischen den Domänencontrollern ab. Für die Frage „noch aktiv oder schon lange weg?“ reicht das; „vor 3 Tagen“ kann auch „gestern“ bedeuten.
+
 ---
 
 ## 8. Offboarding rückgängig machen

@@ -7,6 +7,9 @@ Update on the server: `sudo sh update.sh` or `docker compose pull && docker comp
 
 Entries starting with "Security:" or "Fixed:" are marked accordingly in the interface.
 
+## 2.1.0 – 2026-11-08
+- New: the offboarding list shows when each account last logged on (date and "… days ago", or "never"; highlighted from 90 days) and can be sorted by it – oldest first, newest first or by name. The value comes from `lastLogonTimestamp`, which Active Directory synchronises between the domain controllers only every 9–14 days, so it is approximate. It is only displayed, never stored or logged.
+
 ## 2.0.5 – 2026-11-05
 - Security: smaller image – the package manager apt (with its helpers), Perl and the Debian helpers built on it are removed after the build, and no program keeps the setuid/setgid bit any more. The program needs none of them; vulnerabilities in these packages (like CVE-2026-109518 in apt) no longer affect the image. The Debian package list stays, so the daily scan still checks every remaining package.
 

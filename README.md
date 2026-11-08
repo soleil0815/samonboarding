@@ -446,6 +446,8 @@ As with deletion, the container must reach the file server on TCP 445. If the fo
 
 Choose an account from the source OUs. It is **disabled**, **removed from all groups** and moved to the **target OU**. Your own account cannot be offboarded.
 
+**Last logon:** the list shows when each account last logged on (or *never*) and can be sorted by it, oldest first. The value comes from `lastLogonTimestamp`, which Active Directory synchronises between the domain controllers only every 9–14 days – so it is approximate, but enough to see whether an account is still in use. It is only displayed, never stored.
+
 **Multi-selection:** with the checkboxes up to 25 accounts can be offboarded at once (header checkbox = all visible). Before starting, a confirmation shows the number and the names. The accounts are processed one after another; an error with one account (e.g. protected, outside the source OU) does not stop the others. At the end you see what worked and what did not. Every account has its own audit entry; the notification mail is a single summary.
 
 **Protected accounts:** privileged accounts are always rejected by the server (*403*), for all roles. Privileged means members (also through nested groups or as primary group) of *Domain Admins*, *Schema Admins*, *Enterprise Admins* and the built-in groups *Administrators*, *Account/Server/Print/Backup Operators*, as well as the built-in Administrator account (RID 500) and `krbtgt`. In the list such accounts are shown with a lock and cannot be selected. The check reads each account's real groups (`tokenGroups`) and not only the `adminCount` flag, which not every directory maintains. It is checked again when the action runs. If such an account really has to be processed, remove the membership in AD first.

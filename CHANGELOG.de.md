@@ -7,6 +7,9 @@ Update auf dem Server: `sudo sh update.sh` oder `docker compose pull && docker c
 
 Einträge, die mit „Sicherheit:“ oder „Behoben:“ beginnen, werden in der Oberfläche entsprechend markiert.
 
+## 2.1.0 – 2026-11-08
+- Neu: Die Offboarding-Liste zeigt, wann sich jedes Konto zuletzt angemeldet hat (Datum und „vor … Tagen“ oder „nie“, ab 90 Tagen hervorgehoben), und lässt sich danach sortieren – älteste zuerst, neueste zuerst oder nach Namen. Der Wert stammt aus `lastLogonTimestamp`, den Active Directory nur alle 9–14 Tage zwischen den Domänencontrollern abgleicht; er ist also ungefähr. Er wird nur angezeigt, nie gespeichert oder protokolliert.
+
 ## 2.0.5 – 2026-11-05
 - Sicherheit: schlankeres Image – die Paketverwaltung apt (samt Helfern), Perl und die darauf aufbauenden Debian-Helfer werden nach dem Bau entfernt, und kein Programm behält mehr das setuid/setgid-Recht. Das Programm braucht nichts davon; Lücken in diesen Paketen (wie CVE-2026-109518 in apt) betreffen das Image nicht mehr. Die Debian-Paketliste bleibt erhalten, damit der tägliche Scan alle übrigen Pakete weiter prüft.
 
