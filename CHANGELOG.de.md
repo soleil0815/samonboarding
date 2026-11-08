@@ -7,6 +7,23 @@ Update auf dem Server: `sudo sh update.sh` oder `docker compose pull && docker c
 
 Einträge, die mit „Sicherheit:“ oder „Behoben:“ beginnen, werden in der Oberfläche entsprechend markiert.
 
+## 2.2.0-s1 – 2026-11-08
+- Sicherheit: Sicherheitsupdate ohne Programmänderung: gleiches Programm, aktualisierte Pakete.
+- Basis-Images:
+  - Python (python): `3.13.18-slim-trixie@ae14d4ce8771` → `3.13.18-slim-trixie@e48f59cdba69`
+  - Node (node): `24.22.2-trixie-slim@54f84b4cf843` → `24.22.2-trixie-slim@0820eaa85e07`
+- Debian-Pakete:
+  - zlib1g `1:1.3.dfsg+really1.3.1-1+b1` → `1:1.3.dfsg+really1.3.1-1+deb13u1`
+- Python-Pakete:
+  - click `8.5.0` → `8.5.1`
+  - fastapi `0.162.0` → `0.162.2`
+  - pydantic `2.14.2` → `2.14.3`
+  - pydantic_core `2.50.2` → `2.50.4`
+  - typing-inspection `0.4.4` → `0.4.5`
+- npm-Pakete (nur beim Bauen der Oberfläche, nicht im Image):
+  - is-core-module `2.17.0` → `2.18.0`
+  - resolve `1.22.13` → `1.22.14`
+
 ## 2.2.0 – 2026-11-08
 - Neu: eine Startseite „Was steht an?“ direkt nach der Anmeldung. Drei Karten zeigen, wie viele aktive Konten sich seit 90 Tagen nicht angemeldet haben, wie viele Konten gesperrt sind und – für Administratoren – wie viele deaktivierte Konten bereit zum Löschen sind. Ein Klick öffnet die passende Liste; die inaktiven Konten erscheinen dabei älteste zuerst. Die Zahlen stammen aus den Kontolisten, die das Programm ohnehin liest.
 - Neu: Schnellsuche mit Strg+K (am Mac ⌘K) für Personen und Seiten. Eine Person öffnet sich in der Benutzerverwaltung, schon gefiltert; durchsucht werden nur Konten, die man ohnehin sehen darf.

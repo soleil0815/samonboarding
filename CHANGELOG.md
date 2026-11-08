@@ -7,6 +7,23 @@ Update on the server: `sudo sh update.sh` or `docker compose pull && docker comp
 
 Entries starting with "Security:" or "Fixed:" are marked accordingly in the interface.
 
+## 2.2.0-s1 – 2026-11-08
+- Security: security update without program changes: same program, updated packages.
+- Base images:
+  - Python (python): `3.13.18-slim-trixie@ae14d4ce8771` → `3.13.18-slim-trixie@e48f59cdba69`
+  - Node (node): `24.22.2-trixie-slim@54f84b4cf843` → `24.22.2-trixie-slim@0820eaa85e07`
+- Debian packages:
+  - zlib1g `1:1.3.dfsg+really1.3.1-1+b1` → `1:1.3.dfsg+really1.3.1-1+deb13u1`
+- Python packages:
+  - click `8.5.0` → `8.5.1`
+  - fastapi `0.162.0` → `0.162.2`
+  - pydantic `2.14.2` → `2.14.3`
+  - pydantic_core `2.50.2` → `2.50.4`
+  - typing-inspection `0.4.4` → `0.4.5`
+- npm packages (only for building the interface, not in the image):
+  - is-core-module `2.17.0` → `2.18.0`
+  - resolve `1.22.13` → `1.22.14`
+
 ## 2.2.0 – 2026-11-08
 - New: a home page "What needs doing?" right after signing in. Three cards show how many active accounts have not logged on for 90 days, how many accounts are locked and – for administrators – how many disabled accounts are ready to be deleted. One click opens the matching list; the inactive accounts open sorted oldest first. The numbers come from the account lists the program already reads.
 - New: quick search with Ctrl+K (⌘K on a Mac) for people and pages. A person opens in user management, already filtered; only accounts you may see anyway are searched.
