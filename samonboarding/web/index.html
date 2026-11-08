@@ -214,6 +214,52 @@
         .coffee-btn:hover { transform: translateY(-1px); box-shadow: 0 0 0 1px rgba(255, 221, 0, .6), 0 6px 18px rgba(255, 221, 0, .18); }
         .coffee-btn:focus-visible { outline: 2px solid #ffdd00; outline-offset: 3px; }
         .coffee-btn i { font-size: 15px; }
+        /* Counter in the menu: how many accounts wait for this task (from the start page) */
+        .nav-badge {
+            margin-left: auto; flex: none; min-width: 22px; padding: 1px 7px; border-radius: 999px; text-align: center;
+            font-size: 11px; font-weight: 700; font-variant-numeric: tabular-nums; background: rgba(251, 191, 36, .14); color: #fcd34d;
+        }
+        /* Quick search (Ctrl+K) */
+        .quick-search {
+            display: flex; align-items: center; gap: 9px; width: calc(100% - 24px); margin: 2px 12px 4px; padding: 9px 10px; border-radius: 11px;
+            background: rgba(14, 18, 32, .7); border: 1px solid var(--ink-800); color: var(--ink-400); font-size: 13px; font-weight: 500; text-align: left;
+        }
+        .quick-search:hover { border-color: var(--ink-700); color: var(--ink-200); }
+        .kbd { white-space: nowrap; margin-left: auto; font: 600 10px/1.5 'JetBrains Mono', ui-monospace, monospace; padding: 0 5px; border-radius: 5px; border: 1px solid var(--ink-700); color: var(--ink-400); }
+        .palette-backdrop:not(.hidden) {
+            position: fixed; inset: 0; z-index: 60; display: flex; justify-content: center; align-items: flex-start; padding: 12vh 16px 16px;
+            background: rgba(8, 10, 20, .68); backdrop-filter: blur(6px);
+        }
+        .palette-panel {
+            width: min(620px, 100%); max-height: 70vh; display: flex; flex-direction: column; overflow: hidden; border-radius: 18px;
+            background: linear-gradient(180deg, #1d2438, var(--ink-900)); border: 1px solid rgba(53, 61, 86, .9); box-shadow: 0 40px 90px -30px rgba(0, 0, 0, .85);
+        }
+        .palette-input-row { display: flex; align-items: center; gap: 10px; padding: 14px 16px; border-bottom: 1px solid var(--ink-800); color: var(--ink-400); }
+        .palette-input-row input { flex: 1; min-width: 0; background: transparent; border: 0 !important; box-shadow: none !important; color: #fff; font-size: 16px; }
+        .palette-list { overflow-y: auto; padding: 6px; }
+        .palette-group { font-size: 11px; font-weight: 700; color: var(--ink-500); padding: 10px 10px 4px; }
+        .palette-item { width: 100%; display: flex; align-items: center; gap: 12px; padding: 9px 10px; border-radius: 10px; text-align: left; color: var(--ink-200); font-size: 14px; }
+        .palette-item.is-active, .palette-item:hover { background: rgba(111, 120, 249, .16); color: #fff; }
+        .palette-item .p-icon { width: 30px; height: 30px; flex: none; display: grid; place-items: center; border-radius: 9px; background: var(--ink-800); color: var(--iris-300); font-size: 12px; font-weight: 800; }
+        .palette-item .p-sub { display: block; font-size: 12px; color: var(--ink-400); }
+        .palette-empty { padding: 18px 12px; color: var(--ink-400); font-size: 13px; }
+        /* Start page */
+        .dash-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 14px; }
+        .dash-card {
+            display: flex; flex-direction: column; align-items: flex-start; gap: 6px; padding: 20px; text-align: left; border-radius: 18px;
+            background: linear-gradient(180deg, rgba(31, 38, 59, .78), rgba(24, 30, 48, .78)); border: 1px solid rgba(53, 61, 86, .75);
+        }
+        .dash-card:hover { border-color: rgba(139, 149, 255, .45); }
+        .dash-card .dash-icon { width: 38px; height: 38px; display: grid; place-items: center; border-radius: 11px; background: color-mix(in srgb, var(--stage) 16%, transparent); color: var(--stage); margin-bottom: 6px; }
+        .dash-num { font-size: 34px; line-height: 1; font-weight: 800; color: #fff; font-variant-numeric: tabular-nums; }
+        .dash-label { font-size: 14px; font-weight: 700; color: var(--ink-100); }
+        .dash-sub { font-size: 12px; color: var(--ink-400); }
+        .dash-go { margin-top: auto; padding-top: 8px; font-size: 13px; font-weight: 700; color: var(--iris-300); }
+        .dash-card.is-calm .dash-num { color: var(--ink-400); }
+        .quick-actions { display: flex; flex-wrap: wrap; gap: 10px; }
+        .quick-action { display: inline-flex; align-items: center; gap: 9px; padding: 11px 16px; border-radius: 12px; background: rgba(24, 30, 48, .8); border: 1px solid var(--ink-800); color: var(--ink-100); font-size: 14px; font-weight: 600; }
+        .quick-action:hover { border-color: var(--iris-500); color: #fff; }
+        .quick-action i { color: var(--iris-300); }
         .sidebar-user { display: flex; align-items: center; gap: 10px; padding: 14px 16px; border-top: 1px solid var(--ink-800); background: rgba(14, 18, 32, .45); }
         .avatar {
             width: 36px; height: 36px; border-radius: 999px; display: grid; place-items: center; flex: none; font-weight: 800; font-size: 14px; color: #fff;
@@ -355,12 +401,17 @@
                 <button type="button" class="icon-btn sidebar-close" onclick="toggleSidebar(false)" aria-label="Menü schließen"><i class="fa-solid fa-xmark"></i></button>
             </div>
 
+            <button type="button" id="quick-search-btn" class="quick-search" onclick="openPalette()" aria-haspopup="dialog" aria-keyshortcuts="Control+K">
+                <i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i><span class="truncate">Suchen …</span><span class="kbd">Strg K</span>
+            </button>
+
             <nav class="sidebar-nav">
-                <p class="nav-group">Lebenszyklus</p>
+                <p class="nav-group">Aufgaben</p>
+                <button onclick="switchTab('start')" id="nav-start" class="nav-item nav-plain is-active" aria-current="page"><i class="fa-solid fa-house nav-icon"></i><span class="nav-name">Start</span></button>
                 <div class="lifecycle-nav">
-                    <button onclick="switchTab('hire')" id="nav-hire" class="nav-item is-active" aria-current="page" style="--stage: var(--stage-in)">
+                    <button onclick="switchTab('hire')" id="nav-hire" class="nav-item" style="--stage: var(--stage-in)">
                         <span class="nav-dot" aria-hidden="true"></span>
-                        <span class="nav-text"><span class="nav-name">Onboarding</span><span class="nav-sub">Eintritt</span></span>
+                        <span class="nav-text"><span class="nav-name">Neuer Mitarbeiter</span><span class="nav-sub">Onboarding</span></span>
                     </button>
                     <button onclick="switchTab('usermgmt')" id="nav-usermgmt" class="nav-item" style="--stage: var(--stage-care)">
                         <span class="nav-dot" aria-hidden="true"></span>
@@ -369,18 +420,21 @@
                     <button onclick="switchTab('pwdreset')" id="nav-pwdreset" class="nav-item" style="--stage: var(--stage-care)">
                         <span class="nav-dot" aria-hidden="true"></span>
                         <span class="nav-text"><span class="nav-name">Passwort zurücksetzen</span><span class="nav-sub">Zugang wiederherstellen</span></span>
+                        <span id="nav-badge-pwdreset" class="nav-badge hidden" title="Gesperrte Konten"></span>
                     </button>
                     <button onclick="switchTab('offboard')" id="nav-offboard" class="nav-item" style="--stage: var(--stage-out)">
                         <span class="nav-dot" aria-hidden="true"></span>
-                        <span class="nav-text"><span class="nav-name">Offboarding</span><span class="nav-sub">Austritt</span></span>
+                        <span class="nav-text"><span class="nav-name">Austritt</span><span class="nav-sub">Offboarding</span></span>
+                        <span id="nav-badge-offboard" class="nav-badge hidden" title="Aktive Konten ohne Anmeldung seit 90 Tagen"></span>
                     </button>
                     <button onclick="switchTab('delete')" id="nav-delete" style="display:none; --stage: var(--stage-del)" class="nav-item">
                         <span class="nav-dot" aria-hidden="true"></span>
                         <span class="nav-text"><span class="nav-name">Konten löschen</span><span class="nav-sub">Nur Administratoren</span></span>
+                        <span id="nav-badge-delete" class="nav-badge hidden" title="Deaktivierte Konten, bereit zum Löschen"></span>
                     </button>
                 </div>
 
-                <p class="nav-group">Einrichtung</p>
+                <p class="nav-group">Einstellungen</p>
                 <button onclick="switchTab('templates')" id="nav-templates" class="nav-item nav-plain"><i class="fa-solid fa-layer-group nav-icon"></i><span class="nav-name">Templates</span></button>
                 <button onclick="switchTab('smtp')" id="nav-smtp" class="nav-item nav-plain"><i class="fa-solid fa-envelope nav-icon"></i><span class="nav-name">E-Mail-Benachrichtigung</span></button>
                 <button onclick="switchTab('infra')" id="nav-infra" class="nav-item nav-plain"><i class="fa-solid fa-sitemap nav-icon"></i><span class="nav-name">AD-Struktur</span></button>
@@ -414,7 +468,55 @@
             <main class="app-main">
                 <div id="host-notice" class="hidden max-w-3xl mb-6 p-4 rounded-xl border border-sky-500/40 bg-sky-500/10 text-sky-200 text-sm" role="status"></div>
                 <div id="ref-warning" class="hidden max-w-3xl mb-6 p-4 rounded-xl border border-amber-500/40 bg-amber-500/10 text-amber-200 text-sm" role="status"></div>
-                <div id="tab-hire" class="max-w-3xl space-y-6">
+                <div id="tab-start" class="max-w-5xl space-y-8">
+                    <div class="flex justify-between items-start gap-4 flex-wrap">
+                        <div>
+                            <h2 class="page-title"><span id="start-greeting">Guten Tag</span><span id="start-name" translate="no"></span></h2>
+                            <p class="text-slate-400">Was steht an? Die Zahlen kommen direkt aus dem AD.</p>
+                        </div>
+                        <button onclick="refreshAllLdapData(true)" class="px-4 py-2 bg-slate-900 border border-slate-800 text-cyan-400 rounded-xl text-xs font-medium hover:bg-slate-800 transition-all"><i class="fa-solid fa-rotate mr-1"></i> Aktualisieren</button>
+                    </div>
+
+                    <section aria-labelledby="dash-todo-title" class="space-y-3">
+                        <h3 id="dash-todo-title" class="section-title">Zu erledigen</h3>
+                        <div class="dash-grid">
+                            <button type="button" id="dash-inactive" class="dash-card" style="--stage: var(--stage-out)" onclick="openInactiveAccounts()">
+                                <span class="dash-icon" aria-hidden="true"><i class="fa-solid fa-user-clock"></i></span>
+                                <span class="dash-num" id="dash-inactive-num">–</span>
+                                <span class="dash-label">Konten ohne Anmeldung seit 90 Tagen</span>
+                                <span class="dash-sub" id="dash-inactive-sub">Aktive Konten in den Offboarding-OUs, ältestes zuerst</span>
+                                <span class="dash-go">Austritte prüfen →</span>
+                            </button>
+                            <button type="button" id="dash-locked" class="dash-card" style="--stage: var(--stage-care)" onclick="switchTab('pwdreset')">
+                                <span class="dash-icon" aria-hidden="true"><i class="fa-solid fa-lock"></i></span>
+                                <span class="dash-num" id="dash-locked-num">–</span>
+                                <span class="dash-label">Gesperrte Konten</span>
+                                <span class="dash-sub" id="dash-locked-sub">Zu viele falsche Kennwörter</span>
+                                <span class="dash-go">Zugang wiederherstellen →</span>
+                            </button>
+                            <button type="button" id="dash-delete" class="dash-card" style="--stage: var(--stage-del); display:none" onclick="switchTab('delete')">
+                                <span class="dash-icon" aria-hidden="true"><i class="fa-solid fa-trash-can"></i></span>
+                                <span class="dash-num" id="dash-delete-num">–</span>
+                                <span class="dash-label">Bereit zum Löschen</span>
+                                <span class="dash-sub" id="dash-delete-sub">Deaktivierte Konten</span>
+                                <span class="dash-go">Löschen vorbereiten →</span>
+                            </button>
+                        </div>
+                    </section>
+
+                    <section aria-labelledby="dash-quick-title" class="space-y-3">
+                        <h3 id="dash-quick-title" class="section-title">Schnellzugriff</h3>
+                        <div class="quick-actions">
+                            <button type="button" class="quick-action" onclick="switchTab('hire')"><i class="fa-solid fa-user-plus" aria-hidden="true"></i> Neuen Mitarbeiter anlegen</button>
+                            <button type="button" class="quick-action" onclick="openPalette()"><i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i> Person suchen</button>
+                            <button type="button" class="quick-action" onclick="switchTab('pwdreset')"><i class="fa-solid fa-key" aria-hidden="true"></i> Passwort zurücksetzen</button>
+                            <button type="button" class="quick-action" onclick="switchTab('offboard')"><i class="fa-solid fa-user-minus" aria-hidden="true"></i> Austritt durchführen</button>
+                        </div>
+                    </section>
+                    <p class="text-xs text-slate-500">Die letzte Anmeldung ist ein Näherungswert: Das AD gleicht sie nur alle 9 bis 14 Tage ab.</p>
+                </div>
+
+                <div id="tab-hire" class="max-w-3xl space-y-6 hidden">
                     <div class="flex justify-between items-center">
                         <div>
                             <h2 id="t-onboard" class="page-title">Mitarbeiter Onboarding</h2>
@@ -1061,6 +1163,19 @@
     </div>
 
     <!-- Move User Modal -->
+    <div id="palette" class="palette-backdrop hidden" onclick="if(event.target === this) closePalette()">
+        <div class="palette-panel" role="dialog" aria-modal="true" aria-label="Schnellsuche">
+            <div class="palette-input-row">
+                <i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i>
+                <input type="text" id="palette-input" autocomplete="off" spellcheck="false" placeholder="Name, Anmeldename, E-Mail oder Seite …"
+                       role="combobox" aria-expanded="true" aria-controls="palette-list" aria-autocomplete="list"
+                       oninput="renderPalette()" onkeydown="paletteKey(event)">
+                <span class="kbd" translate="no">Esc</span>
+            </div>
+            <div id="palette-list" class="palette-list" role="listbox" aria-label="Treffer"></div>
+        </div>
+    </div>
+
     <div id="move-user-modal" class="modal-backdrop hidden">
         <div class="modal-panel bg-slate-900 border border-slate-800 rounded-2xl max-w-md w-full p-6 space-y-5 shadow-2xl relative">
             <h3 class="text-lg font-bold text-white flex items-center gap-2"><i class="fa-solid fa-folder-tree text-cyan-400"></i> Benutzer in andere OU verschieben</h3>
@@ -1627,6 +1742,9 @@
             // Only an administrator reads the SMTP settings (the server refuses them to operators)
             const navSmtp = document.getElementById('nav-smtp');
             if(navSmtp) navSmtp.style.display = role === "Administrator" ? '' : 'none';
+            // Start page: the deletion card needs the deletion list, which only administrators get
+            const dashDelete = document.getElementById('dash-delete');
+            if(dashDelete) dashDelete.style.display = role === "Administrator" ? '' : 'none';
 
             if(role !== "Administrator") {
                 document.getElementById('btn-new-tpl').classList.add('hidden');
@@ -1655,7 +1773,7 @@
         // Only what the opened section needs is loaded. Settings come from small local files (fast),
         // the account lists from the DC - the server reads those from its cache for up to 60 seconds
         // per session. force=true ("Aktualisieren", "Neu einlesen") always reads fresh from the DC.
-        let currentTab = 'hire';
+        let currentTab = 'start';
         // Protection against double submission (double click, Enter + click): the same action never runs twice at once
         const busyActions = new Set();
         async function guarded(key, fn) {
@@ -1668,6 +1786,7 @@
             try { await fn(...args); } catch(e) { console.warn('Laden fehlgeschlagen:', e); }
         }
         const TAB_LISTS = {
+            start: force => loadDashboard(force),
             usermgmt: force => loadUserMgmtUsers(force),
             offboard: async force => { await loadOffboardingUsers(force); await loadOffboardRecords(); },
             pwdreset: force => loadPwdResetUsers(force),
@@ -2625,7 +2744,11 @@
         }
 
         function toggleOffboardSort() {
-            offSort = offSort === '' ? 'asc' : offSort === 'asc' ? 'desc' : '';
+            setOffboardSort(offSort === '' ? 'asc' : offSort === 'asc' ? 'desc' : '');
+        }
+
+        function setOffboardSort(mode) {
+            offSort = mode;
             const icon = document.getElementById('off-sort-icon');
             if(icon) icon.className = 'fa-solid ' + (offSort === 'asc' ? 'fa-sort-up text-cyan-400' : offSort === 'desc' ? 'fa-sort-down text-cyan-400' : 'fa-sort text-slate-500');
             const head = document.getElementById('off-sort-head');
@@ -3011,7 +3134,7 @@
         }
 
         async function switchTab(targetTab) {
-            ['hire', 'usermgmt', 'offboard', 'delete', 'pwdreset', 'templates', 'smtp', 'infra', 'reports', 'cert', 'faq'].forEach(tab => {
+            ['start', 'hire', 'usermgmt', 'offboard', 'delete', 'pwdreset', 'templates', 'smtp', 'infra', 'reports', 'cert', 'faq'].forEach(tab => {
                 const el = document.getElementById('tab-' + tab);
                 if(el) el.classList.toggle('hidden', tab !== targetTab);
                 const btn = document.getElementById('nav-' + tab);
@@ -3030,6 +3153,261 @@
 
             await refreshAllLdapData();
         }
+
+        // ---------------------------------------------------------------
+        // Start page: what needs doing, counted from the existing lists
+        // (no extra AD query: the server answers from its 60-second cache)
+        // ---------------------------------------------------------------
+        const INACTIVE_DAYS = 90;
+        let dashData = {offboard: null, pwdreset: null, deletion: null};
+
+        // Pure counting, so it can be tested without a DOM. now = milliseconds.
+        function dashboardCounts(offUsers, pwdUsers, delUsers, now, self) {
+            const me = String(self || '').toLowerCase();
+            const limit = now - INACTIVE_DAYS * 86400000;
+            const inactive = (offUsers || []).filter(u => !u.disabled && !u.protected && String(u.sam || '').toLowerCase() !== me
+                && (!u.lastLogon || Date.parse(u.lastLogon) < limit));
+            const never = inactive.filter(u => !u.lastLogon).length;
+            const locked = (pwdUsers || []).filter(u => u.locked).length;
+            const deletable = (delUsers || []).filter(u => u.disabled && !u.self && !u.protected).length;
+            return {inactive: inactive.length, never, locked, deletable};
+        }
+
+        function greeting(hour) {
+            if(hour < 5) return 'Guten Abend';
+            if(hour < 11) return 'Guten Morgen';
+            if(hour < 18) return 'Guten Tag';
+            return 'Guten Abend';
+        }
+
+        async function fetchList(url, force) {
+            try {
+                const res = await fetch(url + freshQuery(force));
+                if(!res.ok) return {users: null, warning: ''};
+                const data = await res.json();
+                return {users: data.users || [], warning: data.warning || ''};
+            } catch(e) { return {users: null, warning: ''}; }
+        }
+
+        function setDashCard(key, num, sub, calm) {
+            const n = document.getElementById('dash-' + key + '-num');
+            if(n) n.textContent = num;
+            const s = document.getElementById('dash-' + key + '-sub');
+            if(s && sub !== null) s.textContent = sub;
+            const card = document.getElementById('dash-' + key);
+            if(card) card.classList.toggle('is-calm', !!calm);
+        }
+
+        function setNavBadge(tab, count) {
+            const b = document.getElementById('nav-badge-' + tab);
+            if(!b) return;
+            b.textContent = count > 99 ? '99+' : String(count || '');
+            b.classList.toggle('hidden', !count);
+        }
+
+        async function loadDashboard(force) {
+            const g = document.getElementById('start-greeting');
+            if(g) g.textContent = greeting(new Date().getHours());
+            const nm = document.getElementById('start-name');
+            if(nm) nm.textContent = currentLoggedInUsername ? ', ' + currentLoggedInUsername : '';
+            const admin = currentUserRole === 'Administrator';
+            const [off, pwd, del] = await Promise.all([
+                fetchList('/api/offboarding/users', force),
+                fetchList('/api/pwdreset/users', force),
+                admin ? fetchList('/api/deletion/users', force) : Promise.resolve({users: null, warning: ''}),
+            ]);
+            dashData = {offboard: off.users, pwdreset: pwd.users, deletion: del.users};
+            const c = dashboardCounts(off.users, pwd.users, del.users, Date.now(), currentLoggedInUsername);
+            if(off.users === null) setDashCard('inactive', '–', 'Liste nicht lesbar', true);
+            else if(off.warning) setDashCard('inactive', '–', 'Noch nicht eingerichtet: Quell-OUs unter „Austritt“ festlegen', true);
+            else setDashCard('inactive', String(c.inactive), c.never ? `davon ${c.never} nie angemeldet` : 'Aktive Konten in den Offboarding-OUs, ältestes zuerst', !c.inactive);
+            if(pwd.users === null) setDashCard('locked', '–', 'Liste nicht lesbar', true);
+            else if(pwd.warning) setDashCard('locked', '–', 'Noch nicht eingerichtet: Quell-OUs unter „Passwort zurücksetzen“ festlegen', true);
+            else setDashCard('locked', String(c.locked), c.locked ? 'Zu viele falsche Kennwörter' : 'Alles in Ordnung', !c.locked);
+            if(admin) {
+                if(del.users === null) setDashCard('delete', '–', 'Liste nicht lesbar', true);
+                else if(del.warning) setDashCard('delete', '–', 'Die Löschfunktion ist nicht aktiviert.', true);
+                else setDashCard('delete', String(c.deletable), 'Deaktivierte Konten', !c.deletable);
+            }
+            setNavBadge('offboard', off.warning ? 0 : c.inactive);
+            setNavBadge('pwdreset', pwd.warning ? 0 : c.locked);
+            setNavBadge('delete', admin && !del.warning ? c.deletable : 0);
+        }
+
+        // Card "no logon for 90 days": open the offboarding list, oldest logon first
+        async function openInactiveAccounts() {
+            setOffboardSort('asc');
+            await switchTab('offboard');
+        }
+
+        // ---------------------------------------------------------------
+        // Quick search (Ctrl+K / Cmd+K): people and pages in one place
+        // ---------------------------------------------------------------
+        const PALETTE_PAGES = [
+            {tab: 'start', label: 'Start', icon: 'fa-house'},
+            {tab: 'hire', label: 'Neuer Mitarbeiter', sub: 'Onboarding', icon: 'fa-user-plus'},
+            {tab: 'usermgmt', label: 'Benutzerverwaltung', sub: 'OU und Gruppen', icon: 'fa-users'},
+            {tab: 'pwdreset', label: 'Passwort zurücksetzen', icon: 'fa-key'},
+            {tab: 'offboard', label: 'Austritt', sub: 'Offboarding', icon: 'fa-user-minus'},
+            {tab: 'delete', label: 'Konten löschen', icon: 'fa-trash-can'},
+            {tab: 'templates', label: 'Templates', icon: 'fa-layer-group'},
+            {tab: 'smtp', label: 'E-Mail-Benachrichtigung', icon: 'fa-envelope'},
+            {tab: 'infra', label: 'AD-Struktur', icon: 'fa-sitemap'},
+            {tab: 'reports', label: 'Berichte', icon: 'fa-clipboard-list'},
+            {tab: 'cert', label: 'Zertifikat', icon: 'fa-certificate'},
+            {tab: 'faq', label: 'Handbuch', icon: 'fa-book'},
+        ];
+        let palettePeople = [];
+        let paletteItems = [];
+        let paletteIndex = 0;
+        let paletteLoaded = false;
+
+        // One entry per account; it opens where it can be worked on (management first, then leaving, then password)
+        function mergePeople(lists) {
+            const seen = new Map();
+            lists.forEach(([tab, users]) => (users || []).forEach(u => {
+                if(!u || !u.dn || seen.has(u.dn)) return;
+                seen.set(u.dn, {dn: u.dn, name: u.name || u.sam, sam: u.sam || '', mail: u.mail || '', disabled: !!u.disabled, tab});
+            }));
+            return [...seen.values()];
+        }
+
+        function filterPeople(people, query, max) {
+            const q = String(query || '').trim().toLowerCase();
+            if(!q) return [];
+            const score = p => {
+                const name = String(p.name).toLowerCase(), sam = p.sam.toLowerCase(), mail = p.mail.toLowerCase();
+                if(sam === q || name === q) return 0;
+                if(sam.startsWith(q) || name.startsWith(q) || name.split(' ').some(w => w.startsWith(q))) return 1;
+                if(name.includes(q) || sam.includes(q) || mail.includes(q)) return 2;
+                return 9;
+            };
+            return people.map(p => [score(p), p]).filter(([s]) => s < 9)
+                .sort((a, b) => a[0] - b[0] || String(a[1].name).localeCompare(String(b[1].name))).slice(0, max || 8).map(([, p]) => p);
+        }
+
+        function visiblePage(tab) {
+            const btn = document.getElementById('nav-' + tab);
+            return !!btn && btn.style.display !== 'none';
+        }
+
+        async function loadPalettePeople() {
+            const [mgmt, off, pwd] = await Promise.all([
+                fetchList('/api/usermgmt/users'),
+                dashData.offboard ? Promise.resolve({users: dashData.offboard}) : fetchList('/api/offboarding/users'),
+                dashData.pwdreset ? Promise.resolve({users: dashData.pwdreset}) : fetchList('/api/pwdreset/users'),
+            ]);
+            palettePeople = mergePeople([['usermgmt', mgmt.users], ['offboard', off.users], ['pwdreset', pwd.users]]);
+            paletteLoaded = true;
+        }
+
+        async function openPalette() {
+            const box = document.getElementById('palette');
+            if(!box) return;
+            toggleSidebar(false);
+            box.classList.remove('hidden');
+            const input = document.getElementById('palette-input');
+            input.value = '';
+            input.focus();
+            renderPalette();
+            await loadPalettePeople();
+            if(!box.classList.contains('hidden')) renderPalette();
+        }
+
+        function closePalette() {
+            const box = document.getElementById('palette');
+            if(box) box.classList.add('hidden');
+        }
+
+        function renderPalette() {
+            const input = document.getElementById('palette-input');
+            const list = document.getElementById('palette-list');
+            if(!input || !list) return;
+            const q = input.value.trim().toLowerCase();
+            const pages = PALETTE_PAGES.filter(p => visiblePage(p.tab) && (!q || tr(p.label).toLowerCase().includes(q) || p.label.toLowerCase().includes(q)
+                || (p.sub && p.sub.toLowerCase().includes(q))));
+            const people = filterPeople(palettePeople, q, 8);
+            paletteItems = [...people.map(p => ({kind: 'person', p})), ...pages.map(p => ({kind: 'page', p}))];
+            paletteIndex = Math.min(paletteIndex, Math.max(0, paletteItems.length - 1));
+            if(!q) paletteIndex = 0;
+            let html = '';
+            let i = 0;
+            if(people.length) {
+                html += '<p class="palette-group">Personen</p>';
+                people.forEach(p => {
+                    const initials = String(p.name).split(/\s+/).filter(Boolean).slice(0, 2).map(w => w[0]).join('').toUpperCase();
+                    const where = {usermgmt: 'Benutzerverwaltung', offboard: 'Austritt', pwdreset: 'Passwort zurücksetzen'}[p.tab];
+                    html += `<button type="button" role="option" id="pal-${i}" class="palette-item${i === paletteIndex ? ' is-active' : ''}" onclick="paletteChoose(${i})" onmousemove="paletteHover(${i})">`
+                        + `<span class="p-icon" translate="no">${esc(initials || '?')}</span><span class="min-w-0"><span translate="no">${esc(p.name)}</span>`
+                        + `<span class="p-sub"><span translate="no">${esc(p.sam)}${p.mail ? ' · ' + esc(p.mail) : ''}</span>${p.disabled ? ' · <span>deaktiviert</span>' : ''} · <span>öffnet</span> <span>${esc(where)}</span></span></span></button>`;
+                    i++;
+                });
+            } else if(q && !paletteLoaded) {
+                html += '<p class="palette-empty">Konten werden geladen …</p>';
+            } else if(q && q.length >= 2 && !pages.length) {
+                html += '<p class="palette-empty">Keine Person und keine Seite gefunden.</p>';
+            }
+            if(pages.length) {
+                html += '<p class="palette-group">Seiten</p>';
+                pages.forEach(p => {
+                    html += `<button type="button" role="option" id="pal-${i}" class="palette-item${i === paletteIndex ? ' is-active' : ''}" onclick="paletteChoose(${i})" onmousemove="paletteHover(${i})">`
+                        + `<span class="p-icon"><i class="fa-solid ${p.icon}" aria-hidden="true"></i></span><span class="min-w-0"><span>${esc(p.label)}</span>${p.sub ? `<span class="p-sub">${esc(p.sub)}</span>` : ''}</span></button>`;
+                    i++;
+                });
+            }
+            list.innerHTML = html;
+            input.setAttribute('aria-activedescendant', paletteItems.length ? 'pal-' + paletteIndex : '');
+        }
+
+        function paletteHover(i) {
+            if(i === paletteIndex) return;
+            paletteIndex = i;
+            document.querySelectorAll('.palette-item').forEach((el, k) => el.classList.toggle('is-active', k === i));
+        }
+
+        function paletteKey(e) {
+            if(e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+                e.preventDefault();
+                if(!paletteItems.length) return;
+                paletteIndex = (paletteIndex + (e.key === 'ArrowDown' ? 1 : -1) + paletteItems.length) % paletteItems.length;
+                renderPalette();
+                const el = document.getElementById('pal-' + paletteIndex);
+                if(el && el.scrollIntoView) el.scrollIntoView({block: 'nearest'});
+            } else if(e.key === 'Enter') {
+                e.preventDefault();
+                paletteChoose(paletteIndex);
+            } else if(e.key === 'Escape') {
+                e.preventDefault();
+                closePalette();
+            }
+        }
+
+        const PALETTE_SEARCH = {
+            usermgmt: ['usermgmt-search', () => filterUserMgmtTable()],
+            offboard: ['offboard-search', () => filterOffboardTable()],
+            pwdreset: ['pwdreset-search', () => filterPwdResetTable()],
+        };
+
+        async function paletteChoose(i) {
+            const item = paletteItems[i];
+            if(!item) return;
+            closePalette();
+            if(item.kind === 'page') { await switchTab(item.p.tab); return; }
+            const [id, apply] = PALETTE_SEARCH[item.p.tab];
+            const field = document.getElementById(id);
+            if(field) field.value = item.p.sam || item.p.name;
+            await switchTab(item.p.tab);
+            if(field) { field.value = item.p.sam || item.p.name; apply(); }
+        }
+
+        if(document.addEventListener) document.addEventListener('keydown', e => {
+            if((e.ctrlKey || e.metaKey) && !e.altKey && String(e.key).toLowerCase() === 'k') {
+                if(typeof appVisible === 'function' && !appVisible()) return;
+                e.preventDefault();
+                const box = document.getElementById('palette');
+                if(box && !box.classList.contains('hidden')) closePalette(); else openPalette();
+            }
+        });
 
         // ---------------------------------------------------------------
         // Reports (administrators only): changes and log

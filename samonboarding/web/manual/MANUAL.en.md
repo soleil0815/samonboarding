@@ -32,10 +32,11 @@ SAMONBOARDING is a web interface for the life cycle of user accounts in Active D
 
 | Menu | Purpose |
 |---|---|
-| **Onboarding** | Create a new account from a template |
+| **Home** | What needs doing? Accounts without a logon for 90 days, locked accounts and (for administrators) accounts ready to be deleted – one click opens the matching list |
+| **New employee** (onboarding) | Create a new account from a template |
 | **User management** | Move an account to another OU, maintain groups |
 | **Reset password** | Set a new password, unlock an account |
-| **Offboarding** | Disable an account, remove it from all groups, move it to the target OU; undo |
+| **Leaving** (offboarding) | Disable an account, remove it from all groups, move it to the target OU; undo |
 | **Delete accounts** | Permanently delete disabled accounts together with their profile and home folders (administrators only) |
 | **Templates** | Templates for onboarding |
 | **E-mail notification** | SMTP server and which mails are sent |
@@ -43,6 +44,10 @@ SAMONBOARDING is a web interface for the life cycle of user accounts in Active D
 | **Reports** | Who did what and when, program messages (administrators only) |
 | **Certificate** | Upload the HTTPS certificate (administrators only) |
 | **News** | What changed in the installed versions. A small dot marks a new version, an orange dot a security update |
+
+The menu is grouped into **Tasks** (Home to Delete accounts) and **Settings** (Templates to Certificate). Numbers next to a menu item show how many accounts are waiting there.
+
+**Quick search (Ctrl + K, on a Mac ⌘ + K):** opens a search field for people and pages. Search by name, logon name or e-mail, choose with the arrow keys and open with Enter. A person opens in user management, already filtered. If the account is not released there, leaving or password reset opens instead. Only accounts you may see in these areas anyway are searched. Esc closes the search.
 
 Good to know:
 

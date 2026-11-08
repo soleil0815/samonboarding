@@ -30,10 +30,11 @@ SAMONBOARDING ist eine Weboberfläche für den Lebenszyklus von Benutzerkonten i
 
 | Menüpunkt | Wofür |
 |---|---|
-| **Onboarding** | Neues Konto nach einem Template anlegen |
+| **Start** | Was steht an? Konten ohne Anmeldung seit 90 Tagen, gesperrte Konten und (für Administratoren) Konten, die bereit zum Löschen sind – ein Klick öffnet die passende Liste |
+| **Neuer Mitarbeiter** (Onboarding) | Neues Konto nach einem Template anlegen |
 | **Benutzerverwaltung** | Konto in eine andere OU verschieben, Gruppen pflegen |
 | **Passwort zurücksetzen** | Neues Passwort setzen, Kontosperre aufheben |
-| **Offboarding** | Konto deaktivieren, aus allen Gruppen nehmen, in die Ziel-OU verschieben; rückgängig machen |
+| **Austritt** (Offboarding) | Konto deaktivieren, aus allen Gruppen nehmen, in die Ziel-OU verschieben; rückgängig machen |
 | **Konten löschen** | Deaktivierte Konten samt Profil- und Basisordnern endgültig löschen (nur Administratoren) |
 | **Templates** | Vorlagen für das Onboarding |
 | **E-Mail-Benachrichtigung** | SMTP-Server und welche Mails verschickt werden |
@@ -41,6 +42,10 @@ SAMONBOARDING ist eine Weboberfläche für den Lebenszyklus von Benutzerkonten i
 | **Berichte** | Wer hat wann was getan, Programm-Meldungen (nur Administratoren) |
 | **Zertifikat** | HTTPS-Zertifikat hochladen (nur Administratoren) |
 | **Neuigkeiten** | Was sich in den installierten Versionen geändert hat. Ein kleiner Punkt zeigt eine neue Version an, ein oranger Punkt ein Sicherheitsupdate |
+
+Die Menüpunkte sind in **Aufgaben** (Start bis Konten löschen) und **Einstellungen** (Templates bis Zertifikat) gruppiert. Zahlen neben einem Menüpunkt zeigen, wie viele Konten dort warten.
+
+**Schnellsuche (Strg + K, am Mac ⌘ + K):** Öffnet ein Suchfeld für Personen und Seiten. Nach Name, Anmeldename oder E-Mail suchen, mit den Pfeiltasten wählen und mit Enter öffnen. Eine Person öffnet sich in der Benutzerverwaltung, schon nach ihr gefiltert. Ist sie dort nicht freigegeben, öffnet sich Austritt oder Passwort zurücksetzen. Gesucht wird nur in den Konten, die du in diesen Bereichen ohnehin sehen darfst. Esc schließt die Suche.
 
 Wichtig zu wissen:
 

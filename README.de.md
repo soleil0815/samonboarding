@@ -71,7 +71,9 @@ Diese fünf Punkte erklären das ganze Konzept:
 
 ### Oberfläche
 
-Die Navigation folgt dem Lebenszyklus eines Kontos: **Eintritt** (Onboarding), **Pflege** (Benutzerverwaltung, Passwort zurücksetzen), **Austritt** (Offboarding) und **Löschung**. Darunter liegen Einrichtung (Templates, E-Mail-Benachrichtigung, AD-Struktur) und Hilfe. Rückmeldungen erscheinen als Meldung unten rechts. Fehler und lange Meldungen bleiben stehen, bis sie geschlossen werden. Auf Tablet und Handy klappt die Navigation über das Menü-Symbol oben links auf.
+Nach der Anmeldung zeigt die **Startseite**, was ansteht: aktive Konten ohne Anmeldung seit 90 Tagen, gesperrte Konten und (für Administratoren) Konten, die bereit zum Löschen sind. Ein Klick öffnet die passende Liste. Unter **Aufgaben** folgt die Navigation dem Lebenszyklus eines Kontos: **Neuer Mitarbeiter** (Onboarding), **Benutzerverwaltung**, **Passwort zurücksetzen**, **Austritt** (Offboarding) und **Konten löschen**; Zahlen daneben zeigen, wie viele Konten dort warten. Darunter liegen **Einstellungen** (Templates, E-Mail-Benachrichtigung, AD-Struktur, Berichte, Zertifikat) und Hilfe. Mit **Strg + K** öffnet sich die Schnellsuche für Personen und Seiten. Rückmeldungen erscheinen als Meldung unten rechts. Fehler und lange Meldungen bleiben stehen, bis sie geschlossen werden. Auf Tablet und Handy klappt die Navigation über das Menü-Symbol oben links auf.
+
+![Startseite „Was steht an?“: Karten für Konten ohne Anmeldung seit 90 Tagen, gesperrte Konten und Konten bereit zum Löschen, links das gegliederte Menü mit Zählern](docs/images/start.png)
 
 **Sprache:** Die Oberfläche gibt es auf **Deutsch und Englisch**. Umgeschaltet wird mit *DE / EN* unten in der Seitenleiste oder oben rechts auf der Anmeldeseite. Die Wahl merkt sich der Browser; beim ersten Aufruf gilt die Sprache des Browsers. Meldungen des Servers und die Benachrichtigungs-Mails kommen in der gewählten Sprache. Namen, OUs, Gruppen und Pfade aus dem AD werden nie übersetzt. Die englischen Texte stehen in `samonboarding/web/i18n.json` (deutscher Text → englischer Text, mit Platzhaltern `{0}` für Werte).
 
@@ -721,7 +723,7 @@ Die Anwendung spricht **nur HTTPS** (Port 9500). Es gibt keinen unverschlüsselt
 **Zertifikat:**
 
 1. **Ohne eigenes Zertifikat** erzeugt die Anwendung beim ersten Start ein selbstsigniertes (10 Jahre gültig) in `data/tls/`. Der Browser warnt einmal. Damit der Name im Zertifikat passt, `TLS_HOSTNAMES` in der `.env` setzen oder in der Oberfläche unter **Zertifikat** ein neues selbstsigniertes mit den richtigen Namen erzeugen.
-2. **Eigenes Zertifikat** (z. B. von der internen CA, empfohlen): in der Oberfläche unter **Einrichtung → Zertifikat** hochladen (nur Administratoren). Es gilt **sofort, ohne Neustart**. Neue Verbindungen bekommen das neue Zertifikat; einmal die Seite neu laden.
+2. **Eigenes Zertifikat** (z. B. von der internen CA, empfohlen): in der Oberfläche unter **Einstellungen → Zertifikat** hochladen (nur Administratoren). Es gilt **sofort, ohne Neustart**. Neue Verbindungen bekommen das neue Zertifikat; einmal die Seite neu laden.
    - **PFX/P12** mit Passwort, z. B. aus der Windows-Zertifikatsverwaltung (*Exportieren → Ja, privaten Schlüssel exportieren*). Zwischenzertifikate werden mit übernommen.
    - **Zertifikat + Schlüssel** als PEM oder DER (`.pem`, `.crt`, `.cer`, `.key`), der Schlüssel auch passwortgeschützt. Zwischenzertifikate optional als eigene Datei oder in der Zertifikatsdatei.
    - Vor dem Übernehmen wird geprüft: Passen Zertifikat und Schlüssel zusammen? Ist es gültig (nicht abgelaufen)? Ist der Schlüssel stark genug (RSA ab 2048 Bit oder ECDSA)? Nimmt der Server es an? Hinweise gibt es, wenn es bald abläuft, keine alternativen Namen (SAN) enthält oder Zwischenzertifikate fehlen.

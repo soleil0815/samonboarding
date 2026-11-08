@@ -17,7 +17,7 @@ class ReadmeImageTests(unittest.TestCase):
             images = IMAGE_RE.findall(text)
             self.assertEqual(
                 [path for _, path in images],
-                [f"docs/images/{n}{suffix}.png" for n in ("anmeldung", "onboarding", "loeschen")],
+                [f"docs/images/{n}{suffix}.png" for n in ("anmeldung", "start", "onboarding", "loeschen")],
                 name,
             )
             for alt, path in images:
