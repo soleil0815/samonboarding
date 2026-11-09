@@ -31,10 +31,10 @@ def step_index(flow, name):
 
 class WorkflowSecurityTests(unittest.TestCase):
     def test_only_the_two_workflows(self):
-        self.assertEqual(sorted(p.name for p in FLOWS.glob("*.y*ml")), ["build.yml", "checks.yml", "image.yml"])
+        self.assertEqual(sorted(p.name for p in FLOWS.glob("*.y*ml")), ["build.yml", "checks.yml", "image.yml", "zap-scan.yml"])
 
     def test_actions_pinned_to_commit_hashes_and_no_trivy_action(self):
-        for name in ("image.yml", "build.yml", "checks.yml"):
+        for name in ("image.yml", "build.yml", "checks.yml", "zap-scan.yml"):
             flow = text(name)
             for line in flow.splitlines():
                 if "uses: ./.github/workflows/build.yml" in line:
