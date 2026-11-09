@@ -14,6 +14,14 @@ def text(name):
     return (FLOWS / name).read_text(encoding="utf-8")
 
 
+def job(flow, name):
+    """Text of one job of a workflow (from "  <name>:" to the next job)."""
+    body = flow[flow.index("\njobs:\n") :]
+    start = body.index(f"\n  {name}:\n")
+    nxt = re.search(r"\n  [a-z][\w-]*:\n", body[start + 1 :])
+    return body[start : start + 1 + nxt.start()] if nxt else body[start:]
+
+
 def step_index(flow, name):
     index = flow.find(f"- name: {name}")
     if index < 0:
@@ -76,7 +84,7 @@ class WorkflowSecurityTests(unittest.TestCase):
         )
         # publishes only if the caller allows it (release job on main): a merge alone publishes nothing
         self.assertTrue("PUBLISH: ${{ inputs.publish && 'true' || 'false' }}" in flow, "PUBLISH")
-        for step in ("Commit the new pins", "Publish the image"):
+        for step in ("Commit the new pins", "Publish the image", "Push the checked image"):
             block = flow[step_index(flow, step) :][:400]
             self.assertIn("if: env.PUBLISH == 'true'", block, step)
         self.assertTrue(
@@ -85,14 +93,16 @@ class WorkflowSecurityTests(unittest.TestCase):
             "Releases nie gleichzeitig",
         )
         self.assertIn("cancel-in-progress: false", image)
-        self.assertEqual(flow.count("--push"), 1)
-        self.assertEqual(flow.count("docker login"), 1)
+        self.assertNotIn("--push", flow)  # pushed only by digest (untagged), tagged when both platforms passed
+        self.assertEqual(flow.count("push-by-digest=true"), 1)
+        self.assertEqual(flow.count("docker login"), 2)  # push of each checked image, tagging in the publish job
 
     def test_trivy_fixed_version_with_sha256(self):
         script = (ROOT / "scripts" / "install-trivy.sh").read_text(encoding="utf-8")
         version = re.search(r'^TRIVY_VERSION="(\d+\.\d+\.\d+)"$', script, re.M).group(1)
         self.assertNotEqual(version, "0.69.4")  # the malicious version from March 2026
-        self.assertRegex(script, r'(?m)^TRIVY_SHA256="[0-9a-f]{64}"')
+        self.assertRegex(script, r'(?m)^TRIVY_SHA256_AMD64="[0-9a-f]{64}"')
+        self.assertRegex(script, r'(?m)^TRIVY_SHA256_ARM64="[0-9a-f]{64}"')  # arm64 is scanned on an ARM runner
         self.assertIn('if [ "$actual" != "$TRIVY_SHA256" ]', script)
         self.assertIn('if [ "$official" != "$TRIVY_SHA256" ]', script)  # and listed like this in the official list
         self.assertIn("--proto '=https'", script)
@@ -138,62 +148,79 @@ class ScheduleTests(unittest.TestCase):
                        'docker save "$IMAGE:$TAG" | gzip -6 > "$assets/samonboarding-$TAG-$arch.tar.gz"',
                        '--latest="$latest" "$assets"/*'):  # fmt: skip
             self.assertTrue(needed in release, needed)
+        # the image files are exactly the published images (pulled back by digest)
+        self.assertIn('docker pull -q --platform "linux/$arch" "$IMAGE@$(cat "$RUNNER_TEMP/digest/$arch")"', release)
         publish = flow[step_index(flow, "Publish the image") : step_index(flow, "GitHub release (only main)")]
         self.assertTrue('if [ "$MINOR_LATEST" = true ]; then tags="$tags --tag $IMAGE:$MINOR"; fi' in publish, "X.Y")
         smoke = flow[step_index(flow, "Start check of the server") : step_index(flow, "Vulnerability scan (Trivy")]
-        for arch in ("amd64", "arm64"):  # also started as with docker-compose.yml (as root, then 10001)
-            self.assertTrue(f"smoke samonboarding:test-{arch} --as-root" in smoke, arch)
+        # each platform on its own runner, also started as with docker-compose.yml (as root, then 10001)
+        self.assertTrue('smoke "samonboarding:test-$ARCH" --as-root' in smoke, "as root")
 
 
 class OrderTests(unittest.TestCase):
     def test_order_of_steps(self):
         flow = text("build.yml")
-        order = [
-            "Install Trivy",
-            "Check code",
-            "Renew pins within the base",
-            "Build without cache",
-            "Debian packages",
-            "Changes and version limits",
-            "Plan",
-            "Changelog entry",
-            "Build the final image",
-            "Tests in the image",
-            "Start check of the server",
-            "Vulnerability scan (Trivy",
-            "Dry run",
-            "Commit the new pins",
-            "Publish the image",
-            "GitHub release (only main)",
-        ]
-        positions = [step_index(flow, name) for name in order]
-        self.assertEqual(positions, sorted(positions))
+        jobs = ["prepare", "probe", "plan", "image", "publish"]
+        self.assertEqual([flow.index(f"\n  {j}:\n") for j in jobs], sorted(flow.index(f"\n  {j}:\n") for j in jobs))
+        per_job = {
+            "prepare": ["Check code", "Renew pins within the base", "Hand over the pins"],
+            "probe": ["Build without cache", "Debian packages (pin"],
+            "plan": ["Debian packages of both platforms", "Changes and version limits", "Plan", "Changelog entry",
+                     "Hand over the release files"],
+            "image": ["Install Trivy", "Build the final image", "Debian packages (compare", "Tests in the image",
+                      "Start check of the server", "Vulnerability scan (Trivy", "Push the checked image"],
+            "publish": ["Dry run", "Commit the new pins", "Publish the image", "GitHub release (only main)"],
+        }  # fmt: skip
+        for name, order in per_job.items():
+            block = job(flow, name)
+            positions = [step_index(block, step) for step in order]
+            self.assertEqual(positions, sorted(positions), name)
+
+    def test_native_runners_no_emulation(self):
+        """Each platform on its own hardware at the same time - arm64 under QEMU made a run take 12-16 minutes."""
+        flow = text("build.yml")
+        self.assertNotIn("qemu", flow.lower().replace("under qemu", ""))
+        for name in ("probe", "image"):
+            block = job(flow, name)
+            self.assertIn("runs-on: ${{ matrix.runner }}", block)
+            self.assertIn("- { arch: amd64, runner: ubuntu-24.04 }", block)
+            self.assertIn("- { arch: arm64, runner: ubuntu-24.04-arm }", block)
+        self.assertIn("if: inputs.mode == 'security-update'", job(flow, "probe"))
+        # tags only from the two checked digests, and both platforms must be in the result
+        publish = job(flow, "publish")
+        self.assertIn("needs: [plan, image]", publish)
+        self.assertIn("No checked $arch image from this run", publish)
+        self.assertIn("docker buildx imagetools create $tags $refs", publish)
+        self.assertIn("instead of amd64 and arm64", publish)
 
     def test_built_without_cache_and_same_layers_published(self):
         flow = text("build.yml")
-        probe = flow[step_index(flow, "Build without cache") : step_index(flow, "Debian packages")]
+        probe = job(flow, "probe")
         self.assertIn("--no-cache --pull", probe)
-        for name in ("Build $arch", "Final build $arch", "Publish"):  # failure cause readable in the run
-            self.assertIn(f'python3 scripts/pins.py run "{name}" -- docker buildx build', flow)
-        self.assertIn("--cache-to", probe)
+        image = job(flow, "image")
+        final = image[step_index(image, "Build the final image") : step_index(image, "Debian packages (compare")]
+        self.assertIn("--no-cache --pull", final)
+        for name in ("Build $ARCH", "Final build $ARCH", "Push $ARCH", "Publish"):  # failure cause readable in the run
+            self.assertIn(f'python3 scripts/pins.py run "{name}" --', flow)
         self.assertNotIn("type=gha", flow)  # no cache from earlier runs
-        final = flow[step_index(flow, "Build the final image") : step_index(flow, "Tests in the image")]
-        publish = flow[step_index(flow, "Publish the image") :]
-        for block in (final, publish):
-            self.assertIn("--cache-from", block)
+        push = image[step_index(image, "Push the checked image") :]
+        self.assertNotIn("--no-cache", push)  # same builder: the layers of the checked image
+        for block in (final, push):
             self.assertIn('--label "org.opencontainers.image.version=$TAG"', block)
+        self.assertIn("push-by-digest=true", push)
 
     def test_conditions(self):
         flow = text("build.yml")
         self.assertIn("if: env.MODE == 'security-update'\n        run: python3 scripts/pins.py update", flow)
-        for step in ("Tests in the image", "Start check of the server", "Vulnerability scan (Trivy"):
-            block = flow[step_index(flow, step) :][:200]
-            self.assertIn("if: steps.plan.outputs.action != 'nothing'", block, step)  # nothing changed: do nothing
+        # nothing changed: no image job
+        self.assertIn("needs.plan.outputs.action != 'nothing'", job(flow, "image")[:400])
         publish = flow[step_index(flow, "Publish the image") :][:300]
-        self.assertIn("steps.plan.outputs.action == 'publish'", publish)
+        self.assertIn("needs.plan.outputs.action == 'publish'", publish)
+        push = flow[step_index(flow, "Push the checked image") :][:300]
+        self.assertIn("needs.plan.outputs.action == 'publish'", push)
         self.assertIn('if [ "$LATEST" = true ]; then tags="$tags --tag $IMAGE:latest"; fi', flow)
         commit = flow[step_index(flow, "Commit the new pins") :][:300]
-        self.assertIn("steps.plan.outputs.commit == 'true'", commit)
+        self.assertIn("needs.plan.outputs.commit == 'true'", commit)
 
     def test_github_release(self):
         """One release page v<version> per published version with the changelog entry - never changed."""
@@ -208,8 +235,10 @@ class OrderTests(unittest.TestCase):
 
     def test_logout_after_publishing(self):
         flow = text("build.yml")
-        self.assertLess(flow.index("docker login"), flow.index("--push"))
-        self.assertLess(flow.index("--push"), flow.index("docker logout ghcr.io"))
+        for name, action in (("Push the checked image", "push-by-digest=true"), ("Publish the image", "imagetools create")):
+            block = flow[step_index(flow, name) :]
+            self.assertLess(block.index("docker login"), block.index(action), name)
+            self.assertLess(block.index(action), block.index("docker logout ghcr.io"), name)
         self.assertLess(step_index(flow, "Vulnerability scan (Trivy"), flow.index("docker login"))
 
 
