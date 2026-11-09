@@ -7,6 +7,12 @@ Update on the server: `sudo sh update.sh` or `docker compose pull && docker comp
 
 Entries starting with "Security:" or "Fixed:" are marked accordingly in the interface.
 
+## 2.2.5 – 2026-11-09
+- Security scan (OWASP ZAP) findings, quick part:
+  - The page itself is now delivered with `Cache-Control: no-cache`: the browser asks on every load whether it is still current, so a new version shows up right after an update (no Ctrl+F5 needed any more).
+  - The example address in the certificate form is now from the range reserved for documentation (`192.0.2.20`) instead of a private address – the scanner reported it as "Private IP Disclosure".
+- Still open from the scan: the content security policy allows inline scripts and styles (`unsafe-inline`). Removing it for scripts follows in 2.3.0.
+
 ## 2.2.4 – 2026-11-08
 - Home page: you can see that something is happening. While the domain controller is being asked, the cards show the seconds passing ("Reading from the DC … 3 s", later "refreshing … 3 s"); when the result arrives, the numbers count up to their value (from the previous value after a refresh). With "reduce motion" switched on in the system, the numbers appear at once.
 - The progress bar at the top is more visible.

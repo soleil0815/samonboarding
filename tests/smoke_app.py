@@ -84,6 +84,7 @@ def main():
         expect(status == 200 and b"<html" in body.lower(), f"Startseite: Status {status}")
         status, headers, _ = await call(app, "/")
         expect("server-timing" not in headers, "Server-Timing nur bei /api/")
+        expect(headers.get("cache-control") == "no-cache", "Hauptseite ohne Cache-Control no-cache")
 
     asyncio.run(run())
     if problems:

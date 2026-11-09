@@ -94,7 +94,7 @@ LOGIN_MAX_ATTEMPTS = max(1, _env_int("LOGIN_MAX_ATTEMPTS", 5))
 
 LOGIN_LOCK_SECONDS = max(1, _env_int("LOGIN_LOCK_MINUTES", 5)) * 60
 
-VERSION = "2.2.4"
+VERSION = "2.2.5"
 
 default_config = {
     "domain": os.environ.get("AD_DOMAIN", "").strip() or "firma.local",

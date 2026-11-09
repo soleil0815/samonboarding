@@ -7,6 +7,12 @@ Update auf dem Server: `sudo sh update.sh` oder `docker compose pull && docker c
 
 Einträge, die mit „Sicherheit:“ oder „Behoben:“ beginnen, werden in der Oberfläche entsprechend markiert.
 
+## 2.2.5 – 2026-11-09
+- Funde aus dem Sicherheitsscan (OWASP ZAP), schneller Teil:
+  - Die Seite selbst wird jetzt mit `Cache-Control: no-cache` ausgeliefert: Der Browser fragt bei jedem Laden nach, ob sie noch aktuell ist – nach einem Update erscheint die neue Version sofort (kein Strg+F5 mehr nötig).
+  - Die Beispieladresse im Zertifikatsformular stammt jetzt aus dem für Dokumentation reservierten Bereich (`192.0.2.20`) statt aus einem privaten Netz – der Scanner hatte sie als „Private IP Disclosure“ gemeldet.
+- Noch offen aus dem Scan: Die Sicherheitsrichtlinie (CSP) erlaubt Inline-Skripte und -Styles (`unsafe-inline`). Für Skripte entfällt das mit 2.3.0.
+
 ## 2.2.4 – 2026-11-08
 - Startseite: Man sieht, dass etwas passiert. Solange der Domänencontroller gefragt wird, laufen auf den Karten die Sekunden mit („Wird vom DC gelesen … 3 s“, später „aktualisiert … 3 s“); ist das Ergebnis da, zählen die Zahlen bis zu ihrem Wert hoch (nach dem Auffrischen vom bisherigen Wert aus). Ist im System „Bewegung reduzieren“ eingeschaltet, stehen die Zahlen sofort da.
 - Der Ladebalken oben ist deutlicher.
