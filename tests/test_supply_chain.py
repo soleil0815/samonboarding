@@ -235,7 +235,8 @@ class OrderTests(unittest.TestCase):
 
     def test_logout_after_publishing(self):
         flow = text("build.yml")
-        for name, action in (("Push the checked image", "push-by-digest=true"), ("Publish the image", "imagetools create")):
+        steps = (("Push the checked image", "push-by-digest=true"), ("Publish the image", "imagetools create"))
+        for name, action in steps:
             block = flow[step_index(flow, name) :]
             self.assertLess(block.index("docker login"), block.index(action), name)
             self.assertLess(block.index(action), block.index("docker logout ghcr.io"), name)
