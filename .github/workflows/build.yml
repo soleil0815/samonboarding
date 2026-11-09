@@ -3,6 +3,16 @@
 #   check   (pull request, push to main): read-only token, mode "check", never publishes
 #   release (by hand or Mondays, on main): write token, mode "release" or "security-update"
 # No permissions here on purpose: a called workflow gets exactly the rights of the calling job (never more).
+#
+# Each platform is built, tested and scanned on its own hardware (amd64: ubuntu-24.04, arm64: ubuntu-24.04-arm), both
+# at the same time - no emulation (arm64 under QEMU made a run take 12-16 minutes). Order:
+#   prepare  code checks; security update: renew the pins (once, handed to every later job)
+#   probe    security update only: each platform builds without cache and pins its Debian packages
+#   plan     security update: os-packages.lock from both parts, changes, changelog entry; then version number,
+#            publish or not, latest
+#   image    each platform: final build without cache (with version label), Debian packages compared with
+#            os-packages.lock, tests in the image, start check, Trivy; publishing: push exactly this image untagged
+#   publish  dry run, or: commit the new pins, tag BOTH checked images together, release page
 name: Build
 
 on:
@@ -17,22 +27,21 @@ on:
         type: boolean
         required: true
 
+env:
+  IMAGE: ghcr.io/${{ github.repository }}
+  MODE: ${{ inputs.mode }}
+  # publish only when the caller allows it: release job on main (a merge, push or pull request publishes nothing)
+  PUBLISH: ${{ inputs.publish && 'true' || 'false' }}
+
 jobs:
-  image:
+  prepare:
+    name: Code checks and pins
     runs-on: ubuntu-24.04
-    timeout-minutes: 150
-    env:
-      IMAGE: ghcr.io/${{ github.repository }}
-      MODE: ${{ inputs.mode }}
-      # publish only when the caller allows it: release job on main (a merge, push or pull request publishes nothing)
-      PUBLISH: ${{ inputs.publish && 'true' || 'false' }}
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           persist-credentials: false # no stored git credentials; the one commit below passes the token explicitly
-
-      - name: Install Trivy (fixed version, SHA-256 checked, no GitHub Action)
-        run: sh scripts/install-trivy.sh
 
       - name: Check code (ruff, pyright), .trivyignore and interface tests
         run: |
@@ -53,23 +62,90 @@ jobs:
         if: env.MODE == 'security-update'
         run: python3 scripts/pins.py update
 
-      - uses: docker/setup-qemu-action@c7c53464625b32c7a7e944ae62b3e17d2b600130 # v3 - for arm64 (e.g. some Synology models)
+      # exactly these pins for every later job (renewed only once - two runners could otherwise resolve differently)
+      - name: Hand over the pins
+        run: |
+          mkdir -p "$RUNNER_TEMP/pins"
+          cp images.lock os-packages.lock requirements.txt package.json package-lock.json "$RUNNER_TEMP/pins/"
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: pins
+          path: ${{ runner.temp }}/pins/
+          retention-days: 3
+
+  probe:
+    name: Debian packages (${{ matrix.arch }})
+    needs: prepare
+    if: inputs.mode == 'security-update'
+    strategy:
+      fail-fast: true
+      matrix:
+        include:
+          - { arch: amd64, runner: ubuntu-24.04 }
+          - { arch: arm64, runner: ubuntu-24.04-arm } # e.g. some Synology models
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 60
+    env:
+      ARCH: ${{ matrix.arch }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: pins
+          path: .
       - uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3
 
-      - name: Build without cache (amd64 and arm64)
+      - name: Build without cache
         run: |
           args="$(python3 scripts/pins.py build-args)"
-          for arch in amd64 arm64; do
-            python3 scripts/pins.py run "Build $arch" -- docker buildx build --no-cache --pull --platform "linux/$arch" $args \
-              --cache-to "type=local,dest=/tmp/cache-$arch,mode=max" --load -t "samonboarding:probe-$arch" .
-          done
+          python3 scripts/pins.py run "Build $ARCH" -- docker buildx build --no-cache --pull --platform "linux/$ARCH" $args \
+            --load -t "samonboarding:probe-$ARCH" .
 
-      - name: Debian packages (pin on a security update, otherwise compare with os-packages.lock)
+      - name: Debian packages (pin on a security update)
         run: |
-          for arch in amd64 arm64; do
-            if [ "$MODE" = security-update ]; then python3 scripts/pins.py os-lock "samonboarding:probe-$arch" --arch "$arch"; fi
-            python3 scripts/pins.py os-lock "samonboarding:probe-$arch" --arch "$arch" --check
-          done
+          python3 scripts/pins.py os-lock "samonboarding:probe-$ARCH" --arch "$ARCH"
+          mkdir -p "$RUNNER_TEMP/os"
+          grep "^$ARCH " os-packages.lock > "$RUNNER_TEMP/os/os-$ARCH.txt"
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: os-lock-${{ matrix.arch }}
+          path: ${{ runner.temp }}/os/os-${{ matrix.arch }}.txt
+          retention-days: 3
+
+  plan:
+    name: Plan
+    needs: [prepare, probe]
+    # probe only runs for a security update
+    if: ${{ !cancelled() && needs.prepare.result == 'success' && (needs.probe.result == 'success' || needs.probe.result == 'skipped') }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    outputs:
+      action: ${{ steps.plan.outputs.action }}
+      tag: ${{ steps.plan.outputs.tag }}
+      latest: ${{ steps.plan.outputs.latest }}
+      commit: ${{ steps.plan.outputs.commit }}
+      minor: ${{ steps.plan.outputs.minor }}
+      minor_latest: ${{ steps.plan.outputs.minor_latest }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: pins
+          path: .
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        if: env.MODE == 'security-update'
+        with:
+          pattern: os-lock-*
+          path: ${{ runner.temp }}/os
+          merge-multiple: true
+
+      - name: Debian packages of both platforms (security update)
+        if: env.MODE == 'security-update'
+        run: python3 scripts/pins.py os-lock-merge "$RUNNER_TEMP/os/os-amd64.txt" "$RUNNER_TEMP/os/os-arm64.txt"
 
       - name: Changes and version limits
         id: changes
@@ -89,55 +165,131 @@ jobs:
         if: steps.plan.outputs.commit == 'true'
         run: python3 scripts/pins.py changelog "${{ steps.plan.outputs.tag }}" "$RUNNER_TEMP/changes.json"
 
-      - name: Build the final image (same layers, with version label)
-        if: steps.plan.outputs.action != 'nothing'
-        env:
-          TAG: ${{ steps.plan.outputs.tag }}
+      # the state that is built, tested and (on main) committed: pins, Debian packages, changelog
+      - name: Hand over the release files
+        run: |
+          mkdir -p "$RUNNER_TEMP/release"
+          cp images.lock os-packages.lock requirements.txt package.json package-lock.json CHANGELOG.de.md CHANGELOG.md \
+            "$RUNNER_TEMP/release/"
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: release-files
+          path: ${{ runner.temp }}/release/
+          retention-days: 3
+
+  image:
+    name: Build, test and scan (${{ matrix.arch }})
+    needs: plan
+    # explicit: probe is skipped outside security updates, and a skipped job further up would skip this one too
+    if: ${{ !cancelled() && needs.plan.result == 'success' && needs.plan.outputs.action != 'nothing' }}
+    strategy:
+      fail-fast: true
+      matrix:
+        include:
+          - { arch: amd64, runner: ubuntu-24.04 }
+          - { arch: arm64, runner: ubuntu-24.04-arm } # e.g. some Synology models
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 60
+    env:
+      ARCH: ${{ matrix.arch }}
+      TAG: ${{ needs.plan.outputs.tag }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: release-files
+          path: .
+
+      - name: Install Trivy (fixed version, SHA-256 checked, no GitHub Action)
+        run: sh scripts/install-trivy.sh
+
+      - uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3
+
+      - name: Build the final image without cache (with version label)
         run: |
           args="$(python3 scripts/pins.py build-args)"
-          for arch in amd64 arm64; do
-            python3 scripts/pins.py run "Final build $arch" -- docker buildx build --platform "linux/$arch" $args \
-              --cache-from "type=local,src=/tmp/cache-$arch" \
-              --label org.opencontainers.image.title=SAMONBOARDING \
-              --label "org.opencontainers.image.version=$TAG" \
-              --label "org.opencontainers.image.source=https://github.com/${{ github.repository }}" \
-              --label "org.opencontainers.image.revision=${{ github.sha }}" \
-              --label org.opencontainers.image.licenses=AGPL-3.0-or-later \
-              --load -t "samonboarding:test-$arch" .
-          done
+          python3 scripts/pins.py run "Final build $ARCH" -- docker buildx build --no-cache --pull --platform "linux/$ARCH" $args \
+            --label org.opencontainers.image.title=SAMONBOARDING \
+            --label "org.opencontainers.image.version=$TAG" \
+            --label "org.opencontainers.image.source=https://github.com/${{ github.repository }}" \
+            --label "org.opencontainers.image.revision=${{ github.sha }}" \
+            --label org.opencontainers.image.licenses=AGPL-3.0-or-later \
+            --load -t "samonboarding:test-$ARCH" .
 
-      - name: Tests in the image (amd64 and arm64)
-        if: steps.plan.outputs.action != 'nothing'
-        run: |
-          python3 scripts/pins.py test-image samonboarding:test-amd64
-          python3 scripts/pins.py test-image samonboarding:test-arm64
+      - name: Debian packages (compare with os-packages.lock)
+        run: python3 scripts/pins.py os-lock "samonboarding:test-$ARCH" --arch "$ARCH" --check
+
+      - name: Tests in the image
+        run: python3 scripts/pins.py test-image "samonboarding:test-$ARCH"
 
       - name: Start check of the server (HTTPS)
-        if: steps.plan.outputs.action != 'nothing'
         run: |
-          python3 scripts/pins.py smoke samonboarding:test-amd64
-          python3 scripts/pins.py smoke samonboarding:test-arm64
-          python3 scripts/pins.py smoke samonboarding:test-amd64 --as-root
-          python3 scripts/pins.py smoke samonboarding:test-arm64 --as-root
+          python3 scripts/pins.py smoke "samonboarding:test-$ARCH"
+          python3 scripts/pins.py smoke "samonboarding:test-$ARCH" --as-root
 
       - name: Vulnerability scan (Trivy, only HIGH/CRITICAL with an available fix stop)
-        if: steps.plan.outputs.action != 'nothing'
+        run: python3 scripts/pins.py scan "samonboarding:test-$ARCH" --label "$TAG $ARCH"
+
+      # Same builder: every layer comes from the build above (exactly the checked image). Pushed WITHOUT a tag - the
+      # tags are set in the publish job only when both platforms passed.
+      - name: Push the checked image (untagged, only main)
+        if: env.PUBLISH == 'true' && needs.plan.outputs.action == 'publish'
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
-          python3 scripts/pins.py scan samonboarding:test-amd64 --label "${{ steps.plan.outputs.tag }} amd64"
-          python3 scripts/pins.py scan samonboarding:test-arm64 --label "${{ steps.plan.outputs.tag }} arm64"
+          args="$(python3 scripts/pins.py build-args)"
+          printf '%s' "$GH_TOKEN" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
+          python3 scripts/pins.py run "Push $ARCH" -- docker buildx build --platform "linux/$ARCH" $args \
+            --label org.opencontainers.image.title=SAMONBOARDING \
+            --label "org.opencontainers.image.version=$TAG" \
+            --label "org.opencontainers.image.source=https://github.com/${{ github.repository }}" \
+            --label "org.opencontainers.image.revision=${{ github.sha }}" \
+            --label org.opencontainers.image.licenses=AGPL-3.0-or-later \
+            --metadata-file "$RUNNER_TEMP/push.json" \
+            --output "type=image,name=$IMAGE,push-by-digest=true,name-canonical=true,push=true" .
+          docker logout ghcr.io
+          mkdir -p "$RUNNER_TEMP/digest"
+          python3 -c 'import json, re, sys; d = json.load(open(sys.argv[1]))["containerimage.digest"]; assert re.fullmatch(r"sha256:[0-9a-f]{64}", d), d; print(d)' \
+            "$RUNNER_TEMP/push.json" > "$RUNNER_TEMP/digest/$ARCH"
+          echo "Pushed (untagged): $IMAGE@$(cat "$RUNNER_TEMP/digest/$ARCH")"
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: env.PUBLISH == 'true' && needs.plan.outputs.action == 'publish'
+        with:
+          name: digest-${{ matrix.arch }}
+          path: ${{ runner.temp }}/digest/${{ matrix.arch }}
+          retention-days: 3
+
+  publish:
+    name: Commit, publish, release
+    needs: [plan, image]
+    # also when nothing changed (image skipped): a missing release page of a published version is created then
+    if: ${{ !cancelled() && needs.plan.result == 'success' && (needs.image.result == 'success' || (needs.image.result == 'skipped' && needs.plan.outputs.action == 'nothing')) }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    env:
+      TAG: ${{ needs.plan.outputs.tag }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false # no stored git credentials; the one commit below passes the token explicitly
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: release-files
+          path: .
 
       - name: Dry run - nothing is committed or published
-        if: env.PUBLISH != 'true' && steps.plan.outputs.action != 'nothing'
+        if: env.PUBLISH != 'true' && needs.plan.outputs.action != 'nothing'
         run: |
           echo "::notice title=Dry run::${{ github.event_name }} on ${{ github.ref_name }}: checked only, nothing is committed or published"
-          python3 scripts/pins.py release-notes "${{ steps.plan.outputs.tag }}" --image "$IMAGE" >> "$GITHUB_STEP_SUMMARY"
+          python3 scripts/pins.py release-notes "$TAG" --image "$IMAGE" >> "$GITHUB_STEP_SUMMARY"
           if [ "$MODE" = security-update ]; then python3 scripts/pins.py bundle; fi
 
       - name: Commit the new pins and the changelog entry
-        if: env.PUBLISH == 'true' && steps.plan.outputs.commit == 'true'
+        if: env.PUBLISH == 'true' && needs.plan.outputs.commit == 'true'
         env:
           GH_TOKEN: ${{ github.token }}
-          TAG: ${{ steps.plan.outputs.tag }}
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
@@ -146,44 +298,55 @@ jobs:
           auth="$(printf 'x-access-token:%s' "$GH_TOKEN" | base64 -w0)"
           git -c "http.extraheader=AUTHORIZATION: basic $auth" push origin HEAD:main
 
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        if: env.PUBLISH == 'true' && needs.plan.outputs.action == 'publish'
+        with:
+          pattern: digest-*
+          path: ${{ runner.temp }}/digest
+          merge-multiple: true
+
       - name: Publish the image (only main, never overwrites a version)
-        if: env.PUBLISH == 'true' && steps.plan.outputs.action == 'publish'
+        if: env.PUBLISH == 'true' && needs.plan.outputs.action == 'publish'
         env:
           GH_TOKEN: ${{ github.token }}
-          TAG: ${{ steps.plan.outputs.tag }}
-          LATEST: ${{ steps.plan.outputs.latest }}
-          MINOR: ${{ steps.plan.outputs.minor }}
-          MINOR_LATEST: ${{ steps.plan.outputs.minor_latest }}
+          GITHUB_TOKEN: ${{ github.token }} # read the published tags
+          LATEST: ${{ needs.plan.outputs.latest }}
+          MINOR: ${{ needs.plan.outputs.minor }}
+          MINOR_LATEST: ${{ needs.plan.outputs.minor_latest }}
         run: |
-          args="$(python3 scripts/pins.py build-args)"
+          if python3 scripts/pins.py registry-tags "$IMAGE" | grep -qx "$TAG"; then
+            echo "::error title=Already published::$IMAGE:$TAG appeared meanwhile - published versions are never overwritten"; exit 1
+          fi
+          refs=""
+          for arch in amd64 arm64; do
+            digest="$(cat "$RUNNER_TEMP/digest/$arch" 2>/dev/null)" || { echo "::error title=Platform missing::No checked $arch image from this run"; exit 1; }
+            case "$digest" in sha256:*) refs="$refs $IMAGE@$digest" ;; *) echo "::error title=Platform missing::Invalid $arch digest"; exit 1 ;; esac
+          done
           tags="--tag $IMAGE:$TAG"
           if [ "$MINOR_LATEST" = true ]; then tags="$tags --tag $IMAGE:$MINOR"; fi
           if [ "$LATEST" = true ]; then tags="$tags --tag $IMAGE:latest"; fi
           printf '%s' "$GH_TOKEN" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
-          python3 scripts/pins.py run "Publish" -- docker buildx build --platform linux/amd64,linux/arm64 $args \
-            --cache-from type=local,src=/tmp/cache-amd64 --cache-from type=local,src=/tmp/cache-arm64 \
-            --label org.opencontainers.image.title=SAMONBOARDING \
-            --label "org.opencontainers.image.version=$TAG" \
-            --label "org.opencontainers.image.source=https://github.com/${{ github.repository }}" \
-            --label "org.opencontainers.image.revision=${{ github.sha }}" \
-            --label org.opencontainers.image.licenses=AGPL-3.0-or-later \
-            $tags --push .
+          python3 scripts/pins.py run "Publish" -- docker buildx imagetools create $tags $refs
+          platforms="$(docker buildx imagetools inspect "$IMAGE:$TAG" --format '{{json .Manifest}}' \
+            | python3 -c 'import json, sys; print(" ".join(sorted({m["platform"]["architecture"] for m in json.load(sys.stdin)["manifests"] if m.get("platform", {}).get("os") == "linux"})))')"
           docker logout ghcr.io
+          [ "$platforms" = "amd64 arm64" ] || { echo "::error title=Publishing incomplete::$IMAGE:$TAG contains '$platforms' instead of amd64 and arm64"; exit 1; }
           echo "::notice title=Published::$IMAGE:$TAG$( [ "$MINOR_LATEST" = true ] && echo " :$MINOR")$( [ "$LATEST" = true ] && echo ' :latest')"
 
       # A release page per published version: tag v<version>, changelog entry as text, attached: docker-compose.yml,
-      # env.example and the image files for servers without internet (docker load). Created once, never changed;
-      # if it is missing (e.g. the step failed last time) it is created on the next run.
+      # env.example and the image files for servers without internet (docker load) - exactly the published images,
+      # pulled back from the registry. Created once, never changed; if it is missing (e.g. the step failed last
+      # time) it is created on the next run.
       - name: GitHub release (only main)
-        if: env.PUBLISH == 'true' && steps.plan.outputs.tag != ''
+        if: env.PUBLISH == 'true' && needs.plan.outputs.tag != ''
         env:
           GH_TOKEN: ${{ github.token }}
           GITHUB_TOKEN: ${{ github.token }} # read the published tags
-          TAG: ${{ steps.plan.outputs.tag }}
-          LATEST: ${{ steps.plan.outputs.latest }}
+          LATEST: ${{ needs.plan.outputs.latest }}
+          ACTION: ${{ needs.plan.outputs.action }}
           REPO: ${{ github.repository }}
         run: |
-          if [ "${{ steps.plan.outputs.action }}" != publish ] \
+          if [ "$ACTION" != publish ] \
             && ! python3 scripts/pins.py registry-tags "$IMAGE" | grep -qx "$TAG"; then
             echo "Image $TAG is not published - no release"; exit 0
           fi
@@ -195,10 +358,12 @@ jobs:
           mkdir -p "$assets"
           cp docker-compose.yml "$assets/docker-compose.yml"
           cp .env.example "$assets/env.example"
-          if [ "${{ steps.plan.outputs.action }}" = publish ]; then
+          if [ "$ACTION" = publish ]; then
             for arch in amd64 arm64; do
-              docker tag "samonboarding:test-$arch" "$IMAGE:$TAG"
+              docker pull -q --platform "linux/$arch" "$IMAGE@$(cat "$RUNNER_TEMP/digest/$arch")" > /dev/null
+              docker tag "$IMAGE@$(cat "$RUNNER_TEMP/digest/$arch")" "$IMAGE:$TAG"
               docker save "$IMAGE:$TAG" | gzip -6 > "$assets/samonboarding-$TAG-$arch.tar.gz"
+              docker rmi "$IMAGE:$TAG" > /dev/null
             done
           fi
           latest=false

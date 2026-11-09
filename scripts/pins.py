@@ -529,6 +529,25 @@ def cmd_os_lock(args):
     print(f"{OS_LOCK} written for {args.arch} ({len(have)} packages).")
 
 
+def cmd_os_lock_merge(args):
+    """Security update: each platform pins its Debian packages on its own runner (os-lock, then only its own lines
+    handed over); here the parts become os-packages.lock again - every architecture exactly once."""
+    archs = {}
+    for name in args.parts:
+        for arch, packages in parse_os_lock_archs(Path(name).read_text(encoding="utf-8")).items():
+            if arch not in ARCHS:
+                raise PinError(f"{name}: unknown architecture {arch!r}")
+            if arch in archs:
+                raise PinError(f"{name}: {arch} is in more than one part")
+            archs[arch] = packages
+    missing = [arch for arch in ARCHS if not archs.get(arch)]
+    if missing:
+        raise PinError(f"Debian packages missing for: {', '.join(missing)}")
+    snapshot = parse_keyvalue(read_text(IMAGES_LOCK)).get("DEBIAN_SNAPSHOT", "?")
+    (ROOT / OS_LOCK).write_text(os_lock_text(archs, snapshot), encoding="utf-8")
+    print(f"{OS_LOCK} written from {len(args.parts)} parts ({', '.join(sorted(archs))}).")
+
+
 # ---------------------------------------------------------------------------------------------------------------------
 # changes: what is different compared with a git revision, and are the limits kept?
 # ---------------------------------------------------------------------------------------------------------------------
@@ -1136,6 +1155,9 @@ def main(argv=None):
     p.add_argument("--arch", required=True, choices=ARCHS)
     p.add_argument("--check", action="store_true")
     p.set_defaults(fn=cmd_os_lock)
+    p = sub.add_parser("os-lock-merge")
+    p.add_argument("parts", nargs="+")
+    p.set_defaults(fn=cmd_os_lock_merge)
     p = sub.add_parser("changes")
     p.add_argument("--base", default="HEAD")
     p.add_argument("--out")

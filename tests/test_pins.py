@@ -112,6 +112,28 @@ class CompareTests(unittest.TestCase):
         written = pins.os_lock_text(pins.parse_os_lock_archs(text), "20261025T040000Z")
         self.assertEqual(pins.parse_os_lock_archs(written), pins.parse_os_lock_archs(text))
 
+    def test_os_lock_merged_from_both_platforms(self):
+        """Security update: each platform pins its packages on its own runner; the parts become one lock again."""
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            (root / pins.IMAGES_LOCK).write_text(lock(), encoding="utf-8")
+            amd, arm = root / "os-amd64.txt", root / "os-arm64.txt"
+            amd.write_text("amd64 bash=5.2\namd64 grep=3.11-4\n", encoding="utf-8")
+            arm.write_text("arm64 bash=5.2\narm64 grep=3.11-4+b1\n", encoding="utf-8")
+            old_root, pins.ROOT = pins.ROOT, root
+            old_read = pins.read_text
+            pins.read_text = lambda name, r=root: old_read(name, r)
+            try:
+                with redirect_stdout(io.StringIO()), redirect_stderr(io.StringIO()):
+                    self.assertEqual(pins.main(["os-lock-merge", str(amd), str(arm)]), 0)
+                    merged = pins.parse_os_lock_archs((root / pins.OS_LOCK).read_text(encoding="utf-8"))
+                    self.assertEqual(merged["arm64"]["grep"], "3.11-4+b1")
+                    self.assertEqual(set(merged), {"amd64", "arm64"})
+                    self.assertEqual(pins.main(["os-lock-merge", str(amd)]), 1)  # a platform missing
+                    self.assertEqual(pins.main(["os-lock-merge", str(amd), str(amd), str(arm)]), 1)  # twice
+            finally:
+                pins.ROOT, pins.read_text = old_root, old_read
+
     def test_only_new_snapshot_is_no_change(self):
         old = self.base()
         new = dict(old, **{"images.lock": lock(snapshot="20261102T040000Z")})
