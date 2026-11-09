@@ -7,6 +7,13 @@ Update on the server: `sudo sh update.sh` or `docker compose pull && docker comp
 
 Entries starting with "Security:" or "Fixed:" are marked accordingly in the interface.
 
+## 2.3.0 – 2026-11-09
+- Security: the content security policy no longer allows inline scripts (`script-src 'self'`, before `'self' 'unsafe-inline'`). Should someone ever manage to inject HTML into the page, the browser will not run any script from it. Findings "CSP: script-src unsafe-inline" from the OWASP ZAP scan.
+  - The interface logic is now its own file (`/app.js`, cached for a day, a new version changes its address).
+  - Buttons and fields no longer carry inline JavaScript (`onclick="…"`). They are marked with `data-on-click="…"`; one listener on the page reads these marks and calls the named functions. The text is never run as code: only calls of the interface's own functions with simple values are accepted.
+  - The print window for access data starts printing from the main window (it inherits the policy, an inline script there would be blocked).
+- Styles still allow `'unsafe-inline'` (style attributes in the interface). CSS cannot run code; this remaining finding is accepted.
+
 ## 2.2.5 – 2026-11-09
 - Security scan (OWASP ZAP) findings, quick part:
   - The page itself is now delivered with `Cache-Control: no-cache`: the browser asks on every load whether it is still current, so a new version shows up right after an update (no Ctrl+F5 needed any more).

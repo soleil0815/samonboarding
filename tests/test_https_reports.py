@@ -276,7 +276,7 @@ class SessionTests(unittest.TestCase):
         self.assertNotIn(token, sessions.active_sessions)
 
     def test_ui_logs_out(self):
-        html = (ROOT / "samonboarding" / "web" / "index.html").read_text(encoding="utf-8")
+        html = _paths.web_source()
         for needed in (
             "function startIdleWatch",
             "function sessionEnded",

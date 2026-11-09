@@ -41,7 +41,7 @@ class OffboardingListTests(unittest.TestCase):
             self.assertNotIn("lastLogon", (ROOT / "samonboarding" / module).read_text(encoding="utf-8"), module)
 
     def test_interface_column_and_translation(self):
-        html = (ROOT / "samonboarding" / "web" / "index.html").read_text(encoding="utf-8")
+        html = _paths.web_source()
         self.assertIn("<span>Letzte Anmeldung</span>", html)
         self.assertIn("lastLogonCell(u.lastLogon)", html)
         data = json.loads((ROOT / "samonboarding" / "web" / "i18n.json").read_text(encoding="utf-8"))

@@ -85,6 +85,11 @@ def main():
         status, headers, _ = await call(app, "/")
         expect("server-timing" not in headers, "Server-Timing nur bei /api/")
         expect(headers.get("cache-control") == "no-cache", "Hauptseite ohne Cache-Control no-cache")
+        expect("script-src 'self';" in headers.get("content-security-policy", ""), "CSP erlaubt Inline-Skripte")
+        status, headers, body = await call(app, "/app.js")
+        expect(status == 200 and b"function switchTab" in body, f"/app.js: Status {status}")
+        expect(headers.get("content-type", "").startswith("text/javascript"), "/app.js: falscher Content-Type")
+        expect(b"__APP_VERSION__" not in body, "/app.js: Version nicht eingesetzt")
 
     asyncio.run(run())
     if problems:

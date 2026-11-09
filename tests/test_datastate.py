@@ -147,7 +147,7 @@ class ComposeVersionTests(unittest.TestCase):
         block = auth[auth.index('@router.get("/api/host-notices")') :][:500]
         self.assertIn("Depends(get_current_user)", block)
         self.assertIn('user.get("role") != "Administrator"', block)
-        html = (ROOT / "samonboarding" / "web" / "index.html").read_text(encoding="utf-8")
+        html = _paths.web_source()
         self.assertIn('id="host-notice"', html)
         self.assertIn("fetch('/api/host-notices')", html)
 

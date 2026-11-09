@@ -13,7 +13,10 @@ console.assert(crashed === null, 'kein Absturz bei blockiertem Pop-up: ' + crash
 console.assert(alerts.length === 1 && alerts[0].includes('blockiert'), 'Hinweis an den Benutzer');
 // with a window: content is written
 let written = '';
-win.open = () => ({document: {write: h => { written += h; }, close() {}}});
+let printed = 0;
+win.open = () => ({document: {write: h => { written += h; }, close() {}}, focus() {}, print() { printed++; }});
 api.generatePDF();
 console.assert(written.includes('mmuster'), 'Druckfenster bekommt die Zugangsdaten');
+// the print window inherits the page's CSP: no inline script there, printing is started from the page
+console.assert(!/<script/i.test(written) && printed === 1, 'kein Inline-Skript im Druckfenster, Druck vom Hauptfenster');
 console.log('PDF-Tests fertig');
