@@ -219,6 +219,10 @@ async def _security_headers(request: Request, call_next):
         resp.headers["Cache-Control"] = "no-store"
     elif request.url.path.startswith("/static/"):
         resp.headers.setdefault("Cache-Control", "public, max-age=86400")
+    elif resp.headers.get("content-type", "").startswith("text/html"):
+        # The page itself: the browser may keep it, but must ask on every load whether it is still current
+        # (a short 304 when unchanged). Otherwise it may show the old interface for a while after an update.
+        resp.headers.setdefault("Cache-Control", "no-cache")
     return resp
 
 
