@@ -20,11 +20,11 @@ The application runs as a Docker container (FastAPI + ldap3). The web interface 
 
 > **Please read before use**
 >
-> - **Spare-time project, no warranty.** SAMONBOARDING was built for my own needs and is maintained in my spare time. There is no warranty and no liability (sections 15 and 16 of the [license](LICENSE)).
+> - **Built for my own use – use at your own responsibility.** I built SAMONBOARDING primarily for myself, because I wanted exactly this kind of program for my own environment, and I maintain it in my spare time. I run it in production myself, so I usually notice bugs quickly and fix them promptly. If you would like to use SAMONBOARDING too: you are welcome to – at your own responsibility. There is no warranty and no liability (sections 15 and 16 of the [license](LICENSE)).
 > - **The program has far-reaching rights.** It creates accounts, resets passwords and deletes accounts and folders. Try it in a **test environment** first and make a backup before using it in a real AD for the first time.
 > - **Tested with Samba AD.** Windows Server AD is supported but less proven (for example several DCs, Exchange, large structures). Feedback on this is welcome.
 > - **Fixed version for production.** `latest` is rebuilt, tested and scanned automatically once a month on patch day (the second Tuesday), but not against a real AD. If you want to check changes yourself first, set a fixed version, for example `SAMONBOARDING_VERSION=2.0` in `.env` (see [Fixing a version and going back](#fixing-a-version-and-going-back)).
-> - **No support.** Questions and bug reports are read but answered only as time allows. Please do not report **security vulnerabilities** publicly; see [SECURITY.md](SECURITY.md). Contributions: see [CONTRIBUTING.md](CONTRIBUTING.md).
+> - **Please report bugs and ideas, but no support.** Bug reports and suggestions for improvement are welcome – preferably as an [issue](https://github.com/soleil0815/samonboarding/issues). I read everything but answer only as time allows. Please do not report **security vulnerabilities** publicly; see [SECURITY.md](SECURITY.md). Contributions: see [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ---
 

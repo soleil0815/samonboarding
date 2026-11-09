@@ -20,11 +20,11 @@ Die Anwendung läuft als Docker-Container (FastAPI + ldap3), die Oberfläche ist
 
 > **Bitte vor dem Einsatz lesen**
 >
-> - **Freizeitprojekt, ohne Gewähr.** SAMONBOARDING ist für den eigenen Bedarf entstanden und wird in der Freizeit gepflegt. Es gibt keine Gewährleistung und keine Haftung (Abschnitte 15 und 16 der [Lizenz](LICENSE)).
+> - **Für den eigenen Einsatz gebaut – Nutzung in eigener Verantwortung.** Ich habe SAMONBOARDING in erster Linie für mich selbst entwickelt, weil ich genau so ein Programm in meiner eigenen Umgebung einsetzen wollte, und pflege es in meiner Freizeit. Ich nutze es selbst im Betrieb; Fehler fallen mir dadurch meist schnell auf und werden zügig behoben. Wenn du SAMONBOARDING ebenfalls einsetzen möchtest: gern – aber in eigener Verantwortung. Es gibt keine Gewährleistung und keine Haftung (Abschnitte 15 und 16 der [Lizenz](LICENSE)).
 > - **Das Programm hat weitreichende Rechte.** Es legt Konten an, setzt Passwörter zurück und löscht Konten und Ordner. Probiere es zuerst in einer **Testumgebung** aus und lege vor dem ersten Einsatz im echten AD eine Sicherung an.
 > - **Getestet mit Samba AD.** Windows Server AD wird unterstützt, ist aber weniger erprobt (zum Beispiel mehrere DCs, Exchange, große Strukturen). Rückmeldungen dazu sind willkommen.
 > - **Feste Version für den Betrieb.** `latest` wird einmal im Monat am Patchday (zweiter Dienstag) automatisch neu gebaut, getestet und geprüft, aber nicht gegen ein echtes AD. Wer Änderungen erst selbst prüfen möchte, trägt eine feste Version ein, zum Beispiel `SAMONBOARDING_VERSION=2.0` in der `.env` (siehe [Version festlegen und zurückgehen](#version-festlegen-und-zurückgehen)).
-> - **Kein Support.** Fragen und Fehlerberichte werden gelesen, beantwortet aber nur nach verfügbarer Zeit. **Sicherheitslücken** bitte nicht öffentlich melden, sondern wie in [SECURITY.md](SECURITY.md) beschrieben. Beiträge: siehe [CONTRIBUTING.md](CONTRIBUTING.md).
+> - **Fehler und Ideen bitte melden, aber kein Support.** Fehlerberichte und Verbesserungsvorschläge sind willkommen – am besten als [Issue](https://github.com/soleil0815/samonboarding/issues). Ich lese alles, antworte aber nur nach verfügbarer Zeit. **Sicherheitslücken** bitte nicht öffentlich melden, sondern wie in [SECURITY.md](SECURITY.md) beschrieben. Beiträge: siehe [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ---
 
