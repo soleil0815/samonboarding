@@ -23,7 +23,7 @@ Die Anwendung läuft als Docker-Container (FastAPI + ldap3), die Oberfläche ist
 > - **Freizeitprojekt, ohne Gewähr.** SAMONBOARDING ist für den eigenen Bedarf entstanden und wird in der Freizeit gepflegt. Es gibt keine Gewährleistung und keine Haftung (Abschnitte 15 und 16 der [Lizenz](LICENSE)).
 > - **Das Programm hat weitreichende Rechte.** Es legt Konten an, setzt Passwörter zurück und löscht Konten und Ordner. Probiere es zuerst in einer **Testumgebung** aus und lege vor dem ersten Einsatz im echten AD eine Sicherung an.
 > - **Getestet mit Samba AD.** Windows Server AD wird unterstützt, ist aber weniger erprobt (zum Beispiel mehrere DCs, Exchange, große Strukturen). Rückmeldungen dazu sind willkommen.
-> - **Feste Version für den Betrieb.** `latest` wird jede Woche automatisch neu gebaut, getestet und geprüft, aber nicht gegen ein echtes AD. Wer Änderungen erst selbst prüfen möchte, trägt eine feste Version ein, zum Beispiel `SAMONBOARDING_VERSION=2.0` in der `.env` (siehe [Version festlegen und zurückgehen](#version-festlegen-und-zurückgehen)).
+> - **Feste Version für den Betrieb.** `latest` wird einmal im Monat am Patchday (zweiter Dienstag) automatisch neu gebaut, getestet und geprüft, aber nicht gegen ein echtes AD. Wer Änderungen erst selbst prüfen möchte, trägt eine feste Version ein, zum Beispiel `SAMONBOARDING_VERSION=2.0` in der `.env` (siehe [Version festlegen und zurückgehen](#version-festlegen-und-zurückgehen)).
 > - **Kein Support.** Fragen und Fehlerberichte werden gelesen, beantwortet aber nur nach verfügbarer Zeit. **Sicherheitslücken** bitte nicht öffentlich melden, sondern wie in [SECURITY.md](SECURITY.md) beschrieben. Beiträge: siehe [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ---
@@ -667,7 +667,7 @@ Jeder Build verwendet exakt dieselben Versionen. Gleiche Dateien ergeben das gle
 | `package.json`, `package-lock.json` | npm-Pakete für CSS, Schriften und Icons, exakt und mit Prüfsummen aller Unterpakete (`npm ci`). Sie werden nur beim Bauen gebraucht und sind nicht im Image |
 | `requirements-dev.txt` | Test-Werkzeuge (pytest, ruff, pyright) mit exakten Versionen |
 
-Neu festgelegt werden die Versionen mit `python3 scripts/pins.py update` (braucht Docker und Internet). Auf GitHub geschieht das jede Woche automatisch (siehe *Automatische Sicherheitsupdates*). Auf einem Server wird nie etwas festgelegt oder gebaut. Dabei gelten immer dieselben Grenzen:
+Neu festgelegt werden die Versionen mit `python3 scripts/pins.py update` (braucht Docker und Internet). Auf GitHub geschieht das einmal im Monat am Patchday automatisch (siehe *Automatische Sicherheitsupdates*). Auf einem Server wird nie etwas festgelegt oder gebaut. Dabei gelten immer dieselben Grenzen:
 
 - gleiche Debian-Version (`trixie`), gleiche Python-Reihe (3.13) und Node-Reihe (24)
 - jedes Paket innerhalb seiner Hauptversion, vor 1.0 innerhalb der Unterversion (`0.54.x` bleibt `0.54`)
@@ -683,7 +683,7 @@ Auf GitHub laufen zwei Workflows (`image.yml` mit den Bauschritten in `build.yml
 |---|---|
 | Pull Request, Push auf `main` | Bau mit genau den festgelegten Versionen, Tests im Image (amd64 und arm64), HTTPS-Startprüfung (auch so gestartet wie mit der `docker-compose.yml`), Trivy. Veröffentlicht wird nichts |
 | Von Hand: *Actions → Image → Run workflow → release* (auf `main`) | Dieselben Prüfungen, danach Veröffentlichung als `:<Version>`, z. B. `:2.0.0`, dazu `:2.0` und `:latest`, wenn es jeweils die höchste ist. Eine schon veröffentlichte Version wird nie überschrieben. Release-Seite mit `docker-compose.yml`, `env.example` und den Image-Dateien für Server ohne Internet |
-| Montags 05:17 UTC (auch von Hand: *Actions → Image → Run workflow*) | Sicherheitsupdate: Versionen innerhalb der Grenzen erneuern, ohne Zwischenspeicher bauen, dieselben Tests und Trivy. Nur wenn alles bestanden ist: neue Versionen und ein Eintrag im Changelog (mit der Liste der geänderten Pakete) werden committet, das Image erscheint als `:<Version>-s<Zähler>`, z. B. `:2.0.0-s1`, `:2.0.0-s2` (und als `:2.0` und `:latest`, wenn es die höchste ist). Eine neue Programmversion beginnt wieder bei `-s1`. Hat sich nichts geändert, passiert nichts |
+| Patchday – zweiter Dienstag im Monat, wie Microsofts Patchday – 05:17 UTC (auch jederzeit von Hand: *Actions → Image → Run workflow*) | Sicherheitsupdate: Versionen innerhalb der Grenzen erneuern, ohne Zwischenspeicher bauen, dieselben Tests und Trivy. Nur wenn alles bestanden ist: neue Versionen und ein Eintrag im Changelog (mit der Liste der geänderten Pakete) werden committet, das Image erscheint als `:<Version>-s<Zähler>`, z. B. `:2.0.0-s1`, `:2.0.0-s2` (und als `:2.0` und `:latest`, wenn es die höchste ist). Eine neue Programmversion beginnt wieder bei `-s1`. Hat sich nichts geändert, passiert nichts |
 | Täglich 03:43 UTC | Trivy prüft das veröffentlichte Image `:latest`. So fallen Schwachstellen auf, die erst nach dem Release bekannt werden. Das Image wird ohne Anmeldung geladen, wie bei jedem Nutzer – wäre es einmal nicht mehr öffentlich, wird der Lauf rot |
 | Montags 06:29 UTC | Wie lange bekommen Debian, Python und Node noch Sicherheitsupdates (endoflife.date)? Ab 12 Monaten vor dem Ende ein Hinweis am Lauf, ab 6 Monaten ein roter Lauf |
 
@@ -855,7 +855,7 @@ requirements.in             direkte Python-Pakete; requirements.txt ist die exak
 package.json                npm-Pakete für den CSS-Build (exakt), package-lock.json mit allen Unterpaketen
 images.lock                 Basis-Images mit Version und Digest, Debian-Snapshot
 os-packages.lock            alle Debian-Pakete im Image (je Architektur)
-scripts/pins.py             legt die Versionen fest (auch das wöchentliche Sicherheitsupdate)
+scripts/pins.py             legt die Versionen fest (auch das monatliche Sicherheitsupdate)
 scripts/install-trivy.sh    Trivy mit fester Version und SHA-256-Prüfung
 docker-compose.yml          die einzige Datei für den Server (Kennung SAMONBOARDING_COMPOSE), liegt auch im Image
 docker-entrypoint.sh        Start im Container: data/ übergeben, dann dauerhaft als Benutzer 10001
