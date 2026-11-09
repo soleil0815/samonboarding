@@ -167,7 +167,7 @@ class SourceTests(unittest.TestCase):
         self.assertGreaterEqual(main.count("    dashboard,"), 2)
 
     def test_interface_uses_the_count_endpoint(self):
-        html = (ROOT / "samonboarding" / "web" / "index.html").read_text(encoding="utf-8")
+        html = _paths.web_source()
         self.assertIn("fetch('/api/dashboard')", html)
 
 

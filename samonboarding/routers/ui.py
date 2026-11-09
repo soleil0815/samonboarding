@@ -10,7 +10,7 @@ import json
 import logging
 
 from fastapi import APIRouter, FastAPI
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, Response
 from fastapi.staticfiles import StaticFiles
 
 from .. import i18n
@@ -49,22 +49,42 @@ def mount_static(app: FastAPI):
         app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
 
 
-_index_cache = {"mtime": None, "text": ""}
+_file_cache = {}
+
+
+def _load_web_file(name):
+    """Reads a file from samonboarding/web; re-read only when the file changes."""
+    path = WEB_DIR / name
+    mtime = path.stat().st_mtime_ns
+    cached = _file_cache.get(name)
+    if not cached or cached[0] != mtime:
+        cached = (mtime, path.read_text(encoding="utf-8"))
+        _file_cache[name] = cached
+    return cached[1]
 
 
 def load_index_html():
-    """Reads samonboarding/web/index.html; re-read only when the file changes."""
-    path = WEB_DIR / "index.html"
-    mtime = path.stat().st_mtime_ns
-    if _index_cache["mtime"] != mtime:
-        _index_cache["text"] = path.read_text(encoding="utf-8")
-        _index_cache["mtime"] = mtime
-    return _index_cache["text"]
+    return _load_web_file("index.html")
+
+
+def load_app_js():
+    return _load_web_file("app.js")
 
 
 def i18n_json():
     """Dictionary for the English UI (embedded, '</' escaped)."""
     return json.dumps(i18n.dictionary(), ensure_ascii=False).replace("</", "<\\/")
+
+
+@router.get("/app.js")
+def serve_app_js():
+    """The interface logic as its own file, so the CSP can forbid inline scripts. The page links it with
+    ?v=<version>: it may be kept for a day, an update changes the address."""
+    return Response(
+        load_app_js().replace("__APP_VERSION__", VERSION),
+        media_type="text/javascript; charset=utf-8",
+        headers={"Cache-Control": "public, max-age=86400"},
+    )
 
 
 @router.get("/", response_class=HTMLResponse)

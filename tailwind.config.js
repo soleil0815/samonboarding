@@ -2,7 +2,8 @@
 const theme = require('./samonboarding/web/theme.json');
 
 module.exports = {
-  content: ['./samonboarding/web/**/*.html'],
+  // HTML and the interface script (its templates contain classes too)
+  content: ['./samonboarding/web/**/*.html', './samonboarding/web/**/*.js'],
   darkMode: 'class',
   theme: {
     extend: {

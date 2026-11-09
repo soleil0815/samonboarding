@@ -1,4 +1,4 @@
-// Returns the main script (last <script> without src) from samonboarding/web/index.html
+// Returns the interface script samonboarding/web/app.js
 const fs = require('fs');
 const path = require('path');
 
@@ -10,6 +10,5 @@ console.assert = (condition, ...message) => {
   originalAssert(condition, ...message);
 };
 
-const html = fs.readFileSync(path.join(__dirname, '..', '..', 'samonboarding', 'web', 'index.html'), 'utf8');
-const scripts = [...html.matchAll(/<script>([\s\S]*?)<\/script>/g)].map(m => m[1]);
-module.exports = scripts[scripts.length - 1];
+// Since 2.3.0 the interface logic is its own file (served as /app.js), no longer inline in index.html
+module.exports = fs.readFileSync(path.join(__dirname, '..', '..', 'samonboarding', 'web', 'app.js'), 'utf8');

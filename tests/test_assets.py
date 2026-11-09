@@ -53,14 +53,14 @@ SUPPORT = "https://buymeacoffee.com/soleil0815"  # support link, administrators 
 
 class NoInternetTests(unittest.TestCase):
     def test_no_external_addresses_in_the_ui(self):
-        texts = [(WEB / "index.html").read_text(encoding="utf-8"), Path(ui.__file__).read_text(encoding="utf-8")]
+        texts = [_paths.web_source(), Path(ui.__file__).read_text(encoding="utf-8")]
         for text in texts:
             found = [u for u in re.findall(r"https?://[^\s\"'<>)]+", text) if "www.w3.org" not in u]
             self.assertEqual(set(found) - {HOMEPAGE, SOURCE, SUPPORT}, set())
 
     def test_homepage_only_as_link(self):
         """The author's website is only a link (opens only on click, in a new tab) - nothing is loaded."""
-        text = (WEB / "index.html").read_text(encoding="utf-8")
+        text = _paths.web_source()
         uses = re.findall(r"(\S+)=\"" + re.escape(HOMEPAGE) + r"\"([^>]*)>", text)
         self.assertTrue(uses)
         for attr, rest in uses:
@@ -107,7 +107,7 @@ class LogoTests(unittest.TestCase):
     """The logo (two people) is an inline drawing in the page: the same symbol everywhere, no image from the web."""
 
     def test_logo_same_everywhere_and_local(self):
-        html = (WEB / "index.html").read_text(encoding="utf-8")
+        html = _paths.web_source()
         self.assertEqual(html.count('<symbol id="brand-team"'), 1)
         marks = re.findall(r'<span class="brand-mark[^"]*"[^>]*>(.*?)</span>', html)
         self.assertEqual(len(marks), 3)  # login, mobile header, sidebar
@@ -128,7 +128,7 @@ class SupportLinkTests(unittest.TestCase):
     """'Buy me a coffee': a plain link for administrators only, nothing loaded from the internet."""
 
     def test_link_hidden_until_administrator(self):
-        html = (WEB / "index.html").read_text(encoding="utf-8")
+        html = _paths.web_source()
         links = re.findall(r"<a [^>]*buymeacoffee\.com[^>]*>", html)
         self.assertEqual(len(links), 1)
         link = links[0]

@@ -5,3 +5,9 @@ class PlainTextResponse:
     def __init__(self, content="", status_code=200, media_type=None, headers=None):
         self.body = content.encode("utf-8") if isinstance(content, str) else content
         self.status_code = status_code; self.media_type = media_type; self.headers = headers or {}
+class Response:
+    def __init__(self, content=None, status_code=200, media_type=None, headers=None):
+        self.body = content
+        self.status_code = status_code
+        self.media_type = media_type
+        self.headers = dict(headers or {})

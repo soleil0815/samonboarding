@@ -7,6 +7,13 @@ Update auf dem Server: `sudo sh update.sh` oder `docker compose pull && docker c
 
 Einträge, die mit „Sicherheit:“ oder „Behoben:“ beginnen, werden in der Oberfläche entsprechend markiert.
 
+## 2.3.0 – 2026-11-09
+- Sicherheit: Die Sicherheitsrichtlinie (CSP) erlaubt keine Inline-Skripte mehr (`script-src 'self'`, vorher `'self' 'unsafe-inline'`). Sollte es je jemandem gelingen, HTML in die Seite einzuschleusen, führt der Browser daraus kein Skript aus. Funde „CSP: script-src unsafe-inline“ aus dem OWASP-ZAP-Scan.
+  - Die Oberflächenlogik ist jetzt eine eigene Datei (`/app.js`, einen Tag zwischengespeichert, eine neue Version ändert die Adresse).
+  - Knöpfe und Felder tragen kein Inline-JavaScript mehr (`onclick="…"`). Sie sind mit `data-on-click="…"` gekennzeichnet; ein Empfänger auf der Seite liest diese Kennzeichen und ruft die genannten Funktionen auf. Der Text wird nie als Code ausgeführt: Erlaubt sind nur Aufrufe der eigenen Funktionen mit einfachen Werten.
+  - Das Druckfenster für Zugangsdaten startet den Druck aus dem Hauptfenster (es erbt die Richtlinie, ein Inline-Skript dort würde blockiert).
+- Styles erlauben weiterhin `'unsafe-inline'` (Style-Attribute in der Oberfläche). CSS kann keinen Code ausführen; dieser Restbefund ist bewusst akzeptiert.
+
 ## 2.2.5 – 2026-11-09
 - Funde aus dem Sicherheitsscan (OWASP ZAP), schneller Teil:
   - Die Seite selbst wird jetzt mit `Cache-Control: no-cache` ausgeliefert: Der Browser fragt bei jedem Laden nach, ob sie noch aktuell ist – nach einem Update erscheint die neue Version sofort (kein Strg+F5 mehr nötig).

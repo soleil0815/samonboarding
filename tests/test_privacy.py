@@ -236,11 +236,11 @@ class PrivacyApiTests(unittest.TestCase):
         self.assertEqual(aud.call_args.kwargs["auditEntries"], 2)
 
     def test_user_interface(self):
-        html = (ROOT / "samonboarding" / "web" / "index.html").read_text(encoding="utf-8")
+        html = _paths.web_source()
         for needed in (
             'id="privacy-modal"',
             'id="nav-privacy"',
-            'class="privacy-link" onclick="openPrivacy()"',
+            'class="privacy-link" data-on-click="openPrivacy()"',
             "/api/privacy-info",
             "/api/privacy/report?sam=",
         ):
