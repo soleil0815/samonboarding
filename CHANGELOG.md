@@ -15,6 +15,7 @@ Entries starting with "Security:" or "Fixed:" are marked accordingly in the inte
 - Styles still allow `'unsafe-inline'` (style attributes in the interface). CSS cannot run code; this remaining finding is accepted.
 
 ## 2.2.5 – 2026-11-09
+- Security updates of the image now come once a month on patch day – the second Tuesday, like Microsoft's Patch Tuesday (before: every Monday), the same day in all programs. By hand they can still be started at any time.
 - Security scan (OWASP ZAP) findings, quick part:
   - The page itself is now delivered with `Cache-Control: no-cache`: the browser asks on every load whether it is still current, so a new version shows up right after an update (no Ctrl+F5 needed any more).
   - The example address in the certificate form is now from the range reserved for documentation (`192.0.2.20`) instead of a private address – the scanner reported it as "Private IP Disclosure".

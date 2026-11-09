@@ -15,6 +15,7 @@ Einträge, die mit „Sicherheit:“ oder „Behoben:“ beginnen, werden in der
 - Styles erlauben weiterhin `'unsafe-inline'` (Style-Attribute in der Oberfläche). CSS kann keinen Code ausführen; dieser Restbefund ist bewusst akzeptiert.
 
 ## 2.2.5 – 2026-11-09
+- Sicherheitsupdates des Images kommen jetzt einmal im Monat am Patchday – dem zweiten Dienstag, wie Microsofts Patchday (bisher: jeden Montag), in allen Programmen derselbe Tag. Von Hand lassen sie sich weiterhin jederzeit starten.
 - Funde aus dem Sicherheitsscan (OWASP ZAP), schneller Teil:
   - Die Seite selbst wird jetzt mit `Cache-Control: no-cache` ausgeliefert: Der Browser fragt bei jedem Laden nach, ob sie noch aktuell ist – nach einem Update erscheint die neue Version sofort (kein Strg+F5 mehr nötig).
   - Die Beispieladresse im Zertifikatsformular stammt jetzt aus dem für Dokumentation reservierten Bereich (`192.0.2.20`) statt aus einem privaten Netz – der Scanner hatte sie als „Private IP Disclosure“ gemeldet.

@@ -71,7 +71,10 @@ class WorkflowSecurityTests(unittest.TestCase):
         self.assertIn("packages: read", check)
         self.assertIn("publish: false", check)
         self.assertIn("mode: check", check)
-        self.assertIn("if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'", release)
+        self.assertIn("needs: patchday\n    if: needs.patchday.outputs.due == 'true'", release)
+        patchday = image[image.index("  patchday:\n") : image.index("  check:\n")]
+        self.assertIn("if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'", patchday)
+        self.assertNotIn("write", patchday)
         self.assertIn("publish: ${{ github.ref == 'refs/heads/main' }}", release)
         self.assertEqual(image.count("uses: ./.github/workflows/build.yml"), 2)
         self.assertIn("  workflow_call:\n", text("build.yml"))
@@ -111,10 +114,31 @@ class WorkflowSecurityTests(unittest.TestCase):
             self.assertIn("sh scripts/install-trivy.sh", text(name))
 
 
+class PatchDayTests(unittest.TestCase):
+    """scripts/patchday.sh: true exactly on the second Tuesday of every month (Microsoft's Patch Tuesday)."""
+
+    def due(self, day):
+        import subprocess
+
+        return subprocess.run(["sh", str(ROOT / "scripts" / "patchday.sh"), day], capture_output=True).returncode
+
+    def test_second_tuesday_only(self):
+        import datetime as dt
+
+        start = dt.date(2026, 11, 1)
+        days = [start + dt.timedelta(n) for n in range(800)]
+        got = [d for d in days if self.due(d.isoformat()) == 0]
+        self.assertEqual(got, [d for d in days if d.weekday() == 1 and 8 <= d.day <= 14])
+        self.assertEqual(got[0], dt.date(2026, 11, 10))
+        for bad in ("2026-13-01", "morgen"):
+            self.assertEqual(self.due(bad), 2, bad)
+
+
 class ScheduleTests(unittest.TestCase):
     def test_schedules(self):
         image = text("image.yml")
-        self.assertIn('    - cron: "17 5 * * 1"', image)  # early Monday: security update
+        self.assertIn('    - cron: "17 5 * * 2"', image)  # early every Tuesday …
+        self.assertIn("sh scripts/patchday.sh", image)  # … but only patch day (2nd Tuesday) goes on
         self.assertIn("workflow_dispatch:", image)  # also manually
         self.assertIn("options: [security-update, release]", image)
         checks = text("checks.yml")

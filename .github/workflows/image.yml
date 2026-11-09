@@ -1,4 +1,4 @@
-# Check, release and weekly security update of the image ghcr.io/<owner>/samonboarding.
+# Check, release and monthly security update (patch day) of the image ghcr.io/<owner>/samonboarding.
 #
 # Check (pull request, push to main): build exactly the pinned state, test in the image, start check, Trivy -
 #   nothing is published. A new version only comes via a pull request.
@@ -6,7 +6,9 @@
 #   (plus :<major>.<minor> and :latest if it is the highest) - only if this version is not published yet (published
 #   versions are never overwritten). Release page with docker-compose.yml, env.example and the image files
 #   (docker load, for servers without internet).
-# Security update (Mondays 05:17 UTC or by hand): renew the pins within the base (scripts/pins.py update), build
+# Security update (on patch day – the second Tuesday of the month, like Microsoft's Patch Tuesday, the same day in all
+#   programs – 05:17 UTC, or by hand at any time; the schedule starts every Tuesday, scripts/patchday.sh only lets the
+#   second one through): renew the pins within the base (scripts/pins.py update), build
 #   without cache, test in the image, scan with Trivy. Only if everything passed: commit the new pins with a changelog
 #   entry and publish as :<version>-s<counter>. If no package changed: nothing happens.
 # :latest only goes to the highest version. On other branches every run is a dry run: nothing is committed or published.
@@ -23,7 +25,7 @@ on:
   push:
     branches: [main]
   schedule:
-    - cron: "17 5 * * 1" # Mondays 05:17 UTC: security update within the base
+    - cron: "17 5 * * 2" # Tuesdays 05:17 UTC: security update within the base, only on patch day (job patchday)
   workflow_dispatch:
     inputs:
       mode:
@@ -40,6 +42,33 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  patchday:
+    # scheduled: only the Tuesday run on patch day goes on (a cron line cannot say "second Tuesday"); by hand: any day
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions:
+      contents: read
+    outputs:
+      due: ${{ steps.check.outputs.due }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+          sparse-checkout: scripts/patchday.sh
+          sparse-checkout-cone-mode: false
+      - name: Patch day?
+        id: check
+        env:
+          EVENT: ${{ github.event_name }}
+        run: |
+          if [ "$EVENT" != schedule ] || sh scripts/patchday.sh; then
+            echo "due=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "due=false" >> "$GITHUB_OUTPUT"
+            echo "::notice title=Security update::Not patch day - the security update runs on the second Tuesday of the month."
+          fi
+
   check:
     if: github.event_name == 'pull_request' || github.event_name == 'push'
     permissions:
@@ -51,7 +80,9 @@ jobs:
       publish: false
 
   release:
-    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    # only after the job patchday, i.e. only scheduled (on patch day) or by hand
+    needs: patchday
+    if: needs.patchday.outputs.due == 'true'
     permissions:
       contents: write # only for the commit of a security update (main only)
       packages: write # only for publishing the image (main only)

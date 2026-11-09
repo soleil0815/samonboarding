@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # SPDX-License-Identifier: AGPL-3.0-or-later
 # Copyright (C) 2026 Die SAMONBOARDING-Autoren
-"""Exact versions for the build and the weekly security update (Python standard library only).
+"""Exact versions for the build and the monthly security update (patch day) (Python standard library only).
 
 What is pinned (all files in the repository):
   images.lock          base images with fixed version AND digest, plus the Debian snapshot (DEBIAN_SNAPSHOT) from which
