@@ -3,4 +3,4 @@
 # DEBIAN_SNAPSHOT: Debian packages from snapshot.debian.org as of this time (same time = same packages).
 PYTHON_IMAGE=python:3.13.18-slim-trixie@sha256:e48f59cdba69a3cbd9ed2cf0f348d90d45a8d350d98134cf1070bc106ee9ed90
 NODE_IMAGE=node:24.22.2-trixie-slim@sha256:0820eaa85e07d0490446dd01d14707e17e6108a36988cf374899cd057eb3812d
-DEBIAN_SNAPSHOT=20261108T120000Z
+DEBIAN_SNAPSHOT=20261110T120000Z

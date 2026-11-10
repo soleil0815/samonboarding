@@ -7,6 +7,13 @@ Update on the server: `sudo sh update.sh` or `docker compose pull && docker comp
 
 Entries starting with "Security:" or "Fixed:" are marked accordingly in the interface.
 
+## 2.3.0-s1 – 2026-11-10
+- Security: security update without program changes: same program, updated packages.
+- npm packages (only for building the interface, not in the image):
+  - lilconfig `3.1.4` → `3.1.5`
+  - postcss-selector-parser `6.1.5` → `6.1.6`
+  - cssesc `3.0.0` (removed)
+
 ## 2.3.0 – 2026-11-09
 - Security: the content security policy no longer allows inline scripts (`script-src 'self'`, before `'self' 'unsafe-inline'`). Should someone ever manage to inject HTML into the page, the browser will not run any script from it. Findings "CSP: script-src unsafe-inline" from the OWASP ZAP scan.
   - The interface logic is now its own file (`/app.js`, cached for a day, a new version changes its address).

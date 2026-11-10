@@ -7,6 +7,13 @@ Update auf dem Server: `sudo sh update.sh` oder `docker compose pull && docker c
 
 Einträge, die mit „Sicherheit:“ oder „Behoben:“ beginnen, werden in der Oberfläche entsprechend markiert.
 
+## 2.3.0-s1 – 2026-11-10
+- Sicherheit: Sicherheitsupdate ohne Programmänderung: gleiches Programm, aktualisierte Pakete.
+- npm-Pakete (nur beim Bauen der Oberfläche, nicht im Image):
+  - lilconfig `3.1.4` → `3.1.5`
+  - postcss-selector-parser `6.1.5` → `6.1.6`
+  - cssesc `3.0.0` (entfernt)
+
 ## 2.3.0 – 2026-11-09
 - Sicherheit: Die Sicherheitsrichtlinie (CSP) erlaubt keine Inline-Skripte mehr (`script-src 'self'`, vorher `'self' 'unsafe-inline'`). Sollte es je jemandem gelingen, HTML in die Seite einzuschleusen, führt der Browser daraus kein Skript aus. Funde „CSP: script-src unsafe-inline“ aus dem OWASP-ZAP-Scan.
   - Die Oberflächenlogik ist jetzt eine eigene Datei (`/app.js`, einen Tag zwischengespeichert, eine neue Version ändert die Adresse).

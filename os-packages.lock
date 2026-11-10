@@ -1,5 +1,5 @@
 # All Debian packages in the finished image per architecture (<arch> name=version), from the Debian
-# snapshot in images.lock (20261108T120000Z). Written by scripts/pins.py os-lock; every build is compared.
+# snapshot in images.lock (20261110T120000Z). Written by scripts/pins.py os-lock; every build is compared.
 # Debian sometimes rebuilds a package for one architecture only (version with '+b1').
 amd64 base-files=13.8+deb13u7
 amd64 base-passwd=3.6.7
