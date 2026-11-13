@@ -923,7 +923,9 @@
   "Anmeldung am Domain Controller, Berechtigungen werden geprüft …": "Signing in at the domain controller, checking permissions …",
   "Der Server ist nicht erreichbar.": "The server cannot be reached.",
   "Daten werden vom Domain Controller gelesen": "Reading data from the domain controller",
-  "aktualisiert …": "refreshing …"
+  "aktualisiert …": "refreshing …",
+  "Einen Kaffee spendieren": "Buy me a coffee",
+  "Gefällt dir SAMONBOARDING? Über einen Kaffee freue ich mich.": "Like SAMONBOARDING? A coffee would make my day."
  },
  "patterns": [
   [

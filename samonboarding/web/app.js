@@ -421,9 +421,9 @@ function setupRoleVisibility(role) {
     if(navReports) navReports.style.display = role === "Administrator" ? '' : 'none';
     const navCert = document.getElementById('nav-cert');
     if(navCert) navCert.style.display = role === "Administrator" ? '' : 'none';
-    // Support link: only administrators see it
-    const navCoffee = document.getElementById('nav-coffee');
-    if(navCoffee) navCoffee.style.display = role === "Administrator" ? '' : 'none';
+    // Support card on the start page: only administrators see it
+    const startCoffee = document.getElementById('start-coffee');
+    if(startCoffee) startCoffee.style.display = role === "Administrator" ? '' : 'none';
     // Only an administrator reads the SMTP settings (the server refuses them to operators)
     const navSmtp = document.getElementById('nav-smtp');
     if(navSmtp) navSmtp.style.display = role === "Administrator" ? '' : 'none';
