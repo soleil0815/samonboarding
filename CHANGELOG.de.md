@@ -7,6 +7,9 @@ Update auf dem Server: `sudo sh update.sh` oder `docker compose pull && docker c
 
 Einträge, die mit „Sicherheit:“ oder „Behoben:“ beginnen, werden in der Oberfläche entsprechend markiert.
 
+## 2.3.1 – 2026-11-13
+- Geändert: Der Unterstützungs-Link ist jetzt eine kleine Karte unten auf der Startseite („Gefällt dir SAMONBOARDING? Über einen Kaffee freue ich mich.“ mit dem Knopf „Einen Kaffee spendieren“) statt des Knopfes im Menü. Weiterhin nur für Administratoren sichtbar und ein einfacher Link – aus dem Internet wird nichts geladen.
+
 ## 2.3.0-s1 – 2026-11-10
 - Sicherheit: Sicherheitsupdate ohne Programmänderung: gleiches Programm, aktualisierte Pakete.
 - npm-Pakete (nur beim Bauen der Oberfläche, nicht im Image):

@@ -125,7 +125,7 @@ class LogoTests(unittest.TestCase):
 
 
 class SupportLinkTests(unittest.TestCase):
-    """'Buy me a coffee': a plain link for administrators only, nothing loaded from the internet."""
+    """Support card on the start page: a plain link for administrators only, nothing loaded from the internet."""
 
     def test_link_hidden_until_administrator(self):
         html = _paths.web_source()
@@ -133,12 +133,15 @@ class SupportLinkTests(unittest.TestCase):
         self.assertEqual(len(links), 1)
         link = links[0]
         self.assertIn('href="https://buymeacoffee.com/soleil0815"', link)
-        self.assertIn('id="nav-coffee"', link)
-        self.assertIn('style="display:none"', link)  # hidden until the role is known
+        card = html[html.index('id="start-coffee"') - 40 :][:900]
+        self.assertIn('style="display:none"', card)  # hidden until the role is known
+        self.assertIn(link, card)
+        self.assertIn("Gefällt dir SAMONBOARDING? Über einen Kaffee freue ich mich.", card)
+        self.assertNotIn('id="nav-coffee"', html)  # the old button in the sidebar is gone
         self.assertIn('rel="noopener noreferrer"', link)
         self.assertIn('target="_blank"', link)
         roles = html[html.index("function setupRoleVisibility(role)") :][:3000]
-        self.assertIn("navCoffee.style.display = role === \"Administrator\" ? '' : 'none'", roles)
+        self.assertIn("startCoffee.style.display = role === \"Administrator\" ? '' : 'none'", roles)
         # no image, script or font from the coffee site: only the link target
         self.assertEqual(html.count("buymeacoffee.com/soleil0815"), 1)
         self.assertNotRegex(html, r'(src|srcset)="https?://[^"]*buymeacoffee')
@@ -148,6 +151,11 @@ class SupportLinkTests(unittest.TestCase):
         self.assertEqual(
             data["exact"]["Die Entwicklung unterstützen (öffnet buymeacoffee.com)"],
             "Support the development (opens buymeacoffee.com)",
+        )
+        self.assertEqual(data["exact"]["Einen Kaffee spendieren"], "Buy me a coffee")
+        self.assertEqual(
+            data["exact"]["Gefällt dir SAMONBOARDING? Über einen Kaffee freue ich mich."],
+            "Like SAMONBOARDING? A coffee would make my day.",
         )
 
 

@@ -7,6 +7,9 @@ Update on the server: `sudo sh update.sh` or `docker compose pull && docker comp
 
 Entries starting with "Security:" or "Fixed:" are marked accordingly in the interface.
 
+## 2.3.1 – 2026-11-13
+- Changed: the support link is now a small card at the bottom of the home page ("Like SAMONBOARDING? A coffee would make my day." with the button "Buy me a coffee") instead of the button in the menu. Still visible to administrators only, still a plain link – nothing is loaded from the internet.
+
 ## 2.3.0-s1 – 2026-11-10
 - Security: security update without program changes: same program, updated packages.
 - npm packages (only for building the interface, not in the image):
