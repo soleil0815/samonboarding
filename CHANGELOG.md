@@ -7,6 +7,12 @@ Update on the server: `sudo sh update.sh` or `docker compose pull && docker comp
 
 Entries starting with "Security:" or "Fixed:" are marked accordingly in the interface.
 
+## 2.5.0 – 2026-11-14
+- New: light or dark. The switch ☀ / ☾ / ◐ (light, dark, like the system) is at the bottom of the sidebar and in the top right corner of the sign-in page. Light is the default; the browser remembers the choice (only this display setting – no data from AD is kept in the browser). The page takes on the chosen appearance before it is drawn, so nothing flashes white.
+  - All colours are now variables with a light and a dark value; the dark look follows the light one (dark grey instead of night blue, hairlines, one blue accent, no glow).
+- Changed: font as in WhatsOnMyNet – San Francisco on the Mac, otherwise the bundled Inter; code, paths and DNs in IBM Plex Mono. Both replace Manrope and JetBrains Mono and are, as before, packed into the image (nothing is loaded from the internet).
+- README: the pictures exist in light and dark; GitHub shows the one that matches your appearance.
+
 ## 2.4.0 – 2026-11-14
 - Changed: new, light design. The interface now looks calm and businesslike instead of dark: light grey background, white cards with fine lines, one blue accent colour, no gradients or glow effects.
   - Font: the system font of the computer (San Francisco on the Mac, Segoe UI on Windows); the bundled Manrope remains the fallback. Still nothing is loaded from the internet.

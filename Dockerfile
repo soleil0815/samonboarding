@@ -1,5 +1,5 @@
 # ---------------------------------------------------------------------------
-# Stage 1: build CSS and fonts (Tailwind, Manrope, JetBrains Mono, Font Awesome - all local, with their licence texts)
+# Stage 1: build CSS and fonts (Tailwind, Inter, IBM Plex Mono, Font Awesome - all local, with their licence texts)
 # ---------------------------------------------------------------------------
 # Base images with fixed version AND digest: always passed from images.lock (update.sh, GitHub workflow,
 # "python3 scripts/pins.py build-args"). There is deliberately no default, so no build uses a changing tag.
@@ -20,24 +20,22 @@ COPY samonboarding/web ./samonboarding/web
 # Tailwind scans the HTML file for the classes used and generates only the CSS needed
 RUN npx tailwindcss -c tailwind.config.js -i tailwind.input.css -o dist/app.css --minify \
  && mkdir -p dist/vendor/fontawesome dist/vendor/fonts/files dist/vendor/licenses \
- && cp node_modules/@fontsource/manrope/LICENSE dist/vendor/licenses/LICENSE-Manrope.txt \
- && cp node_modules/@fontsource/jetbrains-mono/LICENSE dist/vendor/licenses/LICENSE-JetBrains-Mono.txt \
+ && cp node_modules/@fontsource-variable/inter/LICENSE dist/vendor/licenses/LICENSE-Inter.txt \
+ && cp node_modules/@fontsource/ibm-plex-mono/LICENSE dist/vendor/licenses/LICENSE-IBM-Plex-Mono.txt \
  && cp node_modules/@fortawesome/fontawesome-free/LICENSE.txt dist/vendor/licenses/LICENSE-Font-Awesome.txt \
  && cp node_modules/tailwindcss/LICENSE dist/vendor/licenses/LICENSE-Tailwind-CSS.txt \
  && cp -r node_modules/@fortawesome/fontawesome-free/css node_modules/@fortawesome/fontawesome-free/webfonts dist/vendor/fontawesome/ \
- && for w in 400 500 600 700 800; do \
-      cat node_modules/@fontsource/manrope/$w.css >> dist/vendor/fonts/fonts.css; \
-      cp node_modules/@fontsource/manrope/files/manrope-*-$w-normal.woff* dist/vendor/fonts/files/; \
-    done \
+ && cat node_modules/@fontsource-variable/inter/wght.css >> dist/vendor/fonts/fonts.css \
+ && cp node_modules/@fontsource-variable/inter/files/inter-*-wght-normal.woff2 dist/vendor/fonts/files/ \
  && for w in 400 500; do \
-      cat node_modules/@fontsource/jetbrains-mono/$w.css >> dist/vendor/fonts/fonts.css; \
-      cp node_modules/@fontsource/jetbrains-mono/files/jetbrains-mono-*-$w-normal.woff* dist/vendor/fonts/files/; \
+      cat node_modules/@fontsource/ibm-plex-mono/$w.css >> dist/vendor/fonts/fonts.css; \
+      cp node_modules/@fontsource/ibm-plex-mono/files/ibm-plex-mono-*-$w-normal.woff* dist/vendor/fonts/files/; \
     done \
  && test -s dist/app.css \
  && test -f dist/vendor/fontawesome/webfonts/fa-solid-900.woff2 \
  && test -f dist/vendor/fontawesome/css/all.min.css \
- && ls dist/vendor/fonts/files | grep -q 'manrope-latin-400-normal.woff2' \
- && ls dist/vendor/fonts/files | grep -q 'jetbrains-mono-latin-400-normal.woff2'
+ && ls dist/vendor/fonts/files | grep -q 'inter-latin-wght-normal.woff2' \
+ && ls dist/vendor/fonts/files | grep -q 'ibm-plex-mono-latin-400-normal.woff2'
 
 # ---------------------------------------------------------------------------
 # Stage 2: the application itself

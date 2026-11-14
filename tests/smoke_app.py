@@ -90,6 +90,9 @@ def main():
         expect(status == 200 and b"function switchTab" in body, f"/app.js: Status {status}")
         expect(headers.get("content-type", "").startswith("text/javascript"), "/app.js: falscher Content-Type")
         expect(b"__APP_VERSION__" not in body, "/app.js: Version nicht eingesetzt")
+        status, headers, body = await call(app, "/theme.js")
+        expect(status == 200 and b"data-theme" in body, f"/theme.js: Status {status}")
+        expect(headers.get("content-type", "").startswith("text/javascript"), "/theme.js: falscher Content-Type")
 
     asyncio.run(run())
     if problems:

@@ -925,7 +925,11 @@
   "Daten werden vom Domain Controller gelesen": "Reading data from the domain controller",
   "aktualisiert …": "refreshing …",
   "Einen Kaffee spendieren": "Buy me a coffee",
-  "Gefällt dir SAMONBOARDING? Über einen Kaffee freue ich mich.": "Like SAMONBOARDING? A coffee would make my day."
+  "Gefällt dir SAMONBOARDING? Über einen Kaffee freue ich mich.": "Like SAMONBOARDING? A coffee would make my day.",
+  "Hell": "Light",
+  "Dunkel": "Dark",
+  "Wie das System": "Like the system",
+  "Darstellung": "Appearance"
  },
  "patterns": [
   [

@@ -16,7 +16,7 @@ Web application for day-to-day user management in Active Directory (**Samba AD**
 
 The application runs as a Docker container (FastAPI + ldap3). The web interface is fully built in and needs no internet access. It is available in **English and German** (switch with *DE / EN*); German labels are given in *italics* in this document where they help.
 
-![Sign-in page of SAMONBOARDING with the domain firma.local](docs/images/anmeldung-en.png)
+<picture><source media="(prefers-color-scheme: dark)" srcset="docs/images/anmeldung-en-dark.png"><img src="docs/images/anmeldung-en.png" alt="Sign-in page of SAMONBOARDING with the domain firma.local"></picture>
 
 > **Please read before use**
 >
@@ -71,11 +71,11 @@ These five points explain the whole concept:
 
 After signing in, the **home page** shows what needs doing: active accounts without a logon for 90 days, locked accounts and (for administrators) accounts ready to be deleted. One click opens the matching list. Under **Tasks** the navigation follows the life cycle of an account: **New employee** (onboarding), **User management**, **Reset password**, **Leaving** (offboarding) and **Delete accounts**; numbers next to them show how many accounts are waiting. Below that are **Settings** (templates, e-mail notification, AD structure, reports, certificate) and help. **Ctrl + K** opens the quick search for people and pages. Feedback appears as a message in the bottom right corner. Errors and long messages stay until you close them. On tablets and phones the navigation opens from the menu icon in the top left.
 
-![Home page “What needs doing?”: cards for accounts without a logon for 90 days, locked accounts and accounts ready to be deleted, the grouped menu with counters on the left](docs/images/start-en.png)
+<picture><source media="(prefers-color-scheme: dark)" srcset="docs/images/start-en-dark.png"><img src="docs/images/start-en.png" alt="Home page “What needs doing?”: cards for accounts without a logon for 90 days, locked accounts and accounts ready to be deleted, the grouped menu with counters on the left"></picture>
 
 **Language:** the interface is available in **German and English**. Switch with *DE / EN* at the bottom of the sidebar or in the top right corner of the sign-in page. The browser remembers the choice; on the first visit the browser language is used. Server messages and notification mails use the chosen language. Names, OUs, groups and paths from AD are never translated. The English texts are in `samonboarding/web/i18n.json` (German text → English text, with placeholders `{0}` for values).
 
-**Look:** light and calm – light grey background, white cards, one blue accent colour. The text uses the computer's system font (San Francisco on the Mac, Segoe UI on Windows), the bundled Manrope is the fallback. Colours and fonts are defined in `samonboarding/web/theme.json`. After changing them a new image is built (see [section 11](#11-development)).
+**Look:** calm and businesslike, **light or dark** – switched with ☀ / ☾ / ◐ (light, dark, like the system) at the bottom of the sidebar or in the top right corner of the sign-in page; light is the default, the browser remembers the choice. Font as in WhatsOnMyNet: San Francisco on the Mac, otherwise the bundled Inter; paths and DNs in IBM Plex Mono. Colours and fonts are defined in `samonboarding/web/theme.json`. After changing them a new image is built (see [section 11](#11-development)).
 
 ---
 
@@ -380,7 +380,7 @@ Text fields may contain the placeholder `%username%`. It is replaced by the new 
 
 ### Onboarding
 
-![Onboarding: template “Vertrieb” chosen, first name, last name and e-mail entered, below the target OU, naming macro and groups of the template](docs/images/onboarding-en.png)
+<picture><source media="(prefers-color-scheme: dark)" srcset="docs/images/onboarding-en-dark.png"><img src="docs/images/onboarding-en.png" alt="Onboarding: template “Vertrieb” chosen, first name, last name and e-mail entered, below the target OU, naming macro and groups of the template"></picture>
 
 1. Choose a template, enter first and last name and (depending on the template) the e-mail address
 2. The account is created in the template's target OU (name: *First Last*, UPN: `username@firma.local`)
@@ -477,7 +477,7 @@ All user lists are sorted alphabetically by display name.
 
 ### Delete accounts (administrators only)
 
-![Delete accounts: list of disabled accounts and result of the simulation with roaming profile, folder redirection and home folder, below the confirmation with user name and password](docs/images/loeschen-en.png)
+<picture><source media="(prefers-color-scheme: dark)" srcset="docs/images/loeschen-en-dark.png"><img src="docs/images/loeschen-en.png" alt="Delete accounts: list of disabled accounts and result of the simulation with roaming profile, folder redirection and home folder, below the confirmation with user name and password"></picture>
 
 The menu item *Konten löschen* is only visible to administrators. Account Operators do not see it, and the server additionally rejects their requests with *403*. Protected (privileged) accounts, see offboarding, can neither be simulated nor deleted here.
 
@@ -757,7 +757,7 @@ A reverse proxy is no longer needed. If you use one anyway, forward to `https://
 - **SMTP password:** if server or user name change, the password must be entered again, so the stored password cannot be sent to a foreign server
 - **Data protection in the interface:** the *Data protection* link (bottom of the sign-in page, sidebar under *Help*) briefly shows what is stored and the current retention periods. Administrators can download the subject access report (Art. 15 GDPR) for an account as JSON there (recorded in the reports)
 - **Data protection:** which data is kept where, retention periods, built-in measures and a template for the record of processing activities are in [DATA-PROTECTION.md](DATA-PROTECTION.md)
-- **No internet connections at runtime:** Tailwind CSS, fallback fonts (Manrope, JetBrains Mono) and icons (Font Awesome) are packed into the image during the Docker build and served by the application itself. There are no CDNs, no Google Fonts, no telemetry and no update check. In addition, a Content Security Policy header forbids the browser to load anything from other servers and to run inline scripts (the interface logic is its own file, `/app.js`). Only the **build** needs internet (npm, pip, Docker base images). At runtime, connections go only to your own services: domain controller, file server, SMTP and, if configured, Exchange
+- **No internet connections at runtime:** Tailwind CSS, fonts (Inter, IBM Plex Mono) and icons (Font Awesome) are packed into the image during the Docker build and served by the application itself. There are no CDNs, no Google Fonts, no telemetry and no update check. In addition, a Content Security Policy header forbids the browser to load anything from other servers and to run inline scripts (the interface logic is its own file, `/app.js`). Only the **build** needs internet (npm, pip, Docker base images). At runtime, connections go only to your own services: domain controller, file server, SMTP and, if configured, Exchange
 - **Vulnerability scan (Trivy):** every image is scanned with [Trivy](https://trivy.dev) before it is published, the published image additionally every day. HIGH/CRITICAL vulnerabilities with an available fix stop the release. Process, security updates (`-s<counter>`) and what to do when a run is red: section *Automatic security updates*.
 - The application runs over HTTPS only (see above). Ideally install your own certificate and leave `LDAP_ALLOW_PLAIN` at `false` (default)
 - Give operators only the rights they need (delegation on individual OUs)
@@ -847,7 +847,7 @@ samonboarding/
   privacy.py                data protection: retention periods (daily), subject access (python -m samonboarding.privacy)
   datastate.py              data state: backup before a version change, migrations, protection against older versions
 DATA-PROTECTION.md          data protection documentation (GDPR), German: DATENSCHUTZ.de.md
-Dockerfile                  stage 1 builds Tailwind CSS, fonts (Manrope, JetBrains Mono) and Font Awesome, stage 2 is the app
+Dockerfile                  stage 1 builds Tailwind CSS, fonts (Inter, IBM Plex Mono) and Font Awesome, stage 2 is the app
 tailwind.config.js          Tailwind scans samonboarding/web/*.html, colours and fonts from web/theme.json
 tests/                      unit tests and scenarios (see Tests)
 pyproject.toml              ruff, pyright and pytest configuration
