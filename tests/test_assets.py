@@ -23,26 +23,41 @@ WEB = Path(_paths.ROOT) / "samonboarding" / "web"
 class ThemeTests(unittest.TestCase):
     def test_theme_complete(self):
         theme = json.loads((WEB / "theme.json").read_text(encoding="utf-8"))
-        for family in ("slate", "cyan"):
-            self.assertEqual(
-                sorted(theme["colors"][family], key=int),
-                ["50", "100", "200", "300", "400", "500", "600", "700", "800", "900", "950"],
-            )
-            for value in theme["colors"][family].values():
-                self.assertRegex(value, r"^#[0-9a-f]{6}$")
-        for family in ("emerald", "amber", "rose", "sky"):
-            for value in theme["colors"][family].values():
-                self.assertRegex(value, r"^#[0-9a-f]{6}$")
-        # Light theme: surfaces white, text dark - so the existing slate classes keep their meaning
+        for mode in ("colors", "dark"):
+            for family in ("slate", "cyan"):
+                self.assertEqual(
+                    sorted(theme[mode][family], key=int),
+                    ["50", "100", "200", "300", "400", "500", "600", "700", "800", "900", "950"],
+                )
+            for shades in theme[mode].values():
+                for value in shades.values():
+                    self.assertRegex(value, r"^#[0-9a-f]{6}$")
+        # Light and dark name the same colours, so every class works in both
+        self.assertEqual(
+            {f: sorted(s) for f, s in theme["colors"].items()}, {f: sorted(s) for f, s in theme["dark"].items()}
+        )
+        # Light: surfaces white, text dark; dark: the other way round - the slate classes keep their meaning
         self.assertEqual(theme["colors"]["slate"]["950"], "#ffffff")
         self.assertEqual(theme["colors"]["slate"]["100"], "#1d1d1f")
-        # System font first (San Francisco / Segoe UI), the bundled Manrope as local fallback - never a web font
+        self.assertEqual(theme["dark"]["slate"]["100"], "#f5f5f7")
+        # Like WhatsOnMyNet: San Francisco on the Mac, otherwise the bundled Inter; IBM Plex Mono for code
         sans = theme["fontFamily"]["sans"]
         self.assertEqual(sans[0], "-apple-system")
-        self.assertIn("Segoe UI", sans)
-        self.assertIn("Manrope", sans)
+        self.assertLess(sans.index("Inter Variable"), sans.index("Segoe UI"))
         self.assertEqual(sans[-1], "sans-serif")
-        self.assertEqual(theme["fontFamily"]["mono"][0], "JetBrains Mono")
+        self.assertEqual(theme["fontFamily"]["mono"][0], "IBM Plex Mono")
+
+    def test_dark_mode_switch(self):
+        page = (WEB / "index.html").read_text(encoding="utf-8")
+        script = (WEB / "theme.js").read_text(encoding="utf-8")
+        # applied in <head> before anything is drawn, light by default
+        self.assertLess(page.index('<script src="/theme.js?v=__APP_VERSION__"></script>'), page.index("</head>"))
+        self.assertIn('data-theme="light"', page.split(">", 2)[1])
+        self.assertIn(':root[data-theme="dark"]', page)
+        self.assertIn("'samonboarding.theme'", script)
+        self.assertIn("|| 'light'", script)
+        for pref in ("light", "dark", "system"):
+            self.assertIn(f"data-on-click=\"setTheme('{pref}')\"", page)
 
     def test_tailwind_config_reads_theme(self):
         config = (Path(_paths.ROOT) / "tailwind.config.js").read_text(encoding="utf-8")
@@ -51,10 +66,11 @@ class ThemeTests(unittest.TestCase):
     def test_dockerfile_builds_the_fonts(self):
         docker = (Path(_paths.ROOT) / "Dockerfile").read_text(encoding="utf-8")
         package = json.loads((Path(_paths.ROOT) / "package.json").read_text(encoding="utf-8"))["dependencies"]
-        self.assertTrue(package["@fontsource/manrope"].startswith("5."))
-        self.assertTrue(package["@fontsource/jetbrains-mono"].startswith("5."))
+        self.assertTrue(package["@fontsource-variable/inter"].startswith("5."))
+        self.assertTrue(package["@fontsource/ibm-plex-mono"].startswith("5."))
         self.assertIn("dist/vendor/fonts/fonts.css", docker)
-        self.assertNotIn("@fontsource/inter", docker)
+        self.assertIn("inter-*-wght-normal.woff2", docker)  # one variable file per script, all weights
+        self.assertNotIn("manrope", docker.lower())
 
 
 HOMEPAGE = "https://helfi.space"

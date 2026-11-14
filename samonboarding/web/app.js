@@ -298,6 +298,30 @@ function setLanguage(lang, save) {
     try { if (newsModal && !newsModal.classList.contains('hidden')) loadNews().then(renderNews); } catch(e) {}
 }
 
+// Appearance: light (default), dark or like the system - kept per browser; theme.js applies it before the page is drawn
+function themePref() {
+    let p = null;
+    try { p = localStorage.getItem('samonboarding.theme'); } catch(e) {}
+    return p === 'dark' || p === 'system' ? p : 'light';
+}
+function systemDark() {
+    return !!(typeof window !== 'undefined' && window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches);
+}
+function applyTheme(pref) {
+    const dark = pref === 'dark' || (pref === 'system' && systemDark());
+    if (document.documentElement) document.documentElement.setAttribute('data-theme', dark ? 'dark' : 'light');
+    (document.querySelectorAll('.theme-btn') || []).forEach(b => {
+        const on = b.dataset.themePref === pref;
+        b.classList.toggle('is-active', on);
+        b.setAttribute('aria-pressed', on ? 'true' : 'false');
+    });
+}
+function setTheme(pref) {
+    pref = pref === 'dark' || pref === 'system' ? pref : 'light';
+    try { localStorage.setItem('samonboarding.theme', pref); } catch(e) {}
+    applyTheme(pref);
+}
+
 function initialLanguage() {
     let saved = null;
     try { saved = localStorage.getItem('samonboarding.lang'); } catch(e) {}
@@ -379,6 +403,8 @@ function setAvatar(name) {
 
 document.addEventListener("DOMContentLoaded", async () => {
     setLanguage(initialLanguage(), false);
+    applyTheme(themePref());
+    try { window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => { if (themePref() === 'system') applyTheme('system'); }); } catch(e) {}
     i18nWatch();
     await loadPublicConfig();
     await checkExistingSession();

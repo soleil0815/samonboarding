@@ -16,7 +16,7 @@ Webanwendung für die tägliche Benutzerverwaltung im Active Directory (**Samba 
 
 Die Anwendung läuft als Docker-Container (FastAPI + ldap3), die Oberfläche ist komplett eingebaut und braucht kein Internet.
 
-![Anmeldeseite von SAMONBOARDING mit der Domäne firma.local](docs/images/anmeldung.png)
+<picture><source media="(prefers-color-scheme: dark)" srcset="docs/images/anmeldung-dark.png"><img src="docs/images/anmeldung.png" alt="Anmeldeseite von SAMONBOARDING mit der Domäne firma.local"></picture>
 
 > **Bitte vor dem Einsatz lesen**
 >
@@ -73,11 +73,11 @@ Diese fünf Punkte erklären das ganze Konzept:
 
 Nach der Anmeldung zeigt die **Startseite**, was ansteht: aktive Konten ohne Anmeldung seit 90 Tagen, gesperrte Konten und (für Administratoren) Konten, die bereit zum Löschen sind. Ein Klick öffnet die passende Liste. Unter **Aufgaben** folgt die Navigation dem Lebenszyklus eines Kontos: **Neuer Mitarbeiter** (Onboarding), **Benutzerverwaltung**, **Passwort zurücksetzen**, **Austritt** (Offboarding) und **Konten löschen**; Zahlen daneben zeigen, wie viele Konten dort warten. Darunter liegen **Einstellungen** (Templates, E-Mail-Benachrichtigung, AD-Struktur, Berichte, Zertifikat) und Hilfe. Mit **Strg + K** öffnet sich die Schnellsuche für Personen und Seiten. Rückmeldungen erscheinen als Meldung unten rechts. Fehler und lange Meldungen bleiben stehen, bis sie geschlossen werden. Auf Tablet und Handy klappt die Navigation über das Menü-Symbol oben links auf.
 
-![Startseite „Was steht an?“: Karten für Konten ohne Anmeldung seit 90 Tagen, gesperrte Konten und Konten bereit zum Löschen, links das gegliederte Menü mit Zählern](docs/images/start.png)
+<picture><source media="(prefers-color-scheme: dark)" srcset="docs/images/start-dark.png"><img src="docs/images/start.png" alt="Startseite „Was steht an?“: Karten für Konten ohne Anmeldung seit 90 Tagen, gesperrte Konten und Konten bereit zum Löschen, links das gegliederte Menü mit Zählern"></picture>
 
 **Sprache:** Die Oberfläche gibt es auf **Deutsch und Englisch**. Umgeschaltet wird mit *DE / EN* unten in der Seitenleiste oder oben rechts auf der Anmeldeseite. Die Wahl merkt sich der Browser; beim ersten Aufruf gilt die Sprache des Browsers. Meldungen des Servers und die Benachrichtigungs-Mails kommen in der gewählten Sprache. Namen, OUs, Gruppen und Pfade aus dem AD werden nie übersetzt. Die englischen Texte stehen in `samonboarding/web/i18n.json` (deutscher Text → englischer Text, mit Platzhaltern `{0}` für Werte).
 
-**Aussehen:** hell und ruhig – hellgrauer Hintergrund, weiße Karten, eine blaue Akzentfarbe. Als Schrift dient die Systemschrift des Rechners (San Francisco auf dem Mac, Segoe UI unter Windows), die mitgelieferte Manrope ist der Ersatz. Farben und Schriften stehen in `samonboarding/web/theme.json`. Nach einer Änderung dort wird ein neues Image gebaut (siehe [Abschnitt 11](#11-entwicklung)).
+**Aussehen:** ruhig und geschäftlich, **hell oder dunkel** – umgeschaltet mit ☀ / ☾ / ◐ (hell, dunkel, wie das System) unten in der Seitenleiste oder oben rechts auf der Anmeldeseite; Standard ist hell, die Wahl merkt sich der Browser. Schrift wie in WhatsOnMyNet: San Francisco auf dem Mac, sonst die mitgelieferte Inter; Pfade und DNs in IBM Plex Mono. Farben und Schriften stehen in `samonboarding/web/theme.json`. Nach einer Änderung dort wird ein neues Image gebaut (siehe [Abschnitt 11](#11-entwicklung)).
 
 ## 2. Voraussetzungen
 
@@ -380,7 +380,7 @@ In den Textfeldern kann der Platzhalter `%username%` stehen. Er wird durch den n
 
 ### Onboarding
 
-![Onboarding: Template „Vertrieb“ gewählt, Vorname, Nachname und E-Mail eingetragen, darunter Ziel-OU, Namensmakro und Gruppen des Templates](docs/images/onboarding.png)
+<picture><source media="(prefers-color-scheme: dark)" srcset="docs/images/onboarding-dark.png"><img src="docs/images/onboarding.png" alt="Onboarding: Template „Vertrieb“ gewählt, Vorname, Nachname und E-Mail eingetragen, darunter Ziel-OU, Namensmakro und Gruppen des Templates"></picture>
 
 1. Template wählen, Vor- und Nachname sowie (je nach Einstellung) die E-Mail-Adresse eingeben
 2. Das Konto wird in der Ziel-OU des Templates angelegt (Name: *Vorname Nachname*, UPN: `benutzername@firma.local`)
@@ -477,7 +477,7 @@ Alle Benutzerlisten sind alphabetisch nach Anzeigenamen sortiert.
 
 ### Konten löschen (nur Administratoren)
 
-![Konten löschen: Liste der deaktivierten Konten und Ergebnis der Simulation mit Profil, Ordnerumleitung und Basisordner, darunter die Bestätigung mit Benutzername und Passwort](docs/images/loeschen.png)
+<picture><source media="(prefers-color-scheme: dark)" srcset="docs/images/loeschen-dark.png"><img src="docs/images/loeschen.png" alt="Konten löschen: Liste der deaktivierten Konten und Ergebnis der Simulation mit Profil, Ordnerumleitung und Basisordner, darunter die Bestätigung mit Benutzername und Passwort"></picture>
 
 Der Menüpunkt **Konten löschen** ist nur für Administratoren sichtbar. Account Operatoren sehen ihn nicht, und der Server weist ihre Anfragen zusätzlich mit *403* ab. Geschützte (privilegierte) Konten, siehe Offboarding, lassen sich auch hier weder simulieren noch löschen.
 
@@ -757,7 +757,7 @@ Ein Reverse Proxy ist nicht mehr nötig. Wer trotzdem einen verwendet, leitet an
 - **SMTP-Passwort:** Wird Server oder Benutzername geändert, muss das Passwort neu eingegeben werden. So lässt sich das gespeicherte Passwort nicht an einen fremden Server schicken
 - **Datenschutz in der Oberfläche:** Der Link *Datenschutz* (Anmeldeseite unten, Seitenleiste unter *Hilfe*) zeigt kurz, was gespeichert wird und die aktuellen Löschfristen. Administratoren können dort die Auskunft nach Art. 15 DSGVO für ein Konto als JSON herunterladen (wird in den Berichten vermerkt)
 - **Datenschutz:** Welche Daten wo liegen, Löschfristen, eingebaute Maßnahmen und eine Vorlage für das Verzeichnis von Verarbeitungstätigkeiten stehen in [DATENSCHUTZ.de.md](DATENSCHUTZ.de.md)
-- **Keine Verbindungen ins Internet im Betrieb:** Tailwind-CSS, Ersatzschriften (Manrope, JetBrains Mono) und Icons (Font Awesome) werden beim Docker-Build ins Image gepackt und vom eigenen Server ausgeliefert. Es gibt keine CDNs, kein Google Fonts, keine Telemetrie und keine Update-Prüfung. Zusätzlich verbietet ein Content-Security-Policy-Header dem Browser, irgendetwas von fremden Servern zu laden und Inline-Skripte auszuführen (die Oberflächenlogik ist eine eigene Datei, `/app.js`). Internet braucht nur der **Build** (npm, pip, Docker-Basisimages). Verbindungen gehen im Betrieb nur zu deinen eigenen Diensten: Domänencontroller, Dateiserver, SMTP und ggf. Exchange
+- **Keine Verbindungen ins Internet im Betrieb:** Tailwind-CSS, Schriften (Inter, IBM Plex Mono) und Icons (Font Awesome) werden beim Docker-Build ins Image gepackt und vom eigenen Server ausgeliefert. Es gibt keine CDNs, kein Google Fonts, keine Telemetrie und keine Update-Prüfung. Zusätzlich verbietet ein Content-Security-Policy-Header dem Browser, irgendetwas von fremden Servern zu laden und Inline-Skripte auszuführen (die Oberflächenlogik ist eine eigene Datei, `/app.js`). Internet braucht nur der **Build** (npm, pip, Docker-Basisimages). Verbindungen gehen im Betrieb nur zu deinen eigenen Diensten: Domänencontroller, Dateiserver, SMTP und ggf. Exchange
 - **Schwachstellen-Prüfung (Trivy):** Jedes Image wird vor der Veröffentlichung mit [Trivy](https://trivy.dev) geprüft, das veröffentlichte Image zusätzlich jeden Tag. Schwachstellen HOCH/KRITISCH mit verfügbarer Korrektur stoppen das Release. Ablauf, Sicherheitsupdates (`-s<Zähler>`) und was bei einem roten Lauf zu tun ist: Abschnitt *Automatische Sicherheitsupdates*.
 - Die Anwendung läuft nur über HTTPS (siehe oben). Am besten ein eigenes Zertifikat hinterlegen und `LDAP_ALLOW_PLAIN` auf `false` lassen (Standard)
 - Operatoren nur die Rechte geben, die sie brauchen (Delegierung auf einzelne OUs)
@@ -847,7 +847,7 @@ samonboarding/
   privacy.py                Datenschutz: Aufbewahrungsfristen (täglich), Auskunft (python -m samonboarding.privacy)
   datastate.py              Datenstand: Sicherung vor einem Versionswechsel, Migrationen, Schutz vor älteren Versionen
 DATENSCHUTZ.de.md           Datenschutz-Dokumentation (DSGVO), englisch: DATA-PROTECTION.md
-Dockerfile                  Stufe 1 baut Tailwind-CSS, Schriften (Manrope, JetBrains Mono) und Font Awesome, Stufe 2 ist die App
+Dockerfile                  Stufe 1 baut Tailwind-CSS, Schriften (Inter, IBM Plex Mono) und Font Awesome, Stufe 2 ist die App
 tailwind.config.js          Tailwind scannt samonboarding/web/*.html, Farben und Schriften aus web/theme.json
 tests/                      Unit-Tests und Szenarien (siehe Tests)
 pyproject.toml              Konfiguration von ruff, pyright und pytest

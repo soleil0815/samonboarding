@@ -34,8 +34,13 @@ class CspTests(unittest.TestCase):
 
     def test_page_has_no_inline_script(self):
         for tag in re.findall(r"<script\b[^>]*>", HTML):
-            self.assertTrue('src="/app.js?v=__APP_VERSION__"' in tag or 'type="application/json"' in tag, tag)
-        self.assertEqual(HTML.count("<script"), 2)
+            self.assertTrue(
+                'src="/app.js?v=__APP_VERSION__"' in tag
+                or 'src="/theme.js?v=__APP_VERSION__"' in tag
+                or 'type="application/json"' in tag,
+                tag,
+            )
+        self.assertEqual(HTML.count("<script"), 3)
         self.assertNotIn("javascript:", HTML.lower())
 
     def test_no_inline_event_handlers(self):

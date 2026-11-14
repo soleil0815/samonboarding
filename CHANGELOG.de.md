@@ -7,6 +7,12 @@ Update auf dem Server: `sudo sh update.sh` oder `docker compose pull && docker c
 
 Einträge, die mit „Sicherheit:“ oder „Behoben:“ beginnen, werden in der Oberfläche entsprechend markiert.
 
+## 2.5.0 – 2026-11-14
+- Neu: hell oder dunkel. Der Schalter ☀ / ☾ / ◐ (hell, dunkel, wie das System) sitzt unten in der Seitenleiste und oben rechts auf der Anmeldeseite. Standard ist hell; die Wahl merkt sich der Browser (nur diese Anzeige-Einstellung – Daten aus dem AD werden im Browser nicht gespeichert). Die Seite übernimmt die Darstellung schon vor dem Zeichnen, es blitzt nichts weiß auf.
+  - Alle Farben sind jetzt Variablen mit einem hellen und einem dunklen Wert; das dunkle Aussehen folgt dem hellen (Dunkelgrau statt Nachtblau, feine Linien, eine blaue Akzentfarbe, kein Leuchten).
+- Geändert: Schrift wie in WhatsOnMyNet – San Francisco auf dem Mac, sonst die mitgelieferte Inter; Code, Pfade und DNs in IBM Plex Mono. Beide ersetzen Manrope und JetBrains Mono und werden wie bisher ins Image gepackt (aus dem Internet wird nichts geladen).
+- README: Die Bilder gibt es hell und dunkel; GitHub zeigt das, was zur eigenen Darstellung passt.
+
 ## 2.4.0 – 2026-11-14
 - Geändert: neues, helles Design. Die Oberfläche wirkt jetzt ruhig und geschäftlich statt dunkel: hellgrauer Hintergrund, weiße Karten mit feinen Linien, eine blaue Akzentfarbe, keine Verläufe oder Leuchteffekte.
   - Schrift: die Systemschrift des Rechners (San Francisco auf dem Mac, Segoe UI unter Windows); die mitgelieferte Manrope bleibt als Ersatz. Aus dem Internet wird weiterhin nichts geladen.

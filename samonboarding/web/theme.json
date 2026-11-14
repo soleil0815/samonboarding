@@ -1,21 +1,114 @@
 {
-  "_comment": "Colours and fonts of the interface (light, since 2.4.0). Read by tailwind.config.js (Docker build). 'slate' is the base scale: 950/900 = white (surfaces, fields), 800/700 = lines, 500/400 = secondary text, 300-50 = text (darker and darker). 'cyan' is the accent (blue). emerald/amber/rose/sky: only the text shades 200-400 are darkened for the light background.",
+  "_comment": "Colours and fonts of the interface. Read by tailwind.config.js (Docker build): every colour becomes a CSS variable, 'colors' holds the light values, 'dark' the dark ones (switch: data-theme on <html>). 'slate' is the base scale: 950/900 = surfaces and fields, 800/700 = lines, 500/400 = secondary text, 300-50 = text. 'cyan' is the accent (blue). emerald/amber/rose/sky: only the text shades 200-400 are adjusted to the background.",
   "colors": {
     "slate": {
-      "50": "#000000", "100": "#1d1d1f", "200": "#1d1d1f", "300": "#3a3a3c", "400": "#5f5f64",
-      "500": "#6e6e73", "600": "#c7c7cc", "700": "#d2d2d7", "800": "#dcdce1", "900": "#ffffff", "950": "#ffffff"
+      "50": "#000000",
+      "100": "#1d1d1f",
+      "200": "#1d1d1f",
+      "300": "#3a3a3c",
+      "400": "#5f5f64",
+      "500": "#6e6e73",
+      "600": "#c7c7cc",
+      "700": "#d2d2d7",
+      "800": "#dcdce1",
+      "900": "#ffffff",
+      "950": "#ffffff"
     },
     "cyan": {
-      "50": "#f0f6ff", "100": "#e1eeff", "200": "#b8d7ff", "300": "#0058b0", "400": "#0066cc",
-      "500": "#0077ed", "600": "#0071e3", "700": "#005bbf", "800": "#004a9c", "900": "#003a7a", "950": "#002550"
+      "50": "#f0f6ff",
+      "100": "#e1eeff",
+      "200": "#b8d7ff",
+      "300": "#0058b0",
+      "400": "#0066cc",
+      "500": "#0077ed",
+      "600": "#0071e3",
+      "700": "#005bbf",
+      "800": "#004a9c",
+      "900": "#003a7a",
+      "950": "#002550"
     },
-    "emerald": { "200": "#1e6b33", "300": "#1d7a37", "400": "#1d7a37" },
-    "amber": { "200": "#8a4b00", "300": "#935000", "400": "#9a5400" },
-    "rose": { "200": "#a8221b", "300": "#b42a22", "400": "#c0352b" },
-    "sky": { "200": "#0b5cad" }
+    "emerald": {
+      "200": "#1e6b33",
+      "300": "#1d7a37",
+      "400": "#1d7a37"
+    },
+    "amber": {
+      "200": "#8a4b00",
+      "300": "#935000",
+      "400": "#9a5400"
+    },
+    "rose": {
+      "200": "#a8221b",
+      "300": "#b42a22",
+      "400": "#c0352b"
+    },
+    "sky": {
+      "200": "#0b5cad"
+    }
+  },
+  "dark": {
+    "slate": {
+      "50": "#ffffff",
+      "100": "#f5f5f7",
+      "200": "#f5f5f7",
+      "300": "#d1d1d6",
+      "400": "#a1a1a8",
+      "500": "#98989f",
+      "600": "#55555c",
+      "700": "#45454b",
+      "800": "#3a3a40",
+      "900": "#1e1e21",
+      "950": "#242427"
+    },
+    "cyan": {
+      "50": "#0f2135",
+      "100": "#132c4a",
+      "200": "#1b4373",
+      "300": "#7cbcff",
+      "400": "#4da3ff",
+      "500": "#0a84ff",
+      "600": "#0a84ff",
+      "700": "#0071e3",
+      "800": "#005bbf",
+      "900": "#004a9c",
+      "950": "#003a7a"
+    },
+    "emerald": {
+      "200": "#86e0a2",
+      "300": "#30d158",
+      "400": "#30d158"
+    },
+    "amber": {
+      "200": "#ffcf70",
+      "300": "#ffb340",
+      "400": "#ffb340"
+    },
+    "rose": {
+      "200": "#ffa39e",
+      "300": "#ff7b73",
+      "400": "#ff6961"
+    },
+    "sky": {
+      "200": "#64b5ff"
+    }
   },
   "fontFamily": {
-    "sans": ["-apple-system", "BlinkMacSystemFont", "Segoe UI", "Manrope", "Roboto", "Helvetica Neue", "Arial", "sans-serif"],
-    "mono": ["JetBrains Mono", "ui-monospace", "SFMono-Regular", "Consolas", "monospace"]
+    "sans": [
+      "-apple-system",
+      "BlinkMacSystemFont",
+      "Inter Variable",
+      "Inter",
+      "Segoe UI",
+      "system-ui",
+      "sans-serif"
+    ],
+    "mono": [
+      "IBM Plex Mono",
+      "ui-monospace",
+      "SF Mono",
+      "SFMono-Regular",
+      "Consolas",
+      "monospace"
+    ]
   }
 }

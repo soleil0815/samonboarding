@@ -34,8 +34,8 @@ Beim Docker-Build aus npm geholt (feste Versionen in `package.json` und `package
 
 | Component / Komponente | Licence / Lizenz | File in the image / Datei im Image |
 |---|---|---|
-| Manrope (Schrift / font, @fontsource/manrope) | SIL Open Font License 1.1 | `LICENSE-Manrope.txt` |
-| JetBrains Mono (Schrift / font, @fontsource/jetbrains-mono) | SIL Open Font License 1.1 | `LICENSE-JetBrains-Mono.txt` |
+| Inter (Schrift / font, @fontsource-variable/inter) | SIL Open Font License 1.1 | `LICENSE-Inter.txt` |
+| IBM Plex Mono (Schrift / font, @fontsource/ibm-plex-mono) | SIL Open Font License 1.1 | `LICENSE-IBM-Plex-Mono.txt` |
 | Font Awesome Free (@fortawesome/fontawesome-free) | Icons CC BY 4.0, Schriften / fonts SIL OFL 1.1, Code MIT | `LICENSE-Font-Awesome.txt` |
 | Tailwind CSS (tailwindcss; erzeugt nur das CSS beim Build / only generates the CSS at build time) | MIT | `LICENSE-Tailwind-CSS.txt` |
 

@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 # Copyright (C) 2026 Die SAMONBOARDING-Autoren
-"""UI: HTML page and static files (local Tailwind CSS, fonts Manrope/JetBrains Mono, Font Awesome).
+"""UI: HTML page and static files (local Tailwind CSS, fonts Inter/IBM Plex Mono, Font Awesome).
 
 Everything is served from our own server - there are no connections to CDNs or Google Fonts.
 """
@@ -71,6 +71,10 @@ def load_app_js():
     return _load_web_file("app.js")
 
 
+def load_theme_js():
+    return _load_web_file("theme.js")
+
+
 def i18n_json():
     """Dictionary for the English UI (embedded, '</' escaped)."""
     return json.dumps(i18n.dictionary(), ensure_ascii=False).replace("</", "<\\/")
@@ -82,6 +86,16 @@ def serve_app_js():
     ?v=<version>: it may be kept for a day, an update changes the address."""
     return Response(
         load_app_js().replace("__APP_VERSION__", VERSION),
+        media_type="text/javascript; charset=utf-8",
+        headers={"Cache-Control": "public, max-age=86400"},
+    )
+
+
+@router.get("/theme.js")
+def serve_theme_js():
+    """Sets light or dark before the page is drawn (loaded in <head>, own file because of the CSP)."""
+    return Response(
+        load_theme_js(),
         media_type="text/javascript; charset=utf-8",
         headers={"Cache-Control": "public, max-age=86400"},
     )

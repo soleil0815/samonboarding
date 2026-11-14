@@ -78,8 +78,8 @@ class LicenseTests(unittest.TestCase):
         docker = (ROOT / "Dockerfile").read_text(encoding="utf-8")
         deps = json.loads((ROOT / "package.json").read_text(encoding="utf-8"))["dependencies"]
         files = {
-            "@fontsource/manrope": "LICENSE-Manrope.txt",
-            "@fontsource/jetbrains-mono": "LICENSE-JetBrains-Mono.txt",
+            "@fontsource-variable/inter": "LICENSE-Inter.txt",
+            "@fontsource/ibm-plex-mono": "LICENSE-IBM-Plex-Mono.txt",
             "@fortawesome/fontawesome-free": "LICENSE-Font-Awesome.txt",
             "tailwindcss": "LICENSE-Tailwind-CSS.txt",
         }
