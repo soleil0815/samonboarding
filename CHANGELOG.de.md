@@ -7,6 +7,15 @@ Update auf dem Server: `sudo sh update.sh` oder `docker compose pull && docker c
 
 Einträge, die mit „Sicherheit:“ oder „Behoben:“ beginnen, werden in der Oberfläche entsprechend markiert.
 
+## 2.4.0 – 2026-11-14
+- Geändert: neues, helles Design. Die Oberfläche wirkt jetzt ruhig und geschäftlich statt dunkel: hellgrauer Hintergrund, weiße Karten mit feinen Linien, eine blaue Akzentfarbe, keine Verläufe oder Leuchteffekte.
+  - Schrift: die Systemschrift des Rechners (San Francisco auf dem Mac, Segoe UI unter Windows); die mitgelieferte Manrope bleibt als Ersatz. Aus dem Internet wird weiterhin nichts geladen.
+  - Anmeldung: zentriert, ein einziges schmales Formular.
+  - Menü: ruhig wie unter macOS – graue Markierung der offenen Seite, kleine farbige Punkte für die Kontostufen, die Zähler als schlichte Zahlen.
+  - Tabellen: Die Aktionen in einer Zeile (Offboarding, Verschieben, Gruppen, Kennwort zurücksetzen …) sind ruhige weiße Knöpfe mit farbiger Schrift; gefüllt bleibt nur die Hauptaktion einer Seite.
+  - Alle Seiten haben dieselbe Spaltenbreite, der Titel bleibt beim Seitenwechsel an derselben Stelle. Auf schmalen Bildschirmen rutscht der Knopf neben dem Seitentitel darunter, und Tabellenköpfe brechen um statt abgeschnitten zu werden.
+  - Neues Favicon: das Zwei-Personen-Symbol in Weiß auf einer graphitfarbenen Kachel.
+
 ## 2.3.1 – 2026-11-13
 - Geändert: Der Unterstützungs-Link ist jetzt eine kleine Karte unten auf der Startseite („Gefällt dir SAMONBOARDING? Über einen Kaffee freue ich mich.“ mit dem Knopf „Einen Kaffee spendieren“) statt des Knopfes im Menü. Weiterhin nur für Administratoren sichtbar und ein einfacher Link – aus dem Internet wird nichts geladen.
 

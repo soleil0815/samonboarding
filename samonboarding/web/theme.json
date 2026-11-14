@@ -1,17 +1,21 @@
 {
-  "_comment": "Farben und Schriften der Oberflaeche. Wird von tailwind.config.js (Docker-Build) gelesen. 'slate' ist die Grundfarbe (Nachtblau), 'cyan' der Akzent (Iris).",
+  "_comment": "Colours and fonts of the interface (light, since 2.4.0). Read by tailwind.config.js (Docker build). 'slate' is the base scale: 950/900 = white (surfaces, fields), 800/700 = lines, 500/400 = secondary text, 300-50 = text (darker and darker). 'cyan' is the accent (blue). emerald/amber/rose/sky: only the text shades 200-400 are darkened for the light background.",
   "colors": {
     "slate": {
-      "50": "#f4f6fb", "100": "#e7ebf4", "200": "#cdd4e4", "300": "#a9b3cb", "400": "#8590ad",
-      "500": "#66718e", "600": "#4c5672", "700": "#353d56", "800": "#252c42", "900": "#181e30", "950": "#0e1220"
+      "50": "#000000", "100": "#1d1d1f", "200": "#1d1d1f", "300": "#3a3a3c", "400": "#5f5f64",
+      "500": "#6e6e73", "600": "#c7c7cc", "700": "#d2d2d7", "800": "#dcdce1", "900": "#ffffff", "950": "#ffffff"
     },
     "cyan": {
-      "50": "#eef0ff", "100": "#dfe3ff", "200": "#c4caff", "300": "#a3abff", "400": "#8b95ff",
-      "500": "#6f78f9", "600": "#5a5de9", "700": "#4a47c9", "800": "#3b39a0", "900": "#34347e", "950": "#1f1e4a"
-    }
+      "50": "#f0f6ff", "100": "#e1eeff", "200": "#b8d7ff", "300": "#0058b0", "400": "#0066cc",
+      "500": "#0077ed", "600": "#0071e3", "700": "#005bbf", "800": "#004a9c", "900": "#003a7a", "950": "#002550"
+    },
+    "emerald": { "200": "#1e6b33", "300": "#1d7a37", "400": "#1d7a37" },
+    "amber": { "200": "#8a4b00", "300": "#935000", "400": "#9a5400" },
+    "rose": { "200": "#a8221b", "300": "#b42a22", "400": "#c0352b" },
+    "sky": { "200": "#0b5cad" }
   },
   "fontFamily": {
-    "sans": ["Manrope", "system-ui", "-apple-system", "Segoe UI", "sans-serif"],
+    "sans": ["-apple-system", "BlinkMacSystemFont", "Segoe UI", "Manrope", "Roboto", "Helvetica Neue", "Arial", "sans-serif"],
     "mono": ["JetBrains Mono", "ui-monospace", "SFMono-Regular", "Consolas", "monospace"]
   }
 }

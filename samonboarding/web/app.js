@@ -1037,7 +1037,7 @@ function renderUserMgmtTable(users) {
 
         html += `
             <tr class="hover:bg-slate-900/40">
-                <td class="p-3.5 text-white font-sans font-medium">${nt(u.name)}</td>
+                <td class="p-3.5 text-slate-100 font-sans font-medium">${nt(u.name)}</td>
                 <td class="p-3.5 text-cyan-400">${nt(u.sam)}</td>
                 <td class="p-3.5 text-slate-300 truncate max-w-xs" title="${esc(u.currentOu)}">${nt(u.currentOu || '-')}</td>
                 <td class="p-3.5 max-w-xs">${groupsHtml}</td>
@@ -1109,7 +1109,7 @@ async function openUserGroupsModal(dn, sam) {
                 html += `
                     <label class="flex items-center gap-2.5 p-2 bg-slate-900 rounded-lg hover:bg-slate-800 cursor-pointer">
                         <input type="checkbox" name="group-chk" value="${esc(g.dn)}" ${isMember ? 'checked' : ''} data-original="${isMember}" class="w-4 h-4 rounded bg-slate-950 border-slate-800 text-amber-600">
-                        <span class="text-white font-medium">${nt(g.name)}</span>
+                        <span class="text-slate-100 font-medium">${nt(g.name)}</span>
                         <span class="text-[10px] text-slate-500 font-mono ml-auto truncate max-w-xs">${nt(g.dn)}</span>
                     </label>
                 `;
@@ -1277,7 +1277,7 @@ function renderOffboardRecords() {
         const dismiss = currentUserRole === 'Administrator'
             ? `<button data-on-click="dismissRecord(${Number(r.id)})" class="icon-btn" title="Eintrag verwerfen" aria-label="Eintrag verwerfen"><i class="fa-solid fa-xmark"></i></button>` : '';
         return `<tr class="hover:bg-slate-900/40">
-            <td class="p-3.5"><div class="text-white font-medium">${nt(r.name || r.sam)}</div><div class="text-cyan-300">${nt(r.sam)}</div></td>
+            <td class="p-3.5"><div class="text-slate-100 font-medium">${nt(r.name || r.sam)}</div><div class="text-cyan-300">${nt(r.sam)}</div></td>
             <td class="p-3.5 font-mono text-[11px] text-slate-300">${nt(r.originalOu)}</td>
             <td class="p-3.5 text-slate-300 max-w-[14rem]">${groups}</td>
             <td class="p-3.5 text-slate-400 whitespace-nowrap">${esc(fmtDateTime(r.offboardedAt))}<div class="text-[11px] text-slate-500">von ${nt(r.offboardedBy || '-')}</div></td>
@@ -1311,15 +1311,15 @@ function renderRestorePlan() {
     const p = restorePlan;
     const body = document.getElementById('restore-body');
     const options = [...new Set([p.originalOu, ...(p.ouOptions || []), p.targetOu])].filter(Boolean);
-    const ouSelect = `<select id="restore-ou" data-on-change="onRestoreOuChange()" class="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-white text-xs font-mono">${options.map(o => `<option value="${esc(o)}" ${o === p.targetOu ? 'selected' : ''}>${nt(o)}${o === p.originalOu ? '  (vorher)' : ''}</option>`).join('')}</select>`;
+    const ouSelect = `<select id="restore-ou" data-on-change="onRestoreOuChange()" class="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-slate-100 text-xs font-mono">${options.map(o => `<option value="${esc(o)}" ${o === p.targetOu ? 'selected' : ''}>${nt(o)}${o === p.originalOu ? '  (vorher)' : ''}</option>`).join('')}</select>`;
     const stat = {add: ['fa-plus', 'text-emerald-400', 'wird wieder zugewiesen'], member: ['fa-check', 'text-slate-400', 'bereits Mitglied'], missing: ['fa-triangle-exclamation', 'text-amber-400', 'gibt es nicht mehr']};
     const groups = (p.groups || []).length
-        ? p.groups.map(g => { const s = stat[g.status] || stat.add; return `<li class="flex items-center gap-2"><i class="fa-solid ${s[0]} ${s[1]} w-4 text-center"></i><span class="text-white">${nt(g.name)}</span><span class="text-slate-500 text-xs">${s[2]}</span></li>`; }).join('')
+        ? p.groups.map(g => { const s = stat[g.status] || stat.add; return `<li class="flex items-center gap-2"><i class="fa-solid ${s[0]} ${s[1]} w-4 text-center"></i><span class="text-slate-100">${nt(g.name)}</span><span class="text-slate-500 text-xs">${s[2]}</span></li>`; }).join('')
         : '<li class="text-slate-500">Keine Gruppen gespeichert.</li>';
     const blockers = (p.blockers || []).map(b => `<div class="p-3 rounded-xl border border-rose-500/30 bg-rose-500/5 text-rose-300 text-xs">${esc(b)}</div>`).join('');
     const notes = (p.notes || []).map(n => `<div class="text-xs text-amber-300/90"><i class="fa-solid fa-circle-info mr-1"></i>${esc(n)}</div>`).join('');
     body.innerHTML = `
-        <div><div class="text-white font-semibold text-base">${nt(p.name || p.sam)} <span class="text-cyan-300 font-normal text-sm">${nt(p.sam)}</span></div>
+        <div><div class="text-slate-100 font-semibold text-base">${nt(p.name || p.sam)} <span class="text-cyan-300 font-normal text-sm">${nt(p.sam)}</span></div>
         <div class="text-xs text-slate-400">Offgeboardet am ${esc(fmtDateTime(p.offboardedAt))} von ${nt(p.offboardedBy || '-')}</div></div>
         <div><label class="field-label" for="restore-ou">Zurück in die OU</label>${ouSelect}</div>
         <div><div class="field-label">Gruppen</div><ul class="space-y-1.5">${groups}</ul></div>
@@ -1570,7 +1570,7 @@ function renderOffboardTable(users) {
         html += `
             <tr class="hover:bg-slate-900/40">
                 <td class="p-3.5">${selBox}</td>
-                <td class="p-3.5 text-white font-sans font-medium">${nt(u.name)}</td>
+                <td class="p-3.5 text-slate-100 font-sans font-medium">${nt(u.name)}</td>
                 <td class="p-3.5 text-cyan-400">${nt(u.sam)}</td>
                 <td class="p-3.5 text-slate-300">${nt(u.mail || '-')}</td>
                 <td class="p-3.5 whitespace-nowrap">${lastLogonCell(u.lastLogon)}</td>
@@ -1621,7 +1621,7 @@ function renderPwdResetTable(users) {
 
         html += `
             <tr class="hover:bg-slate-900/40">
-                <td class="p-3.5 text-white font-sans font-medium">${nt(u.name)}</td>
+                <td class="p-3.5 text-slate-100 font-sans font-medium">${nt(u.name)}</td>
                 <td class="p-3.5 text-cyan-400">${nt(u.sam)}</td>
                 <td class="p-3.5">${statusBadges}</td>
                 <td class="p-3.5 text-right">
@@ -2313,7 +2313,7 @@ function renderReports() {
     } else if(reportKind === 'audit') {
         body.innerHTML = reportRows.map(r => `<tr class="align-top hover:bg-slate-900/40">
             <td class="p-3.5 text-slate-400 whitespace-nowrap">${esc(fmtDateTime(r.ts, true))}</td>
-            <td class="p-3.5 text-white font-medium">${nt(r.actor || '-')}</td>
+            <td class="p-3.5 text-slate-100 font-medium">${nt(r.actor || '-')}</td>
             <td class="p-3.5 text-slate-200">${esc(reportActionLabel(r.action))}<div class="text-[11px] text-slate-500 font-mono" translate="no">${esc(r.action)}</div></td>
             <td class="p-3.5 max-w-[28rem]"><div class="font-mono text-[11px] text-slate-300 break-all">${nt(r.target || '')}</div><div class="rep-details mt-0.5">${reportDetails(r.details)}</div></td>
             <td class="p-3.5"><span class="rep-badge ${r.ok ? 'rep-ok' : 'rep-fail'}">${esc(r.ok ? 'Erfolgreich' : 'Fehlgeschlagen')}</span></td>
@@ -2662,7 +2662,7 @@ function renderDeletionTable(users, warning) {
         if(u.self) { status = '<span class="text-slate-500">Eigenes Konto</span>'; action = ''; box = ''; }
         else if(u.protected) { status = `<span class="text-amber-400" title="${esc(u.protected)}"><i class="fa-solid fa-lock mr-1"></i>Geschützt: ${esc(u.protected)}</span>`; action = ''; box = ''; }
         else if(!u.disabled) { status = '<span class="text-amber-400">Noch aktiv</span>'; action = ''; box = ''; }
-        return `<tr class="hover:bg-slate-900/40"><td class="p-3.5">${box}</td><td class="p-3.5 text-white font-sans">${nt(u.name)}</td><td class="p-3.5 text-slate-300">${nt(u.sam)}</td><td class="p-3.5">${status}</td><td class="p-3.5 text-right">${action}</td></tr>`;
+        return `<tr class="hover:bg-slate-900/40"><td class="p-3.5">${box}</td><td class="p-3.5 text-slate-100 font-sans">${nt(u.name)}</td><td class="p-3.5 text-slate-300">${nt(u.sam)}</td><td class="p-3.5">${status}</td><td class="p-3.5 text-right">${action}</td></tr>`;
     }).join('');
 }
 
@@ -2705,8 +2705,8 @@ async function simulateDeletion(userDn) {
             <div class="text-rose-300 font-semibold"><i class="fa-solid fa-triangle-exclamation mr-1"></i> Endgültig löschen</div>
             <p class="text-slate-300">Das AD-Konto <strong>${nt(a.sam)}</strong> und alle oben als „Vorhanden“ oder „Besitz nötig“ gezeigten Ordner werden <strong>unwiderruflich</strong> gelöscht. ${skipped ? 'Übersprungene Ordner bleiben bestehen. ' : ''}Vor dem Löschen wird der Zustand erneut geprüft; hat sich etwas geändert, passiert nichts.</p>
             <div class="flex gap-2 items-center">
-                <input type="text" id="del-confirm-sam" data-on-input="onDelConfirmInput()" autocomplete="off" placeholder="Benutzernamen zur Bestätigung eintippen: ${esc(a.sam)}" class="flex-1 bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-white text-xs font-mono focus:border-rose-500 focus:outline-none">
-                <input type="password" id="del-confirm-pw" data-on-input="onDelConfirmInput()" autocomplete="current-password" placeholder="Ihr Passwort" class="w-44 bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-white text-xs font-mono focus:border-rose-500 focus:outline-none">
+                <input type="text" id="del-confirm-sam" data-on-input="onDelConfirmInput()" autocomplete="off" placeholder="Benutzernamen zur Bestätigung eintippen: ${esc(a.sam)}" class="flex-1 bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-slate-100 text-xs font-mono focus:border-rose-500 focus:outline-none">
+                <input type="password" id="del-confirm-pw" data-on-input="onDelConfirmInput()" autocomplete="current-password" placeholder="Ihr Passwort" class="w-44 bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-slate-100 text-xs font-mono focus:border-rose-500 focus:outline-none">
                 <button id="del-exec-btn" data-on-click="executeDeletion()" disabled class="px-4 py-2.5 bg-rose-600 hover:bg-rose-500 disabled:opacity-40 disabled:cursor-not-allowed text-white rounded-xl font-semibold shadow"><i class="fa-solid fa-trash-can mr-1"></i> Endgültig löschen</button>
             </div>
             <div class="text-[11px] text-slate-500">Der Plan ist nur kurz gültig${until ? ' (bis ' + esc(until) + ')' : ''}.</div>
@@ -2722,7 +2722,7 @@ async function simulateDeletion(userDn) {
         <div class="card p-5 space-y-2 text-xs">
             <h3 class="font-bold text-amber-400"><i class="fa-solid fa-flask mr-1"></i> Simulationsergebnis – es wurde nichts verändert</h3>
             <div class="font-mono space-y-1">
-                <div><span class="text-slate-400">AD-Konto:</span> <strong class="text-white">${nt(a.name)}</strong> (${nt(a.sam)}) – würde gelöscht</div>
+                <div><span class="text-slate-400">AD-Konto:</span> <strong class="text-slate-100">${nt(a.name)}</strong> (${nt(a.sam)}) – würde gelöscht</div>
                 <div class="text-slate-400 break-all">${nt(a.dn)}</div>
                 <div class="text-slate-400">Gruppenmitgliedschaften: ${a.groups.length}${a.groups.length ? ' (' + esc(a.groups.join(', ')) + ')' : ''}</div>
             </div>
@@ -2794,8 +2794,8 @@ async function simulateBatch() {
             <div class="text-rose-300 font-semibold"><i class="fa-solid fa-triangle-exclamation mr-1"></i> ${ready.length} Konto/Konten endgültig löschen</div>
             <p class="text-slate-300">Gelöscht werden die als „Bereit“ markierten Konten samt ihrer Ordner – <strong>unwiderruflich</strong>. Blockierte Konten bleiben unberührt. Jedes Konto wird vor dem Löschen erneut geprüft und einzeln abgearbeitet; bei einem Fehler bleibt dieses Konto bestehen, die übrigen laufen weiter.</p>
             <div class="flex flex-wrap gap-2 items-center">
-                <input type="text" id="del-batch-count" data-on-input="onDelBatchInput()" autocomplete="off" inputmode="numeric" placeholder="Anzahl eintippen: ${ready.length}" class="w-52 bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-white text-xs font-mono focus:border-rose-500 focus:outline-none">
-                <input type="password" id="del-batch-pw" data-on-input="onDelBatchInput()" autocomplete="current-password" placeholder="Ihr Passwort" class="w-44 bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-white text-xs font-mono focus:border-rose-500 focus:outline-none">
+                <input type="text" id="del-batch-count" data-on-input="onDelBatchInput()" autocomplete="off" inputmode="numeric" placeholder="Anzahl eintippen: ${ready.length}" class="w-52 bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-slate-100 text-xs font-mono focus:border-rose-500 focus:outline-none">
+                <input type="password" id="del-batch-pw" data-on-input="onDelBatchInput()" autocomplete="current-password" placeholder="Ihr Passwort" class="w-44 bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-slate-100 text-xs font-mono focus:border-rose-500 focus:outline-none">
                 <button id="del-batch-btn" data-on-click="executeBatch()" disabled class="px-4 py-2.5 bg-rose-600 hover:bg-rose-500 disabled:opacity-40 disabled:cursor-not-allowed text-white rounded-xl font-semibold shadow"><i class="fa-solid fa-trash-can mr-1"></i> Endgültig löschen</button>
             </div>
             <div class="text-[11px] text-slate-500">Der Plan ist nur kurz gültig${until ? ' (bis ' + esc(until) + ')' : ''}.</div>
@@ -3141,7 +3141,7 @@ function adTreeRender(t) {
         }
         const icon = n.domain ? '\uD83C\uDF10' : (n.item && t.group ? '\uD83D\uDC65' : '\uD83D\uDCC1');
         lab.appendChild(adEl('span', 'shrink-0', icon));
-        const name = adEl('span', (n.item ? 'text-white' : 'text-slate-500') + ' truncate', n.label);
+        const name = adEl('span', (n.item ? 'text-slate-100' : 'text-slate-500') + ' truncate', n.label);
         name.title = n.dn;
         lab.appendChild(name);
         row.appendChild(lab);
@@ -3198,7 +3198,7 @@ function adTreeEnsure(id) {
     host.className = 'bg-slate-950 border border-slate-800 rounded-xl overflow-hidden';
 
     const bar = adEl('div', 'flex items-center gap-1 p-1.5 border-b border-slate-800 bg-slate-900/60');
-    const search = adEl('input', 'flex-1 min-w-0 bg-slate-950 border border-slate-800 rounded-lg px-2 py-1 text-xs text-white');
+    const search = adEl('input', 'flex-1 min-w-0 bg-slate-950 border border-slate-800 rounded-lg px-2 py-1 text-xs text-slate-100');
     search.type = 'text';
     search.placeholder = 'Suchen …';
     search.addEventListener('input', () => { t.query = search.value; adTreeRender(t); });
@@ -3321,8 +3321,8 @@ function populateDropdowns() {
 }
 
 function renderInfraView() {
-    document.getElementById('infra-ous').innerHTML = adData.ous.map(ou => `<li class="px-3 py-2.5 bg-slate-950/60 rounded-xl border border-slate-800/80 truncate"><i class="fa-solid fa-folder text-amber-300/80 mr-2"></i><strong class="text-white font-semibold">${nt(ou.name)}</strong><span class="block text-[11px] text-slate-500 font-mono truncate mt-0.5">${nt(ou.dn)}</span></li>`).join('');
-    document.getElementById('infra-groups').innerHTML = adData.groups.map(g => `<li class="px-3 py-2.5 bg-slate-950/60 rounded-xl border border-slate-800/80 truncate"><i class="fa-solid fa-user-group text-emerald-300/80 mr-2"></i><strong class="text-white font-semibold">${nt(g.name)}</strong><span class="block text-[11px] text-slate-500 font-mono truncate mt-0.5">${nt(g.dn)}</span></li>`).join('');
+    document.getElementById('infra-ous').innerHTML = adData.ous.map(ou => `<li class="px-3 py-2.5 bg-slate-950/60 rounded-xl border border-slate-800/80 truncate"><i class="fa-solid fa-folder text-amber-300/80 mr-2"></i><strong class="text-slate-100 font-semibold">${nt(ou.name)}</strong><span class="block text-[11px] text-slate-500 font-mono truncate mt-0.5">${nt(ou.dn)}</span></li>`).join('');
+    document.getElementById('infra-groups').innerHTML = adData.groups.map(g => `<li class="px-3 py-2.5 bg-slate-950/60 rounded-xl border border-slate-800/80 truncate"><i class="fa-solid fa-user-group text-emerald-300/80 mr-2"></i><strong class="text-slate-100 font-semibold">${nt(g.name)}</strong><span class="block text-[11px] text-slate-500 font-mono truncate mt-0.5">${nt(g.dn)}</span></li>`).join('');
 }
 
 async function loadTemplates() {
@@ -3352,7 +3352,7 @@ async function loadTemplates() {
             tplHtml += `
                 <div class="card p-5 flex flex-wrap gap-4 justify-between items-center">
                     <div class="min-w-0 space-y-2">
-                        <h4 class="font-bold text-white text-[15px]">${nt(tpl.name)}</h4>
+                        <h4 class="font-bold text-slate-100 text-[15px]">${nt(tpl.name)}</h4>
                         <div class="flex flex-wrap gap-1.5 text-xs">
                             <span class="tpl-tag"><i class="fa-solid ${mail.icon}"></i> ${esc(mail.text)}</span>
                             <span class="tpl-tag"><i class="fa-solid fa-user-group"></i> ${groupCount === 1 ? '1 Gruppe' : groupCount + ' Gruppen'}</span>
