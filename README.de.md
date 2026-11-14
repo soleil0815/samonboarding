@@ -16,7 +16,7 @@ Webanwendung für die tägliche Benutzerverwaltung im Active Directory (**Samba 
 
 Die Anwendung läuft als Docker-Container (FastAPI + ldap3), die Oberfläche ist komplett eingebaut und braucht kein Internet.
 
-<picture><source media="(prefers-color-scheme: dark)" srcset="docs/images/anmeldung-dark.png"><img src="docs/images/anmeldung.png" alt="Anmeldeseite von SAMONBOARDING mit der Domäne firma.local"></picture>
+![Anmeldeseite von SAMONBOARDING mit der Domäne firma.local](docs/images/anmeldung.png)
 
 > **Bitte vor dem Einsatz lesen**
 >
@@ -73,7 +73,7 @@ Diese fünf Punkte erklären das ganze Konzept:
 
 Nach der Anmeldung zeigt die **Startseite**, was ansteht: aktive Konten ohne Anmeldung seit 90 Tagen, gesperrte Konten und (für Administratoren) Konten, die bereit zum Löschen sind. Ein Klick öffnet die passende Liste. Unter **Aufgaben** folgt die Navigation dem Lebenszyklus eines Kontos: **Neuer Mitarbeiter** (Onboarding), **Benutzerverwaltung**, **Passwort zurücksetzen**, **Austritt** (Offboarding) und **Konten löschen**; Zahlen daneben zeigen, wie viele Konten dort warten. Darunter liegen **Einstellungen** (Templates, E-Mail-Benachrichtigung, AD-Struktur, Berichte, Zertifikat) und Hilfe. Mit **Strg + K** öffnet sich die Schnellsuche für Personen und Seiten. Rückmeldungen erscheinen als Meldung unten rechts. Fehler und lange Meldungen bleiben stehen, bis sie geschlossen werden. Auf Tablet und Handy klappt die Navigation über das Menü-Symbol oben links auf.
 
-<picture><source media="(prefers-color-scheme: dark)" srcset="docs/images/start-dark.png"><img src="docs/images/start.png" alt="Startseite „Was steht an?“: Karten für Konten ohne Anmeldung seit 90 Tagen, gesperrte Konten und Konten bereit zum Löschen, links das gegliederte Menü mit Zählern"></picture>
+![Startseite „Was steht an?“: Karten für Konten ohne Anmeldung seit 90 Tagen, gesperrte Konten und Konten bereit zum Löschen, links das gegliederte Menü mit Zählern](docs/images/start.png)
 
 **Sprache:** Die Oberfläche gibt es auf **Deutsch und Englisch**. Umgeschaltet wird mit *DE / EN* unten in der Seitenleiste oder oben rechts auf der Anmeldeseite. Die Wahl merkt sich der Browser; beim ersten Aufruf gilt die Sprache des Browsers. Meldungen des Servers und die Benachrichtigungs-Mails kommen in der gewählten Sprache. Namen, OUs, Gruppen und Pfade aus dem AD werden nie übersetzt. Die englischen Texte stehen in `samonboarding/web/i18n.json` (deutscher Text → englischer Text, mit Platzhaltern `{0}` für Werte).
 
@@ -380,7 +380,7 @@ In den Textfeldern kann der Platzhalter `%username%` stehen. Er wird durch den n
 
 ### Onboarding
 
-<picture><source media="(prefers-color-scheme: dark)" srcset="docs/images/onboarding-dark.png"><img src="docs/images/onboarding.png" alt="Onboarding: Template „Vertrieb“ gewählt, Vorname, Nachname und E-Mail eingetragen, darunter Ziel-OU, Namensmakro und Gruppen des Templates"></picture>
+![Onboarding: Template „Vertrieb“ gewählt, Vorname, Nachname und E-Mail eingetragen, darunter Ziel-OU, Namensmakro und Gruppen des Templates](docs/images/onboarding.png)
 
 1. Template wählen, Vor- und Nachname sowie (je nach Einstellung) die E-Mail-Adresse eingeben
 2. Das Konto wird in der Ziel-OU des Templates angelegt (Name: *Vorname Nachname*, UPN: `benutzername@firma.local`)
@@ -477,7 +477,7 @@ Alle Benutzerlisten sind alphabetisch nach Anzeigenamen sortiert.
 
 ### Konten löschen (nur Administratoren)
 
-<picture><source media="(prefers-color-scheme: dark)" srcset="docs/images/loeschen-dark.png"><img src="docs/images/loeschen.png" alt="Konten löschen: Liste der deaktivierten Konten und Ergebnis der Simulation mit Profil, Ordnerumleitung und Basisordner, darunter die Bestätigung mit Benutzername und Passwort"></picture>
+![Konten löschen: Liste der deaktivierten Konten und Ergebnis der Simulation mit Profil, Ordnerumleitung und Basisordner, darunter die Bestätigung mit Benutzername und Passwort](docs/images/loeschen.png)
 
 Der Menüpunkt **Konten löschen** ist nur für Administratoren sichtbar. Account Operatoren sehen ihn nicht, und der Server weist ihre Anfragen zusätzlich mit *403* ab. Geschützte (privilegierte) Konten, siehe Offboarding, lassen sich auch hier weder simulieren noch löschen.
 
