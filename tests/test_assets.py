@@ -30,7 +30,18 @@ class ThemeTests(unittest.TestCase):
             )
             for value in theme["colors"][family].values():
                 self.assertRegex(value, r"^#[0-9a-f]{6}$")
-        self.assertEqual(theme["fontFamily"]["sans"][0], "Manrope")
+        for family in ("emerald", "amber", "rose", "sky"):
+            for value in theme["colors"][family].values():
+                self.assertRegex(value, r"^#[0-9a-f]{6}$")
+        # Light theme: surfaces white, text dark - so the existing slate classes keep their meaning
+        self.assertEqual(theme["colors"]["slate"]["950"], "#ffffff")
+        self.assertEqual(theme["colors"]["slate"]["100"], "#1d1d1f")
+        # System font first (San Francisco / Segoe UI), the bundled Manrope as local fallback - never a web font
+        sans = theme["fontFamily"]["sans"]
+        self.assertEqual(sans[0], "-apple-system")
+        self.assertIn("Segoe UI", sans)
+        self.assertIn("Manrope", sans)
+        self.assertEqual(sans[-1], "sans-serif")
         self.assertEqual(theme["fontFamily"]["mono"][0], "JetBrains Mono")
 
     def test_tailwind_config_reads_theme(self):

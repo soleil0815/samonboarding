@@ -7,6 +7,15 @@ Update on the server: `sudo sh update.sh` or `docker compose pull && docker comp
 
 Entries starting with "Security:" or "Fixed:" are marked accordingly in the interface.
 
+## 2.4.0 – 2026-11-14
+- Changed: new, light design. The interface now looks calm and businesslike instead of dark: light grey background, white cards with fine lines, one blue accent colour, no gradients or glow effects.
+  - Font: the system font of the computer (San Francisco on the Mac, Segoe UI on Windows); the bundled Manrope remains the fallback. Still nothing is loaded from the internet.
+  - Login: centred, a single narrow form.
+  - Menu: quiet like in macOS – grey highlight for the open page, small coloured dots for the account stages, the counters as plain numbers.
+  - Tables: the actions in a row (Offboarding, Move, Groups, Reset password …) are quiet white buttons with coloured text; only the main action of a page stays filled.
+  - Every page uses the same column width, so the title stays in the same place when switching pages. On narrow screens the button next to the page title moves below it, and table headers wrap instead of being cut off.
+  - New favicon: the two-person symbol in white on a graphite tile.
+
 ## 2.3.1 – 2026-11-13
 - Changed: the support link is now a small card at the bottom of the home page ("Like SAMONBOARDING? A coffee would make my day." with the button "Buy me a coffee") instead of the button in the menu. Still visible to administrators only, still a plain link – nothing is loaded from the internet.
 
