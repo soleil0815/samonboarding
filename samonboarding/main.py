@@ -19,6 +19,7 @@ from .routers import (
     certificate,
     dashboard,
     deletion,
+    diagnose,
     infrastructure,
     manual,
     news,
@@ -191,6 +192,11 @@ async def _timing(request: Request, call_next):
         steps = timing.stop(token)
         if total >= timing.SLOW_SECONDS:
             log.info(timing.slow_message(request.method, request.url.path, steps, total))
+    # statistics per route pattern (never the values in the path) for the diagnostic package
+    route = getattr(request.scope.get("route"), "path", None) or "(andere)"
+    timing.record(f"{request.method} {route}", total, steps)
+    if resp.status_code >= 500:
+        timing.record_error(f"{request.method} {route}")
     resp.headers["Server-Timing"] = timing.server_timing(steps, total)
     return resp
 
@@ -247,6 +253,7 @@ for _module in (
     references_router,
     templates,
     onboarding,
+    diagnose,
     ui,
 ):
     app.include_router(_module.router)

@@ -158,3 +158,8 @@ class CertSelfSignedModel(BaseModel):
 
 class PeopleSearchModel(BaseModel):
     q: str = ""
+
+
+class DiagnoseModel(BaseModel):
+    # what the browser reports about itself (user agent, language, appearance, window size) - optional
+    browser: dict = {}

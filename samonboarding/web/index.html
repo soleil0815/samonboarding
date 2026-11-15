@@ -175,6 +175,10 @@
         .privacy-link { background: none; border: 0; padding: 0; color: var(--text-4); font: inherit; cursor: pointer; text-decoration: underline; text-decoration-color: transparent; text-underline-offset: 3px; transition: color .15s, text-decoration-color .15s; }
         .privacy-link:hover, .privacy-link:focus-visible { color: var(--text); text-decoration-color: currentColor; outline: none; }
         .privacy-fact { display: flex; gap: 12px; align-items: flex-start; padding: 12px 14px; border: 1px solid var(--line); border-radius: 12px; background: var(--head-bg); }
+        .diag-text, .diag-cmd { font-family: var(--mono); font-size: 12px; line-height: 1.55; background: var(--pre-bg); border: 1px solid var(--line); border-radius: 10px; padding: 12px 14px; color: var(--text-2); white-space: pre-wrap; overflow-wrap: anywhere; }
+        .diag-text { max-height: 520px; overflow: auto; }
+        .diag-hint { display: flex; gap: 8px; align-items: flex-start; font-size: 13px; padding: 8px 12px; border-radius: 10px; background: var(--warn-bg); color: var(--warn-text-2); margin-bottom: 6px; }
+        .diag-hint.is-ok { background: var(--ok-bg); color: var(--ok-text); }
         .privacy-fact i { margin-top: 2px; width: 16px; text-align: center; color: var(--ok-text); }
         .privacy-fact b { display: block; color: var(--text); font-weight: 600; font-size: 13px; }
         .privacy-fact span { display: block; color: var(--text-3); font-size: 12px; line-height: 1.5; }
@@ -466,6 +470,7 @@
                 <button data-on-click="switchTab('infra')" id="nav-infra" class="nav-item nav-plain"><i class="fa-solid fa-sitemap nav-icon"></i><span class="nav-name">AD-Struktur</span></button>
                 <button data-on-click="switchTab('reports')" id="nav-reports" style="display:none" class="nav-item nav-plain"><i class="fa-solid fa-clipboard-list nav-icon"></i><span class="nav-name">Berichte</span></button>
                 <button data-on-click="switchTab('cert')" id="nav-cert" style="display:none" class="nav-item nav-plain"><i class="fa-solid fa-certificate nav-icon"></i><span class="nav-name">Zertifikat</span></button>
+                <button data-on-click="switchTab('diagnose')" id="nav-diagnose" style="display:none" class="nav-item nav-plain"><i class="fa-solid fa-stethoscope nav-icon"></i><span class="nav-name">Diagnose</span></button>
 
                 <p class="nav-group">Hilfe</p>
                 <button data-on-click="switchTab('faq')" id="nav-faq" class="nav-item nav-plain"><i class="fa-solid fa-book nav-icon"></i><span class="nav-name">Handbuch</span></button>
@@ -1180,6 +1185,44 @@
                     </div>
 
                     <div id="del-sim-result" class="space-y-4"></div>
+                </div>
+
+                <div id="tab-diagnose" class="max-w-4xl space-y-6 hidden">
+                    <div>
+                        <h2 class="page-title">Diagnose</h2>
+                        <p class="text-xs text-slate-400">Anonymes Paket für die Fehlersuche – zum Weitergeben an den Support (Nur Administratoren)</p>
+                    </div>
+
+                    <div class="card p-5 space-y-4">
+                        <h3 class="section-title"><i class="fa-solid fa-stethoscope mr-1"></i> Diagnosepaket</h3>
+                        <p class="text-sm text-slate-300">Das Paket fasst zusammen, was für die Fehlersuche wichtig ist: Version, Einstellungen, Verbindung zum DC, Zertifikat, Datenordner, Geschwindigkeit und die letzten Warnungen und Fehler aus dem Protokoll.</p>
+                        <ul class="privacy-facts">
+                            <li class="privacy-fact"><i class="fa-solid fa-user-secret"></i><span>Anonym: Benutzer, OUs, Gruppen, Server, IP-Adressen, E-Mail-Adressen und Freigaben werden durch Platzhalter ersetzt (benutzer-1, ou-2, host-3 …). Die Zuordnung wird nirgends gespeichert.</span></li>
+                            <li class="privacy-fact"><i class="fa-solid fa-key"></i><span>Kennwörter, Tokens und Sitzungen sind nie enthalten.</span></li>
+                            <li class="privacy-fact"><i class="fa-solid fa-download"></i><span>Es wird nur heruntergeladen und nirgends hingeschickt. Du entscheidest, wem du es gibst.</span></li>
+                            <li class="privacy-fact"><i class="fa-solid fa-plug"></i><span>Für den Verbindungstest meldet sich das Programm kurz mit deinem Konto am DC an (wie bei jeder Seite – es gibt kein Dienstkonto).</span></li>
+                        </ul>
+                        <div class="flex flex-wrap gap-3">
+                            <button type="button" id="diag-preview-btn" data-on-click="previewDiagnose()" class="bg-slate-800 hover:bg-slate-700 px-4 py-2.5 rounded-lg text-sm font-semibold text-slate-200 transition-colors"><i class="fa-solid fa-eye mr-1"></i> Vorschau anzeigen</button>
+                            <button type="button" id="diag-download-btn" data-on-click="downloadDiagnose()" class="btn-primary px-4 py-2.5 rounded-lg text-sm font-semibold text-white"><i class="fa-solid fa-file-zipper mr-1"></i> Diagnosepaket herunterladen</button>
+                        </div>
+                    </div>
+
+                    <div id="diag-preview-card" class="card p-5 space-y-3 hidden">
+                        <div class="flex flex-wrap gap-2 justify-between items-center">
+                            <h3 class="section-title"><i class="fa-solid fa-file-lines mr-1"></i> Inhalt (diagnose.txt)</h3>
+                            <span id="diag-file" class="text-xs text-slate-400 font-mono" translate="no"></span>
+                        </div>
+                        <div id="diag-hints"></div>
+                        <pre id="diag-text" class="diag-text" translate="no"></pre>
+                        <p class="text-xs text-slate-400">Im Paket steht derselbe Inhalt zusätzlich als <span class="font-mono">diagnose.json</span> (maschinenlesbar).</p>
+                    </div>
+
+                    <div class="card p-5 space-y-2">
+                        <h3 class="section-title"><i class="fa-solid fa-terminal mr-1"></i> Wenn die Anmeldung nicht klappt</h3>
+                        <p class="text-sm text-slate-300">Auf dem Server im Ordner der docker-compose.yml – das Paket landet unter <span class="font-mono">data/diagnose/</span> (ohne Verbindungstest):</p>
+                        <pre class="diag-cmd" translate="no">sudo docker compose exec samonboarding python -m samonboarding.diagnose</pre>
+                    </div>
                 </div>
 
                 <div id="tab-faq" class="max-w-4xl space-y-4 hidden">

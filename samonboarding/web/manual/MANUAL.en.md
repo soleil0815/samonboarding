@@ -363,6 +363,8 @@ docker compose logs -f
 ```
 
 ---
+**Diagnostic package:** menu **Diagnostics** (administrators only). *Show preview* shows what the package contains, *Download diagnostic package* saves it as a ZIP (`diagnose.txt` to read, `diagnose.json` for support). It contains the version, settings, a short connection test to the DC with your account, certificate, data folder, response times and the latest warnings and errors. Everything is anonymous: users, OUs, groups, servers, IP and e-mail addresses and shares are replaced by placeholders; passwords are never included. The **notable points** come first (e.g. expired certificate, missing OU, DC unreachable). If signing in does not work: `sudo docker compose exec samonboarding python -m samonboarding.diagnose` – the package is then saved to `data/diagnose/`.
+
 **When something is slow:** every request that takes longer than one second is logged with its duration per step, for example `Langsam: GET /api/offboarding/users 2.9 s (Verbindung 0.1 s, Suche 0.4 s, Schutzpruefung 2.4 s)` – durations only, never names or search terms. Show them with `sudo docker compose logs samonboarding | grep Langsam`. The browser shows the same durations in the developer tools (Network → Timing, "Server-Timing").
 
 ## 17. Common questions and errors

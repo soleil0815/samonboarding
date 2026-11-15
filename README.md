@@ -772,6 +772,12 @@ A reverse proxy is no longer needed. If you use one anyway, forward to `https://
 
 ## 10. Troubleshooting
 
+**Diagnostic package:** under **Settings → Diagnostics** (administrators only) you get an anonymous ZIP with everything that matters for troubleshooting – version, settings, connection test to the DC, certificate, data folder, response times and the latest warnings and errors from the log. Names of users, OUs, groups, servers, IP and e-mail addresses and shares are replaced by placeholders (`benutzer-1`, `ou-2`, `host-3` …); passwords and tokens are never included. A preview shows the content first. The package is only downloaded, never sent. If signing in does not work, the package is also available on the server (without the connection test, saved to `data/diagnose/`):
+
+```bash
+sudo docker compose exec samonboarding python -m samonboarding.diagnose
+```
+
 | Message / symptom | Cause and fix |
 |---|---|
 | *Domain Controller … nicht erreichbar* (not reachable) | Port 636 not reachable from the Docker host, firewall or wrong `AD_DC_IP`. Test: `openssl s_client -connect DC:636` (see [section 5](#5-preparing-active-directory)). With a name: check DNS |
@@ -820,6 +826,9 @@ samonboarding/
   reports.py                reports in SQLite (data/reports.db): changes, log, search, deletion, audit.log import
   tls.py                    HTTPS certificate: check (PFX/PEM/DER), save, swap at runtime, create self-signed
   routers/certificate.py    "Certificate" page: show, upload, create self-signed (admins only)
+  diagnose.py               diagnostic package: sections, rules per setting/environment variable, ZIP (also python -m)
+  anonymize.py              replaces names, DNs, hosts, IP/e-mail addresses and shares by placeholders
+  routers/diagnose.py       "Diagnostics" page: preview and download of the diagnostic package (admins only)
   serve.py                  start over HTTPS only (python -m samonboarding.serve)
   errors.py                 AdError, DcUnreachable
   dn.py                     DN/filter helpers (escaping, splitting, comparing)
@@ -870,6 +879,7 @@ update.sh                   manual update: remember the previous version, fetch,
 3. Import shared helpers (LDAP, DN, permissions) from the existing modules
 4. Record new actions in the reports with `audited(...)` and check permissions on the server (`require_admin`, `require_user_in_ous`)
 5. Write new texts in German and add the English version to `web/i18n.json` (`exact` for fixed texts, `patterns` with `{0}` for texts with values). Output AD data in the interface with `nt(...)` or `translate="no"` so it is never translated
+6. Keep the diagnostic package up to date (`samonboarding/diagnose.py`): the new module in `ROUTER_SECTIONS`, new settings in `CONFIG_RULES`, new template fields in `TEMPLATE_RULES`, new environment variables in `ENV_RULES` – each with a rule (`show`, `count`, `set`, `secret`, `dn`, `host` …). `tests/test_diagnose.py` fails as long as something is missing. Passwords are always `secret`
 
 ### Notes
 

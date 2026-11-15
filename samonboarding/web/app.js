@@ -284,7 +284,8 @@ function setLanguage(lang, save) {
     uiLang = lang === 'en' ? 'en' : 'de';
     if (save !== false) { try { localStorage.setItem('samonboarding.lang', uiLang); } catch(e) {} }
     if (document.documentElement) document.documentElement.lang = uiLang;
-    (document.querySelectorAll('.lang-btn') || []).forEach(b => {
+    // only the DE/EN buttons - the appearance buttons share the look (.lang-btn) but have no data-lang
+    (document.querySelectorAll('.lang-btn[data-lang]') || []).forEach(b => {
         const on = b.dataset.lang === uiLang;
         b.classList.toggle('is-active', on);
         b.setAttribute('aria-pressed', on ? 'true' : 'false');
@@ -447,6 +448,8 @@ function setupRoleVisibility(role) {
     if(navReports) navReports.style.display = role === "Administrator" ? '' : 'none';
     const navCert = document.getElementById('nav-cert');
     if(navCert) navCert.style.display = role === "Administrator" ? '' : 'none';
+    const navDiagnose = document.getElementById('nav-diagnose');
+    if(navDiagnose) navDiagnose.style.display = role === "Administrator" ? '' : 'none';
     // Support card on the start page: only administrators see it
     const startCoffee = document.getElementById('start-coffee');
     if(startCoffee) startCoffee.style.display = role === "Administrator" ? '' : 'none';
@@ -1451,6 +1454,83 @@ function closePrivacy() {
     document.getElementById('privacy-modal').classList.add('hidden');
 }
 
+// ---------------------------------------------------------------
+// Diagnose (administrators only): anonymous package for troubleshooting
+// ---------------------------------------------------------------
+function diagnoseBrowserInfo() {
+    const info = {};
+    try {
+        info.userAgent = navigator.userAgent;
+        info.sprache = uiLang;
+        info.darstellung = themePref() + ' (' + (document.documentElement.getAttribute('data-theme') || 'light') + ')';
+        info.fenster = window.innerWidth + '×' + window.innerHeight;
+        info.bildschirm = (window.screen ? window.screen.width + '×' + window.screen.height : '') + ' @' + (window.devicePixelRatio || 1);
+        info.zeitzone = Intl.DateTimeFormat().resolvedOptions().timeZone || '';
+    } catch(e) {}
+    return info;
+}
+function diagnoseRequest(path) {
+    return fetch(path, {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({browser: diagnoseBrowserInfo()}),
+    });
+}
+function renderDiagnoseHints(list) {
+    const box = document.getElementById('diag-hints');
+    if(!box) return;
+    if(!list || !list.length) {
+        box.innerHTML = '<div class="diag-hint is-ok"><i class="fa-solid fa-circle-check mt-0.5"></i><span>Keine Auffälligkeiten gefunden.</span></div>';
+        return;
+    }
+    box.innerHTML = list.map(h => '<div class="diag-hint"><i class="fa-solid fa-triangle-exclamation mt-0.5"></i><span translate="no">' + esc(h) + '</span></div>').join('');
+}
+async function previewDiagnose() {
+    await guarded('diagnose', async () => {
+        const btn = document.getElementById('diag-preview-btn');
+        if(btn) btn.disabled = true;
+        try {
+            const res = await diagnoseRequest('/api/diagnose/preview');
+            const data = await res.json().catch(() => ({}));
+            if(!res.ok) { showToast(data.detail || 'Diagnosepaket konnte nicht erstellt werden.', 'error'); return; }
+            document.getElementById('diag-text').textContent = data.text || '';
+            document.getElementById('diag-file').textContent = data.fileName || '';
+            renderDiagnoseHints((data.data || {}).auffaelligkeiten);
+            document.getElementById('diag-preview-card').classList.remove('hidden');
+        } catch(e) {
+            showToast('Diagnosepaket konnte nicht erstellt werden.', 'error');
+        } finally {
+            if(btn) btn.disabled = false;
+        }
+    });
+}
+async function downloadDiagnose() {
+    await guarded('diagnose', async () => {
+        const btn = document.getElementById('diag-download-btn');
+        if(btn) btn.disabled = true;
+        try {
+            const res = await diagnoseRequest('/api/diagnose/download');
+            if(!res.ok) {
+                const data = await res.json().catch(() => ({}));
+                showToast(data.detail || 'Diagnosepaket konnte nicht erstellt werden.', 'error');
+                return;
+            }
+            const blob = await res.blob();
+            const match = /filename="([^"]+)"/.exec(res.headers.get('Content-Disposition') || '');
+            const a = document.createElement('a');
+            a.href = URL.createObjectURL(blob);
+            a.download = match ? match[1] : 'samonboarding-diagnose.zip';
+            document.body.appendChild(a); a.click(); a.remove();
+            setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+            showToast('Diagnosepaket heruntergeladen.', 'success');
+        } catch(e) {
+            showToast('Diagnosepaket konnte nicht erstellt werden.', 'error');
+        } finally {
+            if(btn) btn.disabled = false;
+        }
+    });
+}
+
 async function downloadPrivacyReport() {
     const input = document.getElementById('privacy-sam');
     const sam = input.value.trim();
@@ -1918,7 +1998,7 @@ function filterManual(query) {
 }
 
 async function switchTab(targetTab) {
-    ['start', 'hire', 'usermgmt', 'offboard', 'delete', 'pwdreset', 'templates', 'smtp', 'infra', 'reports', 'cert', 'faq'].forEach(tab => {
+    ['start', 'hire', 'usermgmt', 'offboard', 'delete', 'pwdreset', 'templates', 'smtp', 'infra', 'reports', 'cert', 'diagnose', 'faq'].forEach(tab => {
         const el = document.getElementById('tab-' + tab);
         if(el) el.classList.toggle('hidden', tab !== targetTab);
         const btn = document.getElementById('nav-' + tab);
@@ -1933,6 +2013,7 @@ async function switchTab(targetTab) {
     currentTab = targetTab;
     if(targetTab === 'reports') { await loadReports(); return; }
     if(targetTab === 'cert') { await loadCertificate(); return; }
+    if(targetTab === 'diagnose') return;  // built only on request (preview/download)
     if(targetTab === 'faq') { await loadManual(); return; }
 
     await refreshAllLdapData();
@@ -2120,6 +2201,7 @@ const PALETTE_PAGES = [
     {tab: 'infra', label: 'AD-Struktur', icon: 'fa-sitemap'},
     {tab: 'reports', label: 'Berichte', icon: 'fa-clipboard-list'},
     {tab: 'cert', label: 'Zertifikat', icon: 'fa-certificate'},
+    {tab: 'diagnose', label: 'Diagnose', sub: 'Diagnosepaket', icon: 'fa-stethoscope'},
     {tab: 'faq', label: 'Handbuch', icon: 'fa-book'},
 ];
 let palettePeople = [];
@@ -2297,7 +2379,7 @@ const REPORT_ACTIONS = {
     'deletion-password-fail': 'Falsches Passwort bei Bestätigung', 'deletion-test': 'Speicherorte getestet',
     'template-save': 'Template gespeichert', 'template-delete': 'Template gelöscht', 'template-duplicate': 'Template kopiert',
     'exchange-test': 'Exchange-Verbindung getestet', 'privacy-report': 'Datenschutz-Auskunft erstellt',
-    'reports-delete': 'Berichte gelöscht', 'tls-upload': 'Zertifikat hochgeladen', 'tls-self-signed': 'Selbstsigniertes Zertifikat erzeugt'
+    'reports-delete': 'Berichte gelöscht', 'tls-upload': 'Zertifikat hochgeladen', 'tls-self-signed': 'Selbstsigniertes Zertifikat erzeugt', 'diagnose-package': 'Diagnosepaket erstellt'
 };
 const REPORT_LEVELS = {INFO: ['Info', 'rep-info'], WARNING: ['Warnung', 'rep-warn'], ERROR: ['Fehler', 'rep-fail'], CRITICAL: ['Fehler', 'rep-fail']};
 

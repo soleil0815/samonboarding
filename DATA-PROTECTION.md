@@ -40,6 +40,7 @@ This document describes the personal data SAMONBOARDING processes: where it is k
 | Notification mails (for onboarding and password reset they contain the new password) | Your own mail server, mailbox of the acting employee | Handing over credentials |
 | Language setting DE/EN, the last version read in News and the time of the last activity (for sign-out when idle) | Browser `localStorage` | Usability |
 | Container log (errors, notices) | Docker log, rotated (3 × 10 MB) | Operation / troubleshooting |
+| Diagnostic package (only when an administrator asks for it): version, settings, response times, warnings and errors – **anonymised** (names, OUs, groups, servers, IP and e-mail addresses, shares replaced by placeholders; the mapping is not stored). **No passwords, no tokens** | Downloaded, not stored and never sent anywhere; from the command line in `data/diagnose/` (delete when no longer needed). Its creation is recorded in the reports | Troubleshooting, support |
 
 ---
 

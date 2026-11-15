@@ -7,6 +7,13 @@ Update auf dem Server: `sudo sh update.sh` oder `docker compose pull && docker c
 
 Einträge, die mit „Sicherheit:“ oder „Behoben:“ beginnen, werden in der Oberfläche entsprechend markiert.
 
+## 2.6.0 – 2026-11-15
+- Neu: Diagnosepaket. Unter **Einstellungen → Diagnose** (nur Administratoren) entsteht ein anonymes ZIP für die Fehlersuche: Version und Umgebung, Einstellungen, ein kurzer Verbindungstest zum DC (mit deinem Konto – weiterhin ohne Dienstkonto), eingestellte OUs/Gruppen, die es nicht mehr gibt, HTTPS-Zertifikat, Datenordner, Antwortzeiten je Seite seit dem Start, die letzten Warnungen und Fehler aus dem Protokoll und wie oft Aktionen fehlgeschlagen sind. Auffälligkeiten stehen oben.
+  - Anonym: Benutzer, OUs, Gruppen, Server, IP- und E-Mail-Adressen und Freigaben werden zu Platzhaltern (`benutzer-1`, `ou-2`, `host-3` …), derselbe Name immer zum selben Platzhalter; die Zuordnung wird nicht gespeichert. Kennwörter, Tokens und Sitzungen sind nie enthalten. Eine Vorschau zeigt genau, was drinsteht; das Paket wird nur heruntergeladen, nie verschickt. Die Erstellung steht in den Berichten.
+  - Ohne Anmeldung: `sudo docker compose exec samonboarding python -m samonboarding.diagnose` legt es in `data/diagnose/` ab.
+  - Wächst mit dem Programm: Jedes Modul, jede Einstellung, jedes Template-Feld und jede Umgebungsvariable braucht eine Regel fürs Paket – sonst schlagen die Tests fehl.
+- Behoben: Beim Umschalten der Sprache verschwand die Markierung an den Hell/Dunkel-Knöpfen.
+
 ## 2.5.0 – 2026-11-14
 - Neu: hell oder dunkel. Der Schalter ☀ / ☾ / ◐ (hell, dunkel, wie das System) sitzt unten in der Seitenleiste und oben rechts auf der Anmeldeseite. Standard ist hell; die Wahl merkt sich der Browser (nur diese Anzeige-Einstellung – Daten aus dem AD werden im Browser nicht gespeichert). Die Seite übernimmt die Darstellung schon vor dem Zeichnen, es blitzt nichts weiß auf.
   - Alle Farben sind jetzt Variablen mit einem hellen und einem dunklen Wert; das dunkle Aussehen folgt dem hellen (Dunkelgrau statt Nachtblau, feine Linien, eine blaue Akzentfarbe, kein Leuchten).
