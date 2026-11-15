@@ -75,7 +75,7 @@ After signing in, the **home page** shows what needs doing: active accounts with
 
 **Language:** the interface is available in **German and English**. Switch with *DE / EN* at the bottom of the sidebar or in the top right corner of the sign-in page. The browser remembers the choice; on the first visit the browser language is used. Server messages and notification mails use the chosen language. Names, OUs, groups and paths from AD are never translated. The English texts are in `samonboarding/web/i18n.json` (German text → English text, with placeholders `{0}` for values).
 
-**Look:** calm and businesslike, **light or dark** – switched with ☀ / ☾ / ◐ (light, dark, like the system) at the bottom of the sidebar or in the top right corner of the sign-in page; light is the default, the browser remembers the choice. Font as in WhatsOnMyNet: San Francisco on the Mac, otherwise the bundled Inter; paths and DNs in IBM Plex Mono. Colours and fonts are defined in `samonboarding/web/theme.json`. After changing them a new image is built (see [section 11](#11-development)).
+**Look:** calm and businesslike, **light or dark** – switched with ☀ / ☾ / ◐ (light, dark, like the system) at the bottom of the sidebar or in the top right corner of the sign-in page; the default is “like the system” (follows the computer's setting), the browser remembers the choice. Font as in WhatsOnMyNet: San Francisco on the Mac, otherwise the bundled Inter; paths and DNs in IBM Plex Mono. Colours and fonts are defined in `samonboarding/web/theme.json`. After changing them a new image is built (see [section 11](#11-development)).
 
 ---
 

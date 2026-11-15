@@ -7,6 +7,9 @@ Update on the server: `sudo sh update.sh` or `docker compose pull && docker comp
 
 Entries starting with "Security:" or "Fixed:" are marked accordingly in the interface.
 
+## 2.6.1 – 2026-11-15
+- Changed: the appearance now follows the computer by default (◐ like the system – light or dark as set in Windows/macOS). Light ☀ and dark ☾ can still be chosen; a choice made before stays.
+
 ## 2.6.0 – 2026-11-15
 - New: diagnostic package. Under **Settings → Diagnostics** (administrators only) you get an anonymous ZIP for troubleshooting: version and environment, settings, a short connection test to the DC (with your account – there is still no service account), configured OUs/groups that no longer exist, HTTPS certificate, data folder, response times per page since the start, the latest warnings and errors from the log and how often actions failed. Notable points come first.
   - Anonymous: users, OUs, groups, servers, IP and e-mail addresses and shares become placeholders (`benutzer-1`, `ou-2`, `host-3` …), the same name always the same placeholder; the mapping is not stored. Passwords, tokens and sessions are never included. A preview shows exactly what is inside; the package is only downloaded, never sent. Its creation is recorded in the reports.

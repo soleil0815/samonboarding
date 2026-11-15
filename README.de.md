@@ -77,7 +77,7 @@ Nach der Anmeldung zeigt die **Startseite**, was ansteht: aktive Konten ohne Anm
 
 **Sprache:** Die Oberfläche gibt es auf **Deutsch und Englisch**. Umgeschaltet wird mit *DE / EN* unten in der Seitenleiste oder oben rechts auf der Anmeldeseite. Die Wahl merkt sich der Browser; beim ersten Aufruf gilt die Sprache des Browsers. Meldungen des Servers und die Benachrichtigungs-Mails kommen in der gewählten Sprache. Namen, OUs, Gruppen und Pfade aus dem AD werden nie übersetzt. Die englischen Texte stehen in `samonboarding/web/i18n.json` (deutscher Text → englischer Text, mit Platzhaltern `{0}` für Werte).
 
-**Aussehen:** ruhig und geschäftlich, **hell oder dunkel** – umgeschaltet mit ☀ / ☾ / ◐ (hell, dunkel, wie das System) unten in der Seitenleiste oder oben rechts auf der Anmeldeseite; Standard ist hell, die Wahl merkt sich der Browser. Schrift wie in WhatsOnMyNet: San Francisco auf dem Mac, sonst die mitgelieferte Inter; Pfade und DNs in IBM Plex Mono. Farben und Schriften stehen in `samonboarding/web/theme.json`. Nach einer Änderung dort wird ein neues Image gebaut (siehe [Abschnitt 11](#11-entwicklung)).
+**Aussehen:** ruhig und geschäftlich, **hell oder dunkel** – umgeschaltet mit ☀ / ☾ / ◐ (hell, dunkel, wie das System) unten in der Seitenleiste oder oben rechts auf der Anmeldeseite; Standard ist „wie das System“ (folgt der Einstellung des Rechners), die Wahl merkt sich der Browser. Schrift wie in WhatsOnMyNet: San Francisco auf dem Mac, sonst die mitgelieferte Inter; Pfade und DNs in IBM Plex Mono. Farben und Schriften stehen in `samonboarding/web/theme.json`. Nach einer Änderung dort wird ein neues Image gebaut (siehe [Abschnitt 11](#11-entwicklung)).
 
 ## 2. Voraussetzungen
 
