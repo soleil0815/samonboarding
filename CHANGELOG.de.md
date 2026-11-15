@@ -7,6 +7,9 @@ Update auf dem Server: `sudo sh update.sh` oder `docker compose pull && docker c
 
 Einträge, die mit „Sicherheit:“ oder „Behoben:“ beginnen, werden in der Oberfläche entsprechend markiert.
 
+## 2.6.1 – 2026-11-15
+- Geändert: Die Darstellung folgt jetzt standardmäßig dem Rechner (◐ wie das System – hell oder dunkel, wie in Windows/macOS eingestellt). Hell ☀ und Dunkel ☾ lassen sich weiter wählen; eine schon getroffene Wahl bleibt.
+
 ## 2.6.0 – 2026-11-15
 - Neu: Diagnosepaket. Unter **Einstellungen → Diagnose** (nur Administratoren) entsteht ein anonymes ZIP für die Fehlersuche: Version und Umgebung, Einstellungen, ein kurzer Verbindungstest zum DC (mit deinem Konto – weiterhin ohne Dienstkonto), eingestellte OUs/Gruppen, die es nicht mehr gibt, HTTPS-Zertifikat, Datenordner, Antwortzeiten je Seite seit dem Start, die letzten Warnungen und Fehler aus dem Protokoll und wie oft Aktionen fehlgeschlagen sind. Auffälligkeiten stehen oben.
   - Anonym: Benutzer, OUs, Gruppen, Server, IP- und E-Mail-Adressen und Freigaben werden zu Platzhaltern (`benutzer-1`, `ou-2`, `host-3` …), derselbe Name immer zum selben Platzhalter; die Zuordnung wird nicht gespeichert. Kennwörter, Tokens und Sitzungen sind nie enthalten. Eine Vorschau zeigt genau, was drinsteht; das Paket wird nur heruntergeladen, nie verschickt. Die Erstellung steht in den Berichten.

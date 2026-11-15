@@ -55,7 +55,7 @@ class ThemeTests(unittest.TestCase):
         self.assertIn('data-theme="light"', page.split(">", 2)[1])
         self.assertIn(':root[data-theme="dark"]', page)
         self.assertIn("'samonboarding.theme'", script)
-        self.assertIn("|| 'light'", script)
+        self.assertIn("|| 'system'", script)  # default: follow the computer's light/dark setting
         for pref in ("light", "dark", "system"):
             self.assertIn(f"data-on-click=\"setTheme('{pref}')\"", page)
 
