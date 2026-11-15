@@ -772,6 +772,12 @@ Ein Reverse Proxy ist nicht mehr nötig. Wer trotzdem einen verwendet, leitet an
 
 ## 10. Fehlersuche
 
+**Diagnosepaket:** Unter **Einstellungen → Diagnose** (nur Administratoren) entsteht ein anonymes ZIP mit allem, was für die Fehlersuche wichtig ist – Version, Einstellungen, Verbindungstest zum DC, Zertifikat, Datenordner, Antwortzeiten und die letzten Warnungen und Fehler aus dem Protokoll. Namen von Benutzern, OUs, Gruppen, Servern, IP- und E-Mail-Adressen sowie Freigaben werden durch Platzhalter ersetzt (`benutzer-1`, `ou-2`, `host-3` …), Kennwörter und Tokens sind nie enthalten. Vorher lässt sich der Inhalt in einer Vorschau ansehen. Das Paket wird nur heruntergeladen, nicht verschickt. Klappt die Anmeldung nicht, gibt es das Paket auch auf dem Server (ohne Verbindungstest, Ablage in `data/diagnose/`):
+
+```bash
+sudo docker compose exec samonboarding python -m samonboarding.diagnose
+```
+
 | Meldung / Symptom | Ursache und Lösung |
 |---|---|
 | *Domain Controller … nicht erreichbar* | Port 636 vom Docker-Host nicht erreichbar, Firewall oder falsche `AD_DC_IP`. Test: `openssl s_client -connect DC:636` (siehe [Abschnitt 5](#5-active-directory-vorbereiten)). Bei einem Namen: DNS prüfen |
@@ -820,6 +826,9 @@ samonboarding/
   reports.py                Berichte in SQLite (data/reports.db): Änderungen, Protokoll, Suche, Löschen, Übernahme audit.log
   tls.py                    HTTPS-Zertifikat: prüfen (PFX/PEM/DER), speichern, im laufenden Betrieb tauschen, selbstsigniert erzeugen
   routers/certificate.py    Seite "Zertifikat": anzeigen, hochladen, selbstsigniert erzeugen (nur Admins)
+  diagnose.py               Diagnosepaket: Abschnitte, Regeln je Einstellung/Umgebungsvariable, ZIP (auch python -m)
+  anonymize.py              ersetzt Namen, DNs, Hosts, IP-/E-Mail-Adressen und Freigaben durch Platzhalter
+  routers/diagnose.py       Seite "Diagnose": Vorschau und Download des Diagnosepakets (nur Admins)
   serve.py                  Start nur über HTTPS (python -m samonboarding.serve)
   errors.py                 AdError, DcUnreachable
   dn.py                     DN-/Filter-Hilfen (Escaping, Zerlegen, Vergleichen)
@@ -870,6 +879,7 @@ update.sh                   Update von Hand: vorherige Version merken, holen, st
 3. Gemeinsame Helfer (LDAP, DN, Berechtigungen) aus den vorhandenen Modulen importieren
 4. Neue Aktionen mit `audited(...)` in die Berichte schreiben und Rechte serverseitig prüfen (`require_admin`, `require_user_in_ous`)
 5. Neue Texte auf Deutsch schreiben und die englische Fassung in `web/i18n.json` ergänzen (`exact` für feste Texte, `patterns` mit `{0}` für Texte mit Werten). AD-Daten in der Oberfläche mit `nt(...)` bzw. `translate="no"` ausgeben, damit sie nie übersetzt werden
+6. Diagnosepaket nachziehen (`samonboarding/diagnose.py`): das neue Modul in `ROUTER_SECTIONS`, neue Einstellungen in `CONFIG_RULES`, neue Template-Felder in `TEMPLATE_RULES`, neue Umgebungsvariablen in `ENV_RULES` – jeweils mit einer Regel (`show`, `count`, `set`, `secret`, `dn`, `host` …). `tests/test_diagnose.py` schlägt fehl, solange etwas fehlt. Kennwörter immer `secret`
 
 ### Hinweise
 

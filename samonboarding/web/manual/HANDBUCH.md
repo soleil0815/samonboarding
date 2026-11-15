@@ -342,6 +342,8 @@ Oder mit dem Hilfsskript `sudo sh update.sh`: Es merkt sich die laufende Version
 
 **Ohne Internet:** Die Image-Datei aus dem Release (`samonboarding-<Version>-amd64.tar.gz` bzw. `-arm64`) auf den Server kopieren und `sudo sh update.sh --offline <Datei>` ausführen.
 
+**Diagnosepaket:** Menü **Diagnose** (nur Administratoren). *Vorschau anzeigen* zeigt, was im Paket steht, *Diagnosepaket herunterladen* speichert es als ZIP (`diagnose.txt` zum Lesen, `diagnose.json` für den Support). Es enthält Version, Einstellungen, einen kurzen Verbindungstest zum DC mit deinem Konto, Zertifikat, Datenordner, Antwortzeiten und die letzten Warnungen und Fehler. Alles ist anonym: Benutzer, OUs, Gruppen, Server, IP- und E-Mail-Adressen und Freigaben werden durch Platzhalter ersetzt, Kennwörter sind nie enthalten. Oben stehen die **Auffälligkeiten** (z. B. abgelaufenes Zertifikat, fehlende OU, DC nicht erreichbar). Klappt die Anmeldung nicht: `sudo docker compose exec samonboarding python -m samonboarding.diagnose` – das Paket landet dann in `data/diagnose/`.
+
 **Hinweis auf eine veraltete docker-compose.yml:** Erscheint er in der Oberfläche, `sudo sh update.sh` ausführen (ersetzt die Datei und behält die alte als `docker-compose.yml.alt`) oder die Datei aus dem aktuellen Release holen und `sudo docker compose up -d`.
 
 **Umstieg von Version 1.x:** einmal `sudo sh update.sh --pull`, prüfen, dann `sudo sh update.sh --cleanup`. Das entfernt nach Rückfrage die alten Programmdateien und nie Daten, Sicherungen, `.env` oder `docker-compose.yml`. Schritt für Schritt in der README.

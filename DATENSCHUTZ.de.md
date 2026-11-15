@@ -40,6 +40,7 @@ Dieses Dokument beschreibt, welche personenbezogenen Daten SAMONBOARDING verarbe
 | Benachrichtigungs-Mails (bei Onboarding und Passwort-Reset mit neuem Passwort) | Eigener Mailserver, Postfach des ausführenden Mitarbeiters | Übergabe der Zugangsdaten |
 | Spracheinstellung DE/EN, zuletzt gelesene Version der Neuigkeiten und Zeitpunkt der letzten Aktivität (für die Abmeldung bei Leerlauf) | `localStorage` im Browser | Bedienung |
 | Container-Protokoll (Fehler, Hinweise) | Docker-Log, rotiert (3 × 10 MB) | Betrieb / Fehlersuche |
+| Diagnosepaket (nur auf Anforderung eines Administrators): Version, Einstellungen, Antwortzeiten, Warnungen und Fehler – **anonymisiert** (Namen, OUs, Gruppen, Server, IP- und E-Mail-Adressen, Freigaben durch Platzhalter ersetzt; die Zuordnung wird nicht gespeichert). **Keine Passwörter, keine Tokens** | Wird heruntergeladen, nicht gespeichert und nirgends hingeschickt; über die Kommandozeile in `data/diagnose/` (löschen, wenn nicht mehr gebraucht). Die Erstellung steht in den Berichten | Fehlersuche, Support |
 
 ---
 
