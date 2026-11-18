@@ -562,10 +562,28 @@ def section_verbindung(anon, ctx):
                 )
             out["konfigurierteObjekte"] = checks
             out["fehlend"] = sum(1 for c in checks if not c["vorhanden"])
+            out["schutzpruefung"] = _time_protection(conn, cfg)
     except Exception as e:
         out["fehler"] = anon.text(f"{type(e).__name__}: {getattr(e, 'detail', e)}")
         out["nachMs"] = round((time.perf_counter() - began) * 1000)
     return out
+
+
+def _time_protection(conn, cfg):
+    """How long the protection check of the lists takes (the slowest query of the start page and the lists)."""
+    from . import protection
+
+    base = ",".join(f"DC={p}" for p in str(cfg.get("domain") or "").split(".") if p)
+    if not base:
+        return {"uebersprungen": "Domäne unbekannt"}
+    result: dict = {}
+    t = time.perf_counter()
+    try:
+        result["geschuetzteKonten"] = len(protection.privileged_map(conn, base))
+    except Exception as e:
+        result.update(fehler=type(e).__name__, hinweis="Listen prüfen dann jedes Konto einzeln")
+    result["ms"] = round((time.perf_counter() - t) * 1000)
+    return result
 
 
 def section_sitzungen(anon, ctx):
@@ -717,9 +735,18 @@ def hints(data):
     errors = [e for e in data.get("protokoll", {}).get("eintraege", []) if e.get("stufe") in ("ERROR", "CRITICAL")]
     if errors:
         out.append(f"{len(errors)} Fehler im Protokoll (neueste zuerst unter „Protokoll“).")
-    slow = [r for r, s in data.get("geschwindigkeit", {}).get("anfragen", {}).items() if s.get("p95Ms", 0) >= 3000]
-    if slow:
-        out.append("Langsame Seiten (95 % unter …): " + ", ".join(slow[:5]))
+    protect = c.get("schutzpruefung") or {}
+    if isinstance(protect.get("ms"), int) and protect["ms"] >= 3000:
+        out.append(f"Die Schutzprüfung (geschützte Konten in den Listen) dauert {protect['ms'] / 1000:.1f} s.")
+    for route, s in list(data.get("geschwindigkeit", {}).get("anfragen", {}).items())[:5]:
+        if s.get("p95Ms", 0) < 3000:
+            continue
+        steps = s.get("stepsMedianMs") or {}
+        # "Suche" also contains the searches of the role and protection checks: name the specific step if it is slow
+        specific = {k: v for k, v in steps.items() if k not in ("Suche", "Verbindung") and v >= 1000}
+        slowest = max((specific or steps).items(), key=lambda kv: kv[1], default=None)
+        detail = f", davon {slowest[0]} {slowest[1] / 1000:.1f} s" if slowest and slowest[1] >= 1000 else ""
+        out.append(f"Langsam: {route} – üblich {s['medianMs'] / 1000:.1f} s, bis {s['p95Ms'] / 1000:.1f} s{detail}.")
     return out
 
 

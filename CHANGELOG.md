@@ -7,6 +7,10 @@ Update on the server: `sudo sh update.sh` or `docker compose pull && docker comp
 
 Entries starting with "Security:" or "Fixed:" are marked accordingly in the interface.
 
+## 2.6.2 – 2026-11-18
+- Faster: the protection check of the lists (which accounts are Domain Admins & co.) now reads the members of the privileged groups directly and follows nested groups itself, instead of the "in chain" search across the domain. On Samba that search took about a second per group – the start page and the Leaving list needed 10–27 seconds, now they should be there in about a second. The protection itself is unchanged: before every action the account is still checked live.
+- Diagnostic package: the connection test measures the protection check; the notes on slow pages name the step that takes the time; browser versions are no longer mistaken for IP addresses; Docker's health check (every 30 s) no longer appears in the request statistics.
+
 ## 2.6.1 – 2026-11-15
 - Changed: the appearance now follows the computer by default (◐ like the system – light or dark as set in Windows/macOS). Light ☀ and dark ☾ can still be chosen; a choice made before stays.
 
