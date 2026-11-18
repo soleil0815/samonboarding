@@ -7,6 +7,10 @@ Update auf dem Server: `sudo sh update.sh` oder `docker compose pull && docker c
 
 Einträge, die mit „Sicherheit:“ oder „Behoben:“ beginnen, werden in der Oberfläche entsprechend markiert.
 
+## 2.6.2 – 2026-11-18
+- Schneller: Die Schutzprüfung der Listen (welche Konten Domänen-Admins & Co. sind) liest die Mitglieder der privilegierten Gruppen jetzt direkt und verfolgt verschachtelte Gruppen selbst, statt der „verschachtelten Gruppensuche“ über die ganze Domäne. Unter Samba dauerte diese Suche rund eine Sekunde je Gruppe – Startseite und Austritt brauchten 10–27 Sekunden, jetzt sollten sie in etwa einer Sekunde da sein. Der Schutz selbst bleibt gleich: Vor jeder Aktion wird das Konto weiterhin einzeln live geprüft.
+- Diagnosepaket: Der Verbindungstest misst die Schutzprüfung mit; Hinweise auf langsame Seiten nennen den bremsenden Schritt; Browser-Versionen werden nicht mehr für IP-Adressen gehalten; Dockers Gesundheitscheck (alle 30 s) taucht nicht mehr in der Statistik auf.
+
 ## 2.6.1 – 2026-11-15
 - Geändert: Die Darstellung folgt jetzt standardmäßig dem Rechner (◐ wie das System – hell oder dunkel, wie in Windows/macOS eingestellt). Hell ☀ und Dunkel ☾ lassen sich weiter wählen; eine schon getroffene Wahl bleibt.
 

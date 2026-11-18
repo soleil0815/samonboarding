@@ -102,52 +102,111 @@ BASE = "DC=t,DC=l"
 DA = "CN=Domain Admins,CN=Users," + BASE
 
 
+ADMINS = "CN=Administrators,CN=Builtin," + BASE
+
+
 class PrivilegedMapTests(unittest.TestCase):
-    def run_map(self, members, primary=(), specials=()):
+    def run_map(self, groups, primary=(), specials=(), kinds=None):
+        """groups: {group DN: [member DNs]}; members that are themselves a key in `groups` are groups."""
+        reads = []
+
         def search(_conn, _base, flt, attrs=("cn",)):
             if flt.startswith("(&(objectClass=group)"):
                 # like ldap3 without schema: no (usable) objectSid in the result - the name comes from the query
-                admins = "CN=Administrators,CN=Builtin," + BASE
-                groups = {f"(objectSid={DOM}-512)": DA, "(objectSid=S-1-5-32-544)": admins}
-                return [Row(dn, {"objectSid": ["\x01\x02 kaputt"]}) for f, dn in groups.items() if f in flt]
-            if "memberOf:1.2.840.113556.1.4.1941:=" in flt:
-                return [Row(dn, {}) for g, dn in members if g in flt]
+                known = {f"(objectSid={DOM}-512)": DA, "(objectSid=S-1-5-32-544)": ADMINS}
+                return [Row(dn, {"objectSid": ["\x01\x02 kaputt"]}) for f, dn in known.items() if f in flt]
+            self.assertNotIn("1.2.840.113556.1.4.1941", flt)  # no "in chain" search across the domain (slow on Samba)
             if "primaryGroupID" in flt:
                 return [Row(dn, {"primaryGroupID": [rid]}) for dn, rid in primary]
             return [Row(dn, {}) for dn in specials]
 
+        def members(_conn, dn):
+            reads.append(("member", dn))
+            return groups.get(dn, [])
+
+        def kind(_conn, dn):
+            reads.append(("kind", dn))
+            if kinds and dn in kinds:
+                return kinds[dn]
+            return "group" if dn in groups else "user"
+
         with (
             mock.patch.object(protection, "read_sids", return_value=([DOM], True)),
             mock.patch.object(protection, "_search_dns", side_effect=search),
+            mock.patch.object(protection, "_group_members", side_effect=members),
+            mock.patch.object(protection, "_kind", side_effect=kind),
         ):
-            return protection.privileged_map(object(), BASE)
+            out = protection.privileged_map(object(), BASE)
+        self.reads = reads
+        return out
 
     def test_members_nested_primary_and_system_accounts(self):
         out = self.run_map(
-            [("Domain Admins", "CN=Anna," + BASE), ("Administrators", "CN=Bert," + BASE)],
+            {DA: ["CN=Anna," + BASE], ADMINS: ["CN=Bert," + BASE, DA]},
             primary=[("CN=Carl," + BASE, "512")],
             specials=["CN=krbtgt,CN=Users," + BASE],
         )
-        self.assertIn("Domänen-Admins", out["cn=anna," + BASE.lower()])
         self.assertIn("Administratoren", out["cn=bert," + BASE.lower()])
         self.assertIn("Domänen-Admins", out["cn=carl," + BASE.lower()])
         self.assertEqual(out["cn=krbtgt,cn=users," + BASE.lower()], "geschütztes Systemkonto")
+        # Anna is in Domain Admins, which is in Administrators: protected either way
+        self.assertTrue(out["cn=anna," + BASE.lower()].startswith("Mitglied von"))
+
+    def test_nested_over_several_levels(self):
+        it = "CN=IT-Admins,OU=Gruppen," + BASE
+        team = "CN=Team-Server,OU=Gruppen," + BASE
+        out = self.run_map({DA: ["CN=Anna," + BASE, it], it: [team], team: ["CN=Dora," + BASE]})
+        self.assertEqual(out["cn=dora," + BASE.lower()], "Mitglied von „Domänen-Admins“")
+
+    def test_loops_and_shared_groups_are_read_once(self):
+        it = "CN=IT-Admins,OU=Gruppen," + BASE
+        out = self.run_map({DA: ["CN=Anna," + BASE, it], it: [DA, "CN=Emil," + BASE], ADMINS: [DA, it]})
+        self.assertIn("cn=emil," + BASE.lower(), out)
+        kinds = [dn for what, dn in self.reads if what == "kind"]
+        self.assertEqual(len(kinds), len(set(kinds)), "objectClass of each member read only once")
+
+    def test_contacts_and_foreign_principals_are_ignored(self):
+        fsp = "CN=S-1-5-21-9-9-9-1000,CN=ForeignSecurityPrincipals," + BASE
+        out = self.run_map({DA: ["CN=Anna," + BASE, fsp]}, kinds={fsp: ""})
+        self.assertNotIn(fsp.lower(), out)
 
     def test_without_domain_admins_check_individually(self):
-        # directory without nested search: better to check individually than to show admins without a lock
+        # members not readable: better to check individually than to show admins without a lock
         with self.assertRaises(LookupError):
-            self.run_map([("Administrators", "CN=Bert," + BASE)])
-
-    def test_mark_protected_falls_back_to_individual_check(self):
-        users = [{"dn": "CN=Anna," + BASE}]
-        with (
-            mock.patch.object(protection, "privileged_map", side_effect=LookupError("x")),
-            mock.patch.object(protection, "privileged_reason", return_value="Mitglied von „Domänen-Admins“") as one,
-        ):
-            protection.mark_protected(object(), users)
-        one.assert_called_once()
-        self.assertTrue(users[0]["protected"])
+            self.run_map({ADMINS: ["CN=Bert," + BASE]})
 
 
-if __name__ == "__main__":
-    unittest.main()
+class MemberReadTests(unittest.TestCase):
+    """The direct reads against a (fake) ldap3 connection."""
+
+    class Conn:
+        def __init__(self, objects):
+            self.objects, self.response, self.calls = objects, [], []
+
+        def search(self, dn, flt, scope, attributes=None):
+            self.calls.append((dn, scope))
+            if dn not in self.objects:
+                self.response = []
+                return False
+            self.response = [{"type": "searchResEntry", "dn": dn, "attributes": self.objects[dn]}]
+            return True
+
+    def test_reads(self):
+        conn = self.Conn(
+            {
+                DA: {"member": ["CN=Anna," + BASE]},
+                "CN=Anna," + BASE: {"objectClass": ["top", "person", "organizationalPerson", "user"]},
+                "CN=PC1," + BASE: {"objectClass": ["top", "user", "computer"]},
+                "CN=G," + BASE: {"objectClass": ["top", "group"]},
+                "CN=Kontakt," + BASE: {"objectClass": ["top", "contact"]},
+            }
+        )
+        self.assertEqual(protection._group_members(conn, DA), ["CN=Anna," + BASE])
+        self.assertEqual(protection._kind(conn, "CN=Anna," + BASE), "user")
+        self.assertEqual(protection._kind(conn, "CN=PC1," + BASE), "user")
+        self.assertEqual(protection._kind(conn, "CN=G," + BASE), "group")
+        self.assertEqual(protection._kind(conn, "CN=Kontakt," + BASE), "")
+        self.assertEqual(protection._kind(conn, "CN=Weg," + BASE), "")
+        self.assertTrue(all(scope == protection.ldap3.BASE for _dn, scope in conn.calls))
+        with self.assertRaises(LookupError):
+            protection._group_members(conn, "CN=Weg," + BASE)

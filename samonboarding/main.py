@@ -194,9 +194,12 @@ async def _timing(request: Request, call_next):
             log.info(timing.slow_message(request.method, request.url.path, steps, total))
     # statistics per route pattern (never the values in the path) for the diagnostic package
     route = getattr(request.scope.get("route"), "path", None) or "(andere)"
-    timing.record(f"{request.method} {route}", total, steps)
-    if resp.status_code >= 500:
-        timing.record_error(f"{request.method} {route}")
+    # without Docker's health check (every 30 s from inside the container) - it would bury the real requests
+    client = request.client.host if request.client else ""
+    if not (route == "/api/public-config" and client in ("127.0.0.1", "::1")):
+        timing.record(f"{request.method} {route}", total, steps)
+        if resp.status_code >= 500:
+            timing.record_error(f"{request.method} {route}")
     resp.headers["Server-Timing"] = timing.server_timing(steps, total)
     return resp
 

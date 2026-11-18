@@ -208,11 +208,61 @@ def _search_dns(conn, base, flt, attrs=("cn",)):
     return ldap_search(conn, base, flt, list(attrs))
 
 
+def _entry(conn, dn, attrs):
+    """Reads one object (BASE) - the attributes as a dict, or None if it cannot be read."""
+    if not conn.search(dn, "(objectClass=*)", ldap3.BASE, attributes=list(attrs)):
+        return None
+    for entry in conn.response or []:
+        if entry.get("type") == "searchResEntry":
+            return entry.get("attributes") or {}
+    return None
+
+
+def _group_members(conn, group_dn):
+    """Direct members (DNs) of a group - read from the group itself (ldap3 fetches large groups in ranges)."""
+    attrs = _entry(conn, group_dn, ["member"])
+    if attrs is None:
+        raise LookupError("Gruppe nicht lesbar")
+    value = _lookup(attrs, "member") or []
+    return [str(v) for v in (value if isinstance(value, (list, tuple)) else [value])]
+
+
+def _kind(conn, dn):
+    """'group', 'user' (also computers) or '' (contact, foreign principal, unreadable)."""
+    attrs = _entry(conn, dn, ["objectClass"]) or {}
+    classes = {str(c).lower() for c in (_lookup(attrs, "objectClass") or [])}
+    if "group" in classes:
+        return "group"
+    return "user" if "user" in classes else ""
+
+
+def _expand(conn, group_dn, cache):
+    """All accounts in the group, also through nested groups (each group is read once, loops are no problem).
+
+    Reads the members of the groups directly instead of the "in chain" search across the domain: on Samba that
+    search checks every account over all levels and takes about a second per group (measured with the diagnostic
+    package: 13 s for the protection check); the direct reads take milliseconds."""
+    users, seen, queue = [], {group_dn.lower()}, [group_dn]
+    while queue:
+        current = queue.pop(0)
+        for member in _group_members(conn, current):
+            key = member.lower()
+            kind = cache.get(key)
+            if kind is None:
+                kind = cache[key] = _kind(conn, member)
+            if kind == "group" and key not in seen:
+                seen.add(key)
+                queue.append(member)
+            elif kind == "user":
+                users.append(member)
+    return users
+
+
 def privileged_map(conn, base):
     """All protected accounts of the domain with few queries: {dn (lowercase): reason}.
 
     Instead of querying each account of a list individually (300 accounts = 300 queries), the privileged groups
-    are searched once and their members - including nested ones - are read. Only for DISPLAY in lists;
+    are found once and their members - including nested ones - are read. Only for DISPLAY in lists;
     before every action the account is still checked individually and live (privileged_reason)."""
     dom = read_sids(conn, base, "objectSid", "(objectClass=domain)")[0]
     dom_sid = dom[0] if dom and dom[0].startswith("S-1-5-21-") else ""
@@ -229,19 +279,18 @@ def privileged_map(conn, base):
         raise LookupError("privilegierte Gruppen nicht gefunden")
     out = {}
     da_found = False
+    kinds = {}  # objectClass per DN, shared by all groups (Administrators contains Domain Admins ...)
     for group_dn, name in found.items():
-        members = _search_dns(
-            conn, base, f"(&(objectClass=user)(memberOf:1.2.840.113556.1.4.1941:={ldap_escape(group_dn)}))"
-        )
-        for row in members:
-            out.setdefault(row.dn.lower(), f"Mitglied von „{name}“")
+        members = _expand(conn, group_dn, kinds)
+        for dn in members:
+            out.setdefault(dn.lower(), f"Mitglied von „{name}“")
         da_found = da_found or (bool(members) and name == DOMAIN_GROUP_RIDS[512])
-    # Plausible? Every domain has at least one Domain Admin. If none comes back, the directory does not support
-    # the nested search - then rather check individually than show admins without a lock.
+    # Plausible? Every domain has at least one Domain Admin. If none comes back, the members could not be read -
+    # then rather check individually than show admins without a lock.
     if not da_found:
-        raise LookupError("verschachtelte Gruppensuche liefert keine Domaenen-Admins")
+        raise LookupError("keine Domaenen-Admins gefunden")
     if dom_sid:
-        # primary group (not listed in memberOf) and accounts with a fixed RID
+        # primary group (not listed in member) and accounts with a fixed RID
         rids = "".join(f"(primaryGroupID={rid})" for rid in DOMAIN_GROUP_RIDS)
         for row in _search_dns(conn, base, f"(&(objectClass=user)(|{rids}))", ("primaryGroupID",)):
             rid = int(row.text("primaryGroupID") or 0)

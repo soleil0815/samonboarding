@@ -42,7 +42,10 @@ _TLDS = (
 _DN_PART = re.compile(r"\b(?:(DC)=([A-Za-z0-9-]+)|(CN|OU|O|L|ST|C)=((?:\\.|[^,;+\"'\\\n()])+))", re.IGNORECASE)
 _MAIL = re.compile(r"\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b")
 _UNC = re.compile(r"\\\\([A-Za-z0-9._$-]+)((?:\\[^\\\s'\",;:]+)*)")
-_IPV4 = re.compile(r"(?<![\d.])((?:25[0-5]|2[0-4]\d|1?\d?\d)(?:\.(?:25[0-5]|2[0-4]\d|1?\d?\d)){3})(?![\d.])")
+# not after "Name/" - that is a version (Chrome/142.0.0.0), not an address; "//10.0.0.1" in a URL is still found
+_IPV4 = re.compile(
+    r"(?<![\d.])(?<![A-Za-z]/)((?:25[0-5]|2[0-4]\d|1?\d?\d)(?:\.(?:25[0-5]|2[0-4]\d|1?\d?\d)){3})(?![\d.])"
+)
 _IPV6 = re.compile(r"(?<![\w:])(?:[0-9A-Fa-f]{1,4}:){2,7}[0-9A-Fa-f]{1,4}(?![\w:])")
 _HOST = re.compile(r"\b((?:[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?\.)+(?:" + _TLDS + r"))\b", re.IGNORECASE)
 _DOMAIN_USER = re.compile(r"(?<![\\\w.-])([A-Za-z0-9][A-Za-z0-9-]{0,14})\\([A-Za-z0-9._$-]{1,64})")

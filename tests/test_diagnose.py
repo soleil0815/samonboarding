@@ -436,3 +436,64 @@ class TimingStatsTests(unittest.TestCase):
         self.assertEqual(self.timing.summary()["GET /api/x"]["count"], self.timing.KEEP_PER_ROUTE + 50)
         with self.timing._stats_lock:
             self.assertEqual(len(self.timing._stats["GET /api/x"]["totals"]), self.timing.KEEP_PER_ROUTE)
+
+
+class FindingsTests(unittest.TestCase):
+    """What the first real package (Samba, 13 s protection check) taught."""
+
+    def test_browser_versions_are_not_addresses(self):
+        a = anonymize.Anonymizer()
+        ua = "Mozilla/5.0 (Windows NT 10.0) Chrome/142.0.0.0 Safari/537.36 Edg/142.0.0.0"
+        self.assertEqual(a.text(ua), ua)
+        self.assertEqual(a.text("https://10.1.2.3:9500/ und //10.1.2.3"), "https://192.0.2.1:9500/ und //192.0.2.1")
+
+    def test_slow_hint_names_the_step(self):
+        data = {
+            "geschwindigkeit": {
+                "anfragen": {
+                    "GET /api/dashboard": {
+                        "medianMs": 13966,
+                        "p95Ms": 27593,
+                        "stepsMedianMs": {"Verbindung": 67, "Suche": 13891, "Schutzpruefung": 13518},
+                    },
+                    "GET /api/me": {"medianMs": 2, "p95Ms": 14, "stepsMedianMs": {}},
+                }
+            },
+            "verbindung": {"schutzpruefung": {"ms": 13200, "geschuetzteKonten": 4}},
+        }
+        hints = diagnose.hints(data)
+        self.assertIn("Die Schutzprüfung (geschützte Konten in den Listen) dauert 13.2 s.", hints)
+        self.assertIn("Langsam: GET /api/dashboard – üblich 14.0 s, bis 27.6 s, davon Schutzpruefung 13.5 s.", hints)
+        self.assertFalse(any("/api/me" in h for h in hints))
+
+    def test_connection_test_times_the_protection_check(self):
+        from samonboarding import protection
+
+        class Conn:
+            server = mock.Mock(ssl=True, port=636)
+            result = {}
+            response = []
+
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *a):
+                return False
+
+            def search(self, *a, **k):
+                return True
+
+        with (
+            mock.patch("samonboarding.ldap_client.ldap_connection", return_value=Conn()),
+            mock.patch("samonboarding.ldap_client.detect_directory"),
+            mock.patch.object(protection, "privileged_map", return_value={"cn=a": "x", "cn=b": "y"}) as pmap,
+            mock.patch.object(diagnose, "_configured_ous", return_value=[]),
+        ):
+            out = diagnose.section_verbindung(anonymize.Anonymizer(), {"user": dict(USER)})
+        self.assertEqual(out["schutzpruefung"]["geschuetzteKonten"], 2)
+        self.assertIsInstance(out["schutzpruefung"]["ms"], int)
+        self.assertTrue(pmap.call_args.args[1].startswith("DC="))
+
+    def test_health_check_is_not_counted(self):
+        source = (PKG / "main.py").read_text(encoding="utf-8")
+        self.assertIn('route == "/api/public-config" and client in ("127.0.0.1", "::1")', source)
