@@ -15,9 +15,8 @@ assert.ok(html.includes('Neue Version verfügbar:'));
 assert.ok(html.includes('>2.7.0<'));
 assert.ok(html.includes('href="https://github.com/soleil0815/samonboarding/releases/tag/v2.7.0" target="_blank" rel="noopener noreferrer"'));
 assert.ok(html.includes('sudo sh update.sh<'));
-assert.ok(html.replace(/<[^>]+>/g, '').includes('docker compose pull &amp;&amp; docker compose up -d'));
 // the command wraps only between its parts, never inside "up -d"
-assert.ok(html.includes('<span class="whitespace-nowrap">docker compose up -d</span>'));
+assert.ok(html.includes('<span class="whitespace-nowrap">docker compose pull</span> &amp;&amp; <span class="whitespace-nowrap">docker compose up -d</span>'));
 assert.ok(!html.includes('--version'));
 
 // a security update is named as such
