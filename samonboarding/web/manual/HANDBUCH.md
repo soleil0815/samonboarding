@@ -311,7 +311,7 @@ Mit **Prüfen und übernehmen** wird geprüft, ob Zertifikat und Schlüssel zusa
 
 Der Link **Datenschutz** (Anmeldeseite unten und Seitenleiste unter *Hilfe*) zeigt kurz, was gespeichert wird und die aktuellen Löschfristen.
 
-- Keine Verbindungen ins Internet: Oberfläche, Schriften und Icons kommen vom eigenen Server.
+- Nichts aus dem Internet: Oberfläche, Schriften und Icons kommen vom eigenen Server. Nur der Server fragt einmal am Tag bei GitHub nach einer neueren Version, ohne Daten mitzuschicken.
 - Nur ein notwendiges Cookie für die Anmeldung, kein Tracking.
 - Dein Passwort liegt nur während der Sitzung im Arbeitsspeicher.
 - **Auskunft (Art. 15 DSGVO):** Administratoren geben dort einen Benutzernamen ein und laden alles herunter, was die Anwendung über dieses Konto gespeichert hat (JSON). Vor der Herausgabe prüfen und Angaben über andere Personen schwärzen.
@@ -339,6 +339,8 @@ Oder mit dem Hilfsskript `sudo sh update.sh`: Es merkt sich die laufende Version
 **Sicherung vor einem Versionswechsel:** Startet eine neue Programmversion, sichert das Programm zuerst selbst den Datenordner nach `data/backups/vor-<Version>-<Datum>.tar.gz` (die letzten 10 bleiben). Startet eine ältere Version auf Daten einer neueren, bricht sie mit einer Meldung ab, die die passende Sicherung nennt.
 
 **Version festlegen und zurückgehen:** In der `.env` steht `SAMONBOARDING_VERSION`. Leer = immer die neueste Version, `2.0` = die neueste 2.0.x samt Sicherheitsupdates, `2.0.1` = genau diese Version. Zurück auf eine ältere Version, deren Datenstand älter ist: `sudo sh update.sh --restore data/backups/vor-<neuere Version>-<Datum>.tar.gz --version <ältere Version>`.
+
+**Neue Version verfügbar:** Einmal am Tag sieht der Server bei GitHub nach, ob es eine neuere Version gibt. Wenn ja, sehen Administratoren oben auf jeder Seite einen Hinweis mit der Version, einem Link *Was ist neu?* und den Befehlen zum Aktualisieren. Sicherheitsupdates (`-s1`, `-s2` …) sind als solche gekennzeichnet. Ist in der `.env` eine feste Version eingetragen, richtet sich der Hinweis danach. Mitgeschickt wird nichts. Ausschalten: `UPDATE_CHECK=false` in der `.env`.
 
 **Ohne Internet:** Die Image-Datei aus dem Release (`samonboarding-<Version>-amd64.tar.gz` bzw. `-arm64`) auf den Server kopieren und `sudo sh update.sh --offline <Datei>` ausführen.
 

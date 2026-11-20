@@ -7,6 +7,13 @@ Update on the server: `sudo sh update.sh` or `docker compose pull && docker comp
 
 Entries starting with "Security:" or "Fixed:" are marked accordingly in the interface.
 
+## 2.7.0 – 2026-11-20
+- New: version check for everyone who does not update the container automatically. Once a day the server asks GitHub whether there is a newer version; administrators then see a note at the top of every page with the version, a "What's new?" link and the update commands (`sudo sh update.sh` or `docker compose pull && docker compose up -d`). Security updates (`-s1`, `-s2` …) are marked as such.
+  - Nothing is sent along: no version, no identifier, no data from the AD – the comparison happens on the server, the browser never connects to GitHub.
+  - A fixed version in `.env` (`SAMONBOARDING_VERSION`) is respected: with `2.6` the note names the newest 2.6.x and a newer line separately; with an exact version it names `sudo sh update.sh --version <new version>`.
+  - Without internet nothing happens (no error, no delay); the diagnostic package shows why. Switch it off with `UPDATE_CHECK=false`, a proxy only for this check with `UPDATE_CHECK_PROXY` in `.env`.
+- Data protection: the documentation and the "Data protection" window now name this daily request to GitHub.
+
 ## 2.6.2 – 2026-11-18
 - Faster: the protection check of the lists (which accounts are Domain Admins & co.) now reads the members of the privileged groups directly and follows nested groups itself, instead of the "in chain" search across the domain. On Samba that search took about a second per group – the start page and the Leaving list needed 10–27 seconds, now they should be there in about a second. The protection itself is unchanged: before every action the account is still checked live.
 - Diagnostic package: the connection test measures the protection check; the notes on slow pages name the step that takes the time; browser versions are no longer mistaken for IP addresses; Docker's health check (every 30 s) no longer appears in the request statistics.

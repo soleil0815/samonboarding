@@ -951,6 +951,19 @@
   "Diagnosepaket heruntergeladen.": "Diagnostic package downloaded.",
   "Diagnosepaket erstellt": "Diagnostic package created",
   "Nur Administratoren dürfen ein Diagnosepaket erstellen.": "Only administrators may create a diagnostic package."
+,
+  "Sicherheitsupdate verfügbar:": "Security update available:",
+  "Neue Version verfügbar:": "New version available:",
+  "Installiert:": "Installed:",
+  "Gleiches Programm, aktualisierte Pakete mit Sicherheitskorrekturen.": "Same program, updated packages with security fixes.",
+  "Was ist neu?": "What's new?",
+  "Die .env legt genau eine Version fest (SAMONBOARDING_VERSION). Wechseln mit:": ".env sets one exact version (SAMONBOARDING_VERSION). Switch with:",
+  "Aktualisieren im Ordner der docker-compose.yml:": "Update in the folder of the docker-compose.yml:",
+  "Neuere Versionsreihe außerhalb der festen Version (SAMONBOARDING_VERSION):": "Newer version line outside the fixed version (SAMONBOARDING_VERSION):",
+  "Wechseln mit:": "Switch with:"
+,
+  "Nichts aus dem Internet": "Nothing from the internet",
+  "Oberfläche, Schriften und Icons kommen vom eigenen Server. Kein CDN, kein Tracking, keine Telemetrie. Nur der Server fragt einmal am Tag bei GitHub nach einer neueren Version, ohne Daten mitzuschicken.": "Interface, fonts and icons come from your own server. No CDN, no tracking, no telemetry. Only the server asks GitHub once a day for a newer version, without sending any data."
  },
  "patterns": [
   [

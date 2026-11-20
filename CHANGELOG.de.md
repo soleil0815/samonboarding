@@ -7,6 +7,13 @@ Update auf dem Server: `sudo sh update.sh` oder `docker compose pull && docker c
 
 Einträge, die mit „Sicherheit:“ oder „Behoben:“ beginnen, werden in der Oberfläche entsprechend markiert.
 
+## 2.7.0 – 2026-11-20
+- Neu: Versionsprüfung für alle, die den Container nicht automatisch aktualisieren. Einmal am Tag fragt der Server bei GitHub nach, ob es eine neuere Version gibt; Administratoren sehen dann oben auf jeder Seite einen Hinweis mit der Version, einem Link „Was ist neu?“ und den Befehlen zum Aktualisieren (`sudo sh update.sh` oder `docker compose pull && docker compose up -d`). Sicherheitsupdates (`-s1`, `-s2` …) sind als solche gekennzeichnet.
+  - Es wird nichts mitgeschickt: keine Version, keine Kennung, keine Daten aus dem AD – verglichen wird auf dem Server, der Browser verbindet sich nie mit GitHub.
+  - Eine feste Version in der `.env` (`SAMONBOARDING_VERSION`) wird beachtet: Bei `2.6` nennt der Hinweis die neueste 2.6.x und eine neuere Versionsreihe getrennt; bei einer genauen Version nennt er `sudo sh update.sh --version <neue Version>`.
+  - Ohne Internet passiert nichts (kein Fehler, keine Verzögerung); den Grund zeigt das Diagnosepaket. Abschalten mit `UPDATE_CHECK=false`, ein Proxy nur für diese Prüfung mit `UPDATE_CHECK_PROXY` in der `.env`.
+- Datenschutz: Doku und Fenster „Datenschutz“ nennen jetzt diese tägliche Abfrage bei GitHub.
+
 ## 2.6.2 – 2026-11-18
 - Schneller: Die Schutzprüfung der Listen (welche Konten Domänen-Admins & Co. sind) liest die Mitglieder der privilegierten Gruppen jetzt direkt und verfolgt verschachtelte Gruppen selbst, statt der „verschachtelten Gruppensuche“ über die ganze Domäne. Unter Samba dauerte diese Suche rund eine Sekunde je Gruppe – Startseite und Austritt brauchten 10–27 Sekunden, jetzt sollten sie in etwa einer Sekunde da sein. Der Schutz selbst bleibt gleich: Vor jeder Aktion wird das Konto weiterhin einzeln live geprüft.
 - Diagnosepaket: Der Verbindungstest misst die Schutzprüfung mit; Hinweise auf langsame Seiten nennen den bremsenden Schritt; Browser-Versionen werden nicht mehr für IP-Adressen gehalten; Dockers Gesundheitscheck (alle 30 s) taucht nicht mehr in der Statistik auf.

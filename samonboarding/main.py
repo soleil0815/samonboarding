@@ -12,7 +12,7 @@ from fastapi.responses import JSONResponse
 from ldap3.core.exceptions import LDAPException
 from starlette.middleware.base import BaseHTTPMiddleware
 
-from . import i18n, offboard_store, privacy, reports, timing
+from . import i18n, offboard_store, privacy, reports, timing, updatecheck
 from .config import DATA_DIR, HTTPS_PORT, VERSION
 from .routers import (
     auth,
@@ -78,10 +78,12 @@ async def _lifespan(app):
     except Exception as e:
         log.warning("Wiederherstellungs-Eintraege konnten nicht geprueft werden: %s", e)
     stop = privacy.start_retention_thread()
+    stop_update_check = updatecheck.start_thread()
     try:
         yield
     finally:
         stop.set()
+        stop_update_check.set()
         log.info("SAMONBOARDING wird beendet - alle Sitzungen enden")
 
 

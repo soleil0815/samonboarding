@@ -15,8 +15,8 @@ This document describes the personal data SAMONBOARDING processes: where it is k
 | Purpose | Creating, changing, disabling, restoring and deleting user accounts in your own Active Directory |
 | Legal basis (typical) | Art. 6(1)(b) GDPR / national employment law (Germany: § 26 BDSG). Reports: Art. 6(1)(f) and Art. 32 GDPR (accountability and security) |
 | Where does data go? | Within your own network: the container, domain controller, file servers, Exchange. Plus your SMTP server, possibly at an external mail provider |
-| Third parties / third countries | **None.** No cloud, no CDNs, no Google Fonts, no telemetry, no update check |
-| Internet access | Not needed. The application does not open any internet connections by itself; it only connects to the DC, file servers and your SMTP and Exchange servers. If you want to shield the container further, restrict its outgoing traffic in the firewall of the host, router or Synology |
+| Third parties / third countries | **No personal data.** No cloud, no CDNs, no Google Fonts, no telemetry. The only outgoing connection: once a day the server fetches the public list of versions from GitHub (USA). Nothing is sent along (no version, no identifier, no accounts); GitHub only sees the IP address of your internet connection. Switched off with `UPDATE_CHECK=false` |
+| Internet access | Not needed. The application connects to the DC, file servers, your SMTP and Exchange servers and – only for the version check, which can be switched off – once a day to GitHub. Without internet only the note about new versions is missing. If you want to shield the container further, restrict its outgoing traffic in the firewall of the host, router or Synology |
 | Retention | Reports (changes) 365 days, log 90 days, restore entries 180 days (configurable), then deleted automatically. Delete manually under *Reports* |
 | Connection | HTTPS only (TLS 1.2/1.3). Sessions end on sign-out, after 30 minutes of inactivity, after 12 hours at the latest, or on restart |
 | Cookies | One strictly necessary session cookie only. No tracking, so no consent banner is needed |
@@ -89,7 +89,7 @@ This document describes the personal data SAMONBOARDING processes: where it is k
 
 **Separation from the internet**
 - No external resources. A Content Security Policy header forbids the browser to contact other servers.
-- The application does not open any internet connections by itself (no CDNs, no telemetry, no update check). IPv6 is disabled for the container network.
+- No CDNs, no telemetry. The only internet connection is the server's daily version check at GitHub: a plain fetch of the public list of versions with nothing sent along, switched off with `UPDATE_CHECK=false`. IPv6 is disabled for the container network.
 - Security headers: `X-Frame-Options: DENY`, `X-Content-Type-Options: nosniff` and `Referrer-Policy: same-origin`.
 
 **Storage limitation**

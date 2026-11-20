@@ -15,8 +15,8 @@ Dieses Dokument beschreibt, welche personenbezogenen Daten SAMONBOARDING verarbe
 | Zweck | Anlegen, Ändern, Deaktivieren, Wiederherstellen und Löschen von Benutzerkonten im eigenen Active Directory |
 | Rechtsgrundlage (typisch) | Art. 6 Abs. 1 lit. b DSGVO / § 26 BDSG (Durchführung des Beschäftigungsverhältnisses), für die Berichte Art. 6 Abs. 1 lit. f bzw. Art. 32 DSGVO (Nachweis und Sicherheit) |
 | Wo laufen die Daten? | Im eigenen Netz: Container, Domänencontroller, Dateiserver, Exchange. Dazu euer SMTP-Server, ggf. bei einem externen Mail-Anbieter |
-| Dritte / Drittland | **Keine.** Keine Cloud, keine CDNs, kein Google Fonts, keine Telemetrie, keine Update-Prüfung |
-| Internetzugang | Nicht nötig. Die Anwendung baut von sich aus keine Verbindungen ins Internet auf, sie verbindet sich nur mit DC, Dateiserver, eurem SMTP- und Exchange-Server. Wer den Container zusätzlich abschotten will, beschränkt den ausgehenden Verkehr in der Firewall des Hosts, Routers oder der Synology |
+| Dritte / Drittland | **Keine personenbezogenen Daten.** Keine Cloud, keine CDNs, kein Google Fonts, keine Telemetrie. Einzige Verbindung nach außen: Der Server ruft einmal am Tag die öffentliche Versionsliste bei GitHub (USA) ab. Dabei wird nichts mitgeschickt (keine Version, keine Kennung, keine Konten); GitHub sieht nur die IP-Adresse eures Internetanschlusses. Abschaltbar mit `UPDATE_CHECK=false` |
+| Internetzugang | Nicht nötig. Die Anwendung verbindet sich mit DC, Dateiserver, eurem SMTP- und Exchange-Server und – nur für die abschaltbare Versionsprüfung – einmal am Tag mit GitHub. Ohne Internet fehlt nur der Hinweis auf neue Versionen. Wer den Container zusätzlich abschotten will, beschränkt den ausgehenden Verkehr in der Firewall des Hosts, Routers oder der Synology |
 | Speicherdauer | Berichte (Änderungen) 365 Tage, Protokoll 90 Tage, Wiederherstellungs-Einträge 180 Tage (einstellbar), danach automatische Löschung. Manuell löschen unter *Berichte* |
 | Verbindung | Nur HTTPS (TLS 1.2/1.3). Sitzungen enden bei Abmeldung, nach 30 Minuten Inaktivität, spätestens nach 12 Stunden oder beim Neustart |
 | Cookies | Nur ein technisch notwendiges Sitzungs-Cookie, kein Tracking, kein Einwilligungsbanner nötig |
@@ -89,7 +89,7 @@ Dieses Dokument beschreibt, welche personenbezogenen Daten SAMONBOARDING verarbe
 
 **Trennung vom Internet**
 - Keine externen Ressourcen. Ein Content-Security-Policy-Header verbietet dem Browser fremde Server.
-- Die Anwendung baut von sich aus keine Verbindungen ins Internet auf (keine CDNs, keine Telemetrie, keine Update-Prüfung). IPv6 ist für das Container-Netz abgeschaltet.
+- Keine CDNs, keine Telemetrie. Einzige Verbindung ins Internet ist die tägliche Versionsprüfung des Servers bei GitHub: ein einfacher Abruf der öffentlichen Versionsliste ohne mitgeschickte Daten, abschaltbar mit `UPDATE_CHECK=false`. IPv6 ist für das Container-Netz abgeschaltet.
 - Security-Header: `X-Frame-Options: DENY`, `X-Content-Type-Options: nosniff` und `Referrer-Policy: same-origin`.
 
 **Speicherbegrenzung**
