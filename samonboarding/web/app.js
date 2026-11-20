@@ -572,7 +572,7 @@ async function refreshAllLdapData(force) {
     await Promise.all([safeLoad(loadReferenceCheck, force), safeLoad(loadHostNotices)]);
 }
 
-// Operational notes (administrators only), e.g. an outdated docker-compose.yml on the server
+// Operational notes (administrators only): an outdated docker-compose.yml, a newer version on GitHub
 async function loadHostNotices() {
     const box = document.getElementById('host-notice');
     if(!box) return;
@@ -583,12 +583,58 @@ async function loadHostNotices() {
         if(!res.ok) { box.classList.add('hidden'); return; }
         notices = ((await res.json()) || {}).notices || [];
     } catch(e) { box.classList.add('hidden'); return; }
+    const parts = [];
     const compose = notices.find(n => n.kind === 'compose');
-    if(!compose) { box.classList.add('hidden'); box.innerHTML = ''; return; }
-    box.innerHTML = '<p class="font-semibold mb-1"><i class="fa-solid fa-circle-info mr-1"></i> <span>Die docker-compose.yml auf dem Server ist veraltet.</span></p>'
+    if(compose) parts.push('<p class="font-semibold mb-1"><i class="fa-solid fa-circle-info mr-1"></i> <span>Die docker-compose.yml auf dem Server ist veraltet.</span></p>'
         + '<p class="text-xs"><span>Stand der Datei:</span> <span translate="no">' + esc(String(compose.have || '–')) + '</span>, <span>benötigt:</span> <span translate="no">' + esc(String(compose.need)) + '</span>. '
-        + '<span>Abhilfe: im Ordner der docker-compose.yml „sh update.sh“ ausführen – oder die docker-compose.yml aus dem aktuellen Release herunterladen und „docker compose up -d“ ausführen. Die .env und die Daten bleiben unverändert.</span></p>';
+        + '<span>Abhilfe: im Ordner der docker-compose.yml „sh update.sh“ ausführen – oder die docker-compose.yml aus dem aktuellen Release herunterladen und „docker compose up -d“ ausführen. Die .env und die Daten bleiben unverändert.</span></p>');
+    const update = notices.find(n => n.kind === 'update');
+    if(update) parts.push(updateNoticeHtml(update));
+    const html = parts.join('<hr class="my-3 border-sky-500/30">');
+    if(!html) { box.classList.add('hidden'); box.innerHTML = ''; box.dataset.html = ''; return; }
+    if(box.dataset.html !== html) { box.dataset.html = html; box.innerHTML = html; }  // do not re-announce unchanged notes
     box.classList.remove('hidden');
+}
+
+// Newer version on GitHub. Only version numbers come from the server; the link is built here and checked.
+const RELEASE_PAGE = 'https://github.com/soleil0815/samonboarding' + '/releases/tag/v';
+const RELEASE_RE = /^\d+\.\d+\.\d+(-s\d+)?$/;
+const LINE_RE = /^\d+\.\d+$/;
+function releaseLink(version) {
+    return '<a class="underline hover:no-underline" href="' + esc(RELEASE_PAGE + version) + '" target="_blank" rel="noopener noreferrer"><span>Was ist neu?</span></a>';
+}
+function commandHtml(text) {
+    // wraps only between the parts of a command line ("a && b"), never inside "up -d" or a version number
+    const parts = String(text).split(' && ').map(p => '<span class="whitespace-nowrap">' + esc(p) + '</span>');
+    return '<code translate="no" class="font-mono text-[11px] px-1.5 py-0.5 rounded bg-sky-500/10 border border-sky-500/30 inline-block max-w-full align-middle leading-4">' + parts.join(' &amp;&amp; ') + '</code>';
+}
+function updateNoticeHtml(n) {
+    const latest = RELEASE_RE.test(String(n.latest || '')) ? n.latest : '';
+    const outside = RELEASE_RE.test(String(n.outside || '')) ? n.outside : '';
+    const target = String(n.outsideTarget || '');
+    const line = LINE_RE.test(target) || RELEASE_RE.test(target) ? target : '';
+    const installed = esc(String(n.installed || ''));
+    let html = '';
+    if(latest) {
+        html += '<p class="font-semibold mb-1"><i class="fa-solid fa-circle-arrow-up mr-1"></i> '
+            + '<span>' + (n.level === 'security' ? 'Sicherheitsupdate verfügbar:' : 'Neue Version verfügbar:') + '</span> <span translate="no">' + esc(latest) + '</span></p>'
+            + '<p class="text-xs mb-2"><span>Installiert:</span> <span translate="no">' + installed + '</span>. '
+            + (n.level === 'security' ? '<span>Gleiches Programm, aktualisierte Pakete mit Sicherheitskorrekturen.</span> ' : '')
+            + releaseLink(latest) + '</p>';
+        if(n.switch) {
+            html += '<p class="text-xs leading-6"><span>Die .env legt genau eine Version fest (SAMONBOARDING_VERSION). Wechseln mit:</span> ' + commandHtml('sudo sh update.sh --version ' + latest) + '</p>';
+        } else {
+            html += '<p class="text-xs leading-6"><span>Aktualisieren im Ordner der docker-compose.yml:</span> ' + commandHtml('sudo sh update.sh')
+                + ' <span>oder</span> ' + commandHtml('docker compose pull && docker compose up -d') + '</p>';
+        }
+    }
+    if(outside && line) {
+        html += '<p class="text-xs leading-6' + (latest ? ' mt-2' : '') + '">'
+            + (latest ? '' : '<i class="fa-solid fa-circle-arrow-up mr-1"></i> ')
+            + '<span>Neuere Versionsreihe außerhalb der festen Version (SAMONBOARDING_VERSION):</span> <span translate="no">' + esc(outside) + '</span>. '
+            + releaseLink(outside) + ' <span>Wechseln mit:</span> ' + commandHtml('sudo sh update.sh --version ' + line) + '</p>';
+    }
+    return html;
 }
 
 // Settings refer to OUs/groups by DN. If one of them was renamed, moved or deleted in AD,

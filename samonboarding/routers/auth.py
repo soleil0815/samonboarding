@@ -7,7 +7,7 @@ import logging
 from fastapi import APIRouter, Cookie, Depends, HTTPException, Request, Response
 from ldap3.core.exceptions import LDAPBindError
 
-from .. import datastate
+from .. import datastate, updatecheck
 from ..audit import audit
 from ..config import CONFIG_FILE, SESSION_IDLE_SECONDS, default_config
 from ..dn import base_dn
@@ -39,11 +39,17 @@ def get_public_config():
 
 @router.get("/api/host-notices")
 def get_host_notices(user: dict = Depends(get_current_user)):
-    """Operational notices (administrators only): e.g. an outdated docker-compose.yml."""
+    """Operational notices (administrators only): an outdated docker-compose.yml, a newer version."""
     if user.get("role") != "Administrator":
         return {"notices": []}
-    notice = datastate.compose_notice()
-    return {"notices": [dict(notice, kind="compose")] if notice else []}
+    notices = []
+    compose = datastate.compose_notice()
+    if compose:
+        notices.append(dict(compose, kind="compose"))
+    update = updatecheck.notice()
+    if update:
+        notices.append(dict(update, kind="update"))
+    return {"notices": notices}
 
 
 @router.get("/api/me")

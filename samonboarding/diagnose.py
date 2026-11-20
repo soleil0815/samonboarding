@@ -32,8 +32,9 @@ from datetime import datetime, timezone
 from importlib import metadata
 from pathlib import Path
 
-from . import config, datastate, reports, timing
+from . import config, datastate, reports, timing, updatecheck
 from .anonymize import Anonymizer
+from .routers.news import version_key
 
 FORMAT = 1  # format of diagnose.json; increase when its structure changes
 STARTED = time.time()
@@ -159,6 +160,9 @@ ENV_RULES = {
     "ALLOW_HTTP": "show",
     "SAMONBOARDING_TLS_SELF_SIGNED": "show",
     "SAMONBOARDING_COMPOSE": "show",
+    "SAMONBOARDING_VERSION": "set",  # shown checked as updatePruefung.festeVersion
+    "UPDATE_CHECK": "show",
+    "UPDATE_CHECK_PROXY": "set",
 }
 
 # Which sections of the package cover a module in routers/ (a new module must be added here - test)
@@ -367,6 +371,7 @@ def section_programm(anon, ctx):
             "version": state.get("version"),
         },
         "compose": {"datei": compose_have or None, "benoetigt": datastate.COMPOSE_REQUIRED},
+        "updatePruefung": updatecheck.status(),
         "python": platform.python_version(),
         "system": f"{platform.system()} {platform.release()}",
         "architektur": platform.machine(),
@@ -714,6 +719,12 @@ def hints(data):
     have = str(compose.get("datei") or "0")
     if not have.isdigit() or int(have) < compose.get("benoetigt", 0):
         out.append("docker-compose.yml ist veraltet (update.sh ausführen).")
+    update = p.get("updatePruefung") or {}
+    if update.get("eingeschaltet") and update.get("ergebnis") not in (None, "ok"):
+        out.append(f"Versionsprüfung bei GitHub nicht möglich ({update['ergebnis']}) – Internet/Proxy prüfen.")
+    newest, have = update.get("neuesteVeroeffentlicht"), update.get("installiert")
+    if newest and have and version_key(newest) > version_key(have):
+        out.append(f"Neuere Version veröffentlicht: {newest} (installiert {have}).")
     d = data.get("datenordner", {})
     if d.get("wechselNichtAbgeschlossen"):
         out.append("Ein Versionswechsel wurde nicht abgeschlossen (Migration abgebrochen).")

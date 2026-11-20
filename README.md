@@ -14,7 +14,7 @@ Web application for day-to-day user management in Active Directory (**Samba AD**
 | **Delete accounts** | Administrators only: deletes disabled accounts including roaming profile, folder redirection and home folder, always simulated first |
 | **E-mail notification** | Optional: mail to the employee who performed the action (SMTP) |
 
-The application runs as a Docker container (FastAPI + ldap3). The web interface is fully built in and needs no internet access. It is available in **English and German** (switch with *DE / EN*); German labels are given in *italics* in this document where they help.
+The application runs as a Docker container (FastAPI + ldap3). The web interface is fully built in and loads nothing from the internet. The only outgoing connection: once a day the server asks GitHub whether there is a newer version (can be switched off, see [Version check](#version-check)). It is available in **English and German** (switch with *DE / EN*); German labels are given in *italics* in this document where they help.
 
 ![Sign-in page of SAMONBOARDING with the domain firma.local](docs/images/anmeldung-en.png)
 
@@ -147,7 +147,7 @@ sudo docker compose ps          # status should be "healthy"
 sudo docker compose logs -f     # follow the logs (Ctrl+C stops the display)
 ```
 
-**No internet in operation:** the application does not open any connections to the internet by itself, only to the DC, file server, SMTP and, if used, Exchange (see [section 9](#9-security-notes)). To isolate the container further, restrict the outgoing traffic of the Docker network `samonboarding` (subnet `DOCKER_SUBNET`) in the firewall of the host, router or NAS. For updates without internet see [Without internet](#without-internet).
+**Internet in operation:** the application only connects to the DC, file server, SMTP and, if used, Exchange – and about once a day to GitHub (`api.github.com`) to look for a newer version ([Version check](#version-check), switched off with `UPDATE_CHECK=false`). Without internet everything works the same, only that note stays away (see [section 9](#9-security-notes)). To isolate the container further, restrict the outgoing traffic of the Docker network `samonboarding` (subnet `DOCKER_SUBNET`) in the firewall of the host, router or NAS. For updates without internet see [Without internet](#without-internet).
 
 ### Step 5: Sign in
 
@@ -219,6 +219,8 @@ All settings are in the file **`.env`** (template: `env.example` in the release 
 | `AUDIT_RETENTION_DAYS` | `365` | Data protection: older report entries (changes) are deleted daily. `0` = unlimited |
 | `LOG_RETENTION_DAYS` | `90` | Data protection: older log entries are deleted daily. `0` = unlimited |
 | `OFFBOARD_RETENTION_DAYS` | `180` | Data protection: restore entries are deleted this many days after offboarding. `0` = unlimited |
+| `UPDATE_CHECK` | `true` | Once a day ask GitHub whether there is a newer version; administrators then see a note ([Version check](#version-check)). `false` = off |
+| `UPDATE_CHECK_PROXY` | empty | Proxy only for the version check if the server reaches the internet only through a proxy (e.g. `http://proxy.firma.local:3128`, `http://` only) |
 
 Notes:
 
@@ -618,6 +620,22 @@ Only settings in `.env` changed: `sudo docker compose up -d` is enough. All user
 
 **If the `docker-compose.yml` is too old**, the interface shows administrators a note. Remedy: `sudo sh update.sh` (replaces it automatically) or get the `docker-compose.yml` of the current release and run `sudo docker compose up -d`.
 
+### Version check
+
+For everyone who does not update the container automatically: about once a day the **server** fetches the list of published versions from GitHub (`api.github.com`) – one minute after every start, then every 24 hours, after a failure at most every 6 hours. If there is a newer version, **only administrators** see a note at the top of every page with the version, a *What's new?* link and the commands to update:
+
+```bash
+sudo sh update.sh
+# or
+docker compose pull && docker compose up -d
+```
+
+- **Nothing is sent along:** no version, no identifier, no data from the AD. The comparison happens on your server. GitHub only sees the IP address of your internet connection and that a SAMONBOARDING there fetches the list of versions. The browser never connects to GitHub.
+- **Security updates** (`-s1`, `-s2` …) are marked as such: same program, updated packages.
+- **Fixed version** (`SAMONBOARDING_VERSION` in `.env`): with `2.6` the note names the newest 2.6.x and mentions a newer line (e.g. 2.7) separately, with the command to switch (`sudo sh update.sh --version 2.7`). With an exact version such as `2.6.2`, `docker compose pull` fetches nothing new – the note then names `sudo sh update.sh --version <new version>`.
+- **Without internet**, or if GitHub cannot be reached, nothing happens: no error message, no slower loading. The diagnostic package shows the reason. Through a proxy: `UPDATE_CHECK_PROXY=http://proxy:port` in `.env` (`http://` only; other proxy variables such as `HTTPS_PROXY` are deliberately not used for it). For a firewall rule: the target is `api.github.com`, port 443.
+- **Switching it off:** `UPDATE_CHECK=false` in `.env`, then `sudo docker compose up -d`.
+
 ### What happens on a version change
 
 When a different program version starts than last time, the program **first** backs up the data folder to `data/backups/vor-<version>-<date>.tar.gz` (the last 10 are kept) and then brings the data to the state of the new version (`data/datenstand.json`). Security updates (`-s1`, `-s2` …) are the same program and need no backup.
@@ -757,7 +775,7 @@ A reverse proxy is no longer needed. If you use one anyway, forward to `https://
 - **SMTP password:** if server or user name change, the password must be entered again, so the stored password cannot be sent to a foreign server
 - **Data protection in the interface:** the *Data protection* link (bottom of the sign-in page, sidebar under *Help*) briefly shows what is stored and the current retention periods. Administrators can download the subject access report (Art. 15 GDPR) for an account as JSON there (recorded in the reports)
 - **Data protection:** which data is kept where, retention periods, built-in measures and a template for the record of processing activities are in [DATA-PROTECTION.md](DATA-PROTECTION.md)
-- **No internet connections at runtime:** Tailwind CSS, fonts (Inter, IBM Plex Mono) and icons (Font Awesome) are packed into the image during the Docker build and served by the application itself. There are no CDNs, no Google Fonts, no telemetry and no update check. In addition, a Content Security Policy header forbids the browser to load anything from other servers and to run inline scripts (the interface logic is its own file, `/app.js`). Only the **build** needs internet (npm, pip, Docker base images). At runtime, connections go only to your own services: domain controller, file server, SMTP and, if configured, Exchange
+- **No internet connections at runtime:** Tailwind CSS, fonts (Inter, IBM Plex Mono) and icons (Font Awesome) are packed into the image during the Docker build and served by the application itself. There are no CDNs, no Google Fonts and no telemetry. The only exception: once a day the server fetches the list of versions from GitHub without sending anything along ([Version check](#version-check), switched off with `UPDATE_CHECK=false`). In addition, a Content Security Policy header forbids the browser to load anything from other servers and to run inline scripts (the interface logic is its own file, `/app.js`). Only the **build** needs internet (npm, pip, Docker base images). At runtime, connections go only to your own services – domain controller, file server, SMTP and, if configured, Exchange – and to GitHub for the version check
 - **Vulnerability scan (Trivy):** every image is scanned with [Trivy](https://trivy.dev) before it is published, the published image additionally every day. HIGH/CRITICAL vulnerabilities with an available fix stop the release. Process, security updates (`-s<counter>`) and what to do when a run is red: section *Automatic security updates*.
 - The application runs over HTTPS only (see above). Ideally install your own certificate and leave `LDAP_ALLOW_PLAIN` at `false` (default)
 - Give operators only the rights they need (delegation on individual OUs)
@@ -828,6 +846,7 @@ samonboarding/
   routers/certificate.py    "Certificate" page: show, upload, create self-signed (admins only)
   diagnose.py               diagnostic package: sections, rules per setting/environment variable, ZIP (also python -m)
   anonymize.py              replaces names, DNs, hosts, IP/e-mail addresses and shares by placeholders
+  updatecheck.py            daily version check at GitHub (nothing sent along), note for administrators
   routers/diagnose.py       "Diagnostics" page: preview and download of the diagnostic package (admins only)
   serve.py                  start over HTTPS only (python -m samonboarding.serve)
   errors.py                 AdError, DcUnreachable
@@ -920,6 +939,7 @@ The GitHub workflow runs ruff and pyright before every build, pyright with exact
 | `tests/test_update_sh.py` | `update.sh` with a simulated `docker` under dash: update, going back after a failed start, newer `docker-compose.yml`, offline, restore, cleanup spares data also via links and mounted folders |
 | `tests/test_audit_2026_11.py`, `tests/ui/pdf.test.js`, `tests/ui/nav.test.js` | Code audit 2026-11: no plain-text fallback when the DC certificate is rejected, deletion protection for other accounts' folders, health check without root, backups on migration errors and retention, mails only to the AD attribute `mail`, menu per role |
 | `tests/test_datastate.py` | Backup before a version change, migrations, stop on data of a newer version, version of the `docker-compose.yml`, start script |
+| `tests/test_updatecheck.py`, `tests/ui/update_notice.test.js` | Version check: only published release numbers, fixed versions (line/exact), security updates, nothing sent along, own proxy setting, quiet failures, note only for administrators, no odd values in links or commands |
 | `tests/test_pins.py`, `tests/test_supply_chain.py` | Pinned versions and their limits, security update numbers, Trivy (simulated), GitHub workflows |
 
 The scenarios run against a **simulated AD and a simulated file server** and need no installed packages (small stand-in modules in `tests/scenarios/stubs`). Run one on its own with `python tests/scenarios/scenario_deletion.py`. They do **not** test real SMB connections or real file permissions; that is only possible on a test server (see Delete accounts — try with an unimportant account first). The same checks run on every push in GitHub Actions (`.github/workflows/image.yml` / `build.yml`); the image is only built if everything passes.

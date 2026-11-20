@@ -313,7 +313,7 @@ Open **Certificate** (administrators only). The page shows the current certifica
 
 The **Data protection** link (bottom of the sign-in page and in the sidebar under *Help*) briefly shows what is stored and the current retention periods.
 
-- No connections to the internet: interface, fonts and icons come from your own server.
+- Nothing from the internet: interface, fonts and icons come from your own server. Only the server asks GitHub once a day for a newer version, without sending any data.
 - Only one strictly necessary cookie for signing in, no tracking.
 - Your password is only held in memory during the session.
 - **Subject access (Art. 15 GDPR):** administrators enter a user name there and **Download** everything the application has stored about that account (JSON). Review it before handing it out and redact information about other people.
@@ -341,6 +341,8 @@ Or with the helper script `sudo sh update.sh`: it remembers the running version,
 **Backup before a version change:** when a new program version starts, the program first backs up the data folder itself to `data/backups/vor-<version>-<date>.tar.gz` (the last 10 are kept). If an older version starts on data of a newer one, it stops with a message that names the matching backup.
 
 **Fixing a version and going back:** `.env` contains `SAMONBOARDING_VERSION`. Empty = always the newest version, `2.0` = the newest 2.0.x including security updates, `2.0.1` = exactly this version. Back to an older version whose data state is older: `sudo sh update.sh --restore data/backups/vor-<newer version>-<date>.tar.gz --version <older version>`.
+
+**New version available:** once a day the server checks on GitHub whether there is a newer version. If so, administrators see a note at the top of every page with the version, a *What's new?* link and the commands to update. Security updates (`-s1`, `-s2` …) are marked as such. If `.env` sets a fixed version, the note follows it. Nothing is sent along. To switch it off: `UPDATE_CHECK=false` in `.env`.
 
 **Without internet:** copy the image file from the release (`samonboarding-<version>-amd64.tar.gz` or `-arm64`) to the server and run `sudo sh update.sh --offline <file>`.
 
