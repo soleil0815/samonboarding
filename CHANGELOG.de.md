@@ -8,6 +8,7 @@ Update auf dem Server: `sudo sh update.sh` oder `docker compose pull && docker c
 Einträge, die mit „Sicherheit:“ oder „Behoben:“ beginnen, werden in der Oberfläche entsprechend markiert.
 
 ## 2.7.0 – 2026-11-20
+- Wichtig: Ab dieser Version verbindet sich der Server etwa einmal am Tag mit dem Internet (`api.github.com`, Port 443), um nach neuen Versionen zu sehen – mitgeschickt wird nichts. Wer gar keine Verbindung nach außen möchte, trägt `UPDATE_CHECK=false` in die `.env` ein.
 - Neu: Versionsprüfung für alle, die den Container nicht automatisch aktualisieren. Einmal am Tag fragt der Server bei GitHub nach, ob es eine neuere Version gibt; Administratoren sehen dann oben auf jeder Seite einen Hinweis mit der Version, einem Link „Was ist neu?“ und den Befehlen zum Aktualisieren (`sudo sh update.sh` oder `docker compose pull && docker compose up -d`). Sicherheitsupdates (`-s1`, `-s2` …) sind als solche gekennzeichnet.
   - Es wird nichts mitgeschickt: keine Version, keine Kennung, keine Daten aus dem AD – verglichen wird auf dem Server, der Browser verbindet sich nie mit GitHub.
   - Eine feste Version in der `.env` (`SAMONBOARDING_VERSION`) wird beachtet: Bei `2.6` nennt der Hinweis die neueste 2.6.x und eine neuere Versionsreihe getrennt; bei einer genauen Version nennt er `sudo sh update.sh --version <neue Version>`.

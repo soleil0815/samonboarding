@@ -4,6 +4,7 @@
 
 import logging
 import os
+import threading
 import time
 from contextlib import asynccontextmanager
 
@@ -78,7 +79,11 @@ async def _lifespan(app):
     except Exception as e:
         log.warning("Wiederherstellungs-Eintraege konnten nicht geprueft werden: %s", e)
     stop = privacy.start_retention_thread()
-    stop_update_check = updatecheck.start_thread()
+    try:
+        stop_update_check = updatecheck.start_thread()
+    except Exception as e:
+        log.warning("Versionspruefung konnte nicht gestartet werden: %s", e)
+        stop_update_check = threading.Event()
     try:
         yield
     finally:

@@ -604,12 +604,15 @@ function releaseLink(version) {
     return '<a class="underline hover:no-underline" href="' + esc(RELEASE_PAGE + version) + '" target="_blank" rel="noopener noreferrer"><span>Was ist neu?</span></a>';
 }
 function commandHtml(text) {
-    return '<code translate="no" class="font-mono text-[11px] px-1.5 py-0.5 rounded bg-sky-500/10 border border-sky-500/30 inline-block max-w-full align-middle leading-4">' + esc(text) + '</code>';
+    // wraps only between the parts of a command line ("a && b"), never inside "up -d" or a version number
+    const parts = String(text).split(' && ').map(p => '<span class="whitespace-nowrap">' + esc(p) + '</span>');
+    return '<code translate="no" class="font-mono text-[11px] px-1.5 py-0.5 rounded bg-sky-500/10 border border-sky-500/30 inline-block max-w-full align-middle leading-4">' + parts.join(' &amp;&amp; ') + '</code>';
 }
 function updateNoticeHtml(n) {
     const latest = RELEASE_RE.test(String(n.latest || '')) ? n.latest : '';
     const outside = RELEASE_RE.test(String(n.outside || '')) ? n.outside : '';
-    const line = LINE_RE.test(String(n.outsideLine || '')) ? n.outsideLine : '';
+    const target = String(n.outsideTarget || '');
+    const line = LINE_RE.test(target) || RELEASE_RE.test(target) ? target : '';
     const installed = esc(String(n.installed || ''));
     let html = '';
     if(latest) {

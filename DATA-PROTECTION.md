@@ -15,7 +15,7 @@ This document describes the personal data SAMONBOARDING processes: where it is k
 | Purpose | Creating, changing, disabling, restoring and deleting user accounts in your own Active Directory |
 | Legal basis (typical) | Art. 6(1)(b) GDPR / national employment law (Germany: § 26 BDSG). Reports: Art. 6(1)(f) and Art. 32 GDPR (accountability and security) |
 | Where does data go? | Within your own network: the container, domain controller, file servers, Exchange. Plus your SMTP server, possibly at an external mail provider |
-| Third parties / third countries | **No personal data.** No cloud, no CDNs, no Google Fonts, no telemetry. The only outgoing connection: once a day the server fetches the public list of versions from GitHub (USA). Nothing is sent along (no version, no identifier, no accounts); GitHub only sees the IP address of your internet connection. Switched off with `UPDATE_CHECK=false` |
+| Third parties / third countries | **No personal data.** No cloud, no CDNs, no Google Fonts, no telemetry. The only outgoing connection: about once a day (after every start, after a failure at most every 6 hours) the server fetches the public list of versions from GitHub (`api.github.com`, USA). Nothing is sent along (no version, no identifier, no accounts); GitHub sees the IP address of your internet connection and that a SAMONBOARDING asks. Switched off with `UPDATE_CHECK=false` |
 | Internet access | Not needed. The application connects to the DC, file servers, your SMTP and Exchange servers and – only for the version check, which can be switched off – once a day to GitHub. Without internet only the note about new versions is missing. If you want to shield the container further, restrict its outgoing traffic in the firewall of the host, router or Synology |
 | Retention | Reports (changes) 365 days, log 90 days, restore entries 180 days (configurable), then deleted automatically. Delete manually under *Reports* |
 | Connection | HTTPS only (TLS 1.2/1.3). Sessions end on sign-out, after 30 minutes of inactivity, after 12 hours at the latest, or on restart |
@@ -142,6 +142,6 @@ The search is a text search for the user name. Review the result before handing 
 | Data subjects | Employees, external staff with an account, IT administrators |
 | Data categories | Master data (name, user name, e-mail, department, company, phone, manager), groups and OU, log data |
 | Recipients | Internal IT. Notifications to the acting employee (via your mail server or mail provider). Otherwise no third parties |
-| Third countries | None |
+| Third countries | None for the processing of employee data. Only the version check, which can be switched off, calls GitHub (USA); it transfers nothing but the IP address of the internet connection (`UPDATE_CHECK=false` switches it off) |
 | Retention | Changes __ days, log __ days, restore entries __ days, sessions 30 minutes of inactivity (see section 3) |
 | Measures | See section 4 |

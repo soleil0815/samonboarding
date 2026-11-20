@@ -2,12 +2,14 @@
 # Copyright (C) 2026 Die SAMONBOARDING-Autoren
 """Is a newer version available? For installations that do not update their container automatically.
 
-Once a day the server (never the browser) fetches the public list of releases from GitHub - the same place the
-images come from. Nothing is sent along: no version, no identifier, no data from the AD; the request carries only
-a fixed User-Agent. The comparison happens here. Administrators then see a note with the update commands.
+About once a day (one minute after every start, then every 24 hours, after a failure every 6 hours) the server -
+never the browser - fetches the public list of releases from api.github.com. Nothing is sent along: no version, no
+identifier, no data from the AD; the request carries only a fixed User-Agent. The comparison happens here.
+Administrators then see a note with the update commands.
 
 Switched off with UPDATE_CHECK=false in .env. Without internet access the check simply fails quietly; the reason
-is shown in the diagnostic package. A proxy only for this check: UPDATE_CHECK_PROXY in .env.
+is shown in the diagnostic package. A proxy only for this check: UPDATE_CHECK_PROXY in .env (http://host:port).
+Proxy variables of the environment (HTTPS_PROXY ...) are ignored on purpose: they are meant for other connections.
 
 A fixed version in .env (SAMONBOARDING_VERSION) is respected:
   empty / latest   the newest version
@@ -16,6 +18,7 @@ A fixed version in .env (SAMONBOARDING_VERSION) is respected:
                    command to switch to the newest 2.6.x
 """
 
+import functools
 import json
 import logging
 import os
@@ -24,6 +27,7 @@ import threading
 import time
 import urllib.error
 import urllib.request
+from pathlib import Path
 
 from .config import BASE_DIR, VERSION
 from .routers import news
@@ -32,7 +36,6 @@ log = logging.getLogger(__name__)
 
 REPOSITORY = "soleil0815/samonboarding"
 RELEASES_URL = f"https://api.github.com/repos/{REPOSITORY}/releases?per_page=100"
-RELEASE_PAGE = f"https://github.com/{REPOSITORY}/releases/tag/v"
 USER_AGENT = "SAMONBOARDING-update-check"  # fixed: no version, no identifier
 TIMEOUT_SECONDS = 15
 MAX_BYTES = 8 * 1024 * 1024
@@ -57,7 +60,7 @@ def enabled(env=None):
 def pin(env=None):
     """SAMONBOARDING_VERSION from .env -> ("", "") | ("line", "2.6") | ("exact", "2.6.2"). Unknown = no pin."""
     env = os.environ if env is None else env
-    raw = str(env.get("SAMONBOARDING_VERSION", "") or "").strip().lower()
+    raw = str(env.get("SAMONBOARDING_VERSION", "") or "").strip().lower().removeprefix("v")
     match = _PIN_RE.match(raw)
     if not match:
         return ("", "")
@@ -65,10 +68,12 @@ def pin(env=None):
     return ("exact", raw) if match.group(3) is not None else ("line", line)
 
 
-def installed():
-    """Installed release including the security-update counter, from the changelog shipped in the image."""
+@functools.lru_cache(maxsize=1)
+def installed(changelog=None):
+    """Installed release including the security-update counter, from the changelog shipped in the image.
+    It cannot change while the program runs, so it is read once."""
     try:
-        text = (BASE_DIR / news.FILES["en"]).read_text(encoding="utf-8")
+        text = Path(changelog or BASE_DIR / news.FILES["en"]).read_text(encoding="utf-8")
     except OSError:
         return VERSION
     return news.installed(news.parse(text, limit=10_000))
@@ -95,12 +100,14 @@ def _line(version):
 def evaluate(current, versions, pinned=("", "")):
     """None if nothing is newer; otherwise what to show. Pure function - no network, no state."""
     kind, value = pinned
+    own_line = value if kind == "line" else _line(value) if kind == "exact" else ""
+    if own_line and _line(current) != own_line:
+        kind, value, own_line = "", "", ""  # .env does not match what is running: ignore the pin
     key = news.version_key(current)
     newer = [v for v in versions if news.version_key(v) > key]
     if not newer:
         return None
     newest = max(newer, key=news.version_key)
-    own_line = value if kind == "line" else _line(value) if kind == "exact" else ""
     within = [v for v in newer if not own_line or _line(v) == own_line]
     latest = max(within, key=news.version_key) if within else None
     outside = newest if own_line and newest != latest else None
@@ -109,12 +116,11 @@ def evaluate(current, versions, pinned=("", "")):
     note = {"installed": current, "pin": value, "latest": latest, "outside": outside}
     if latest:
         note["level"] = "security" if latest.split("-s")[0] == current.split("-s")[0] else "version"
-        note["url"] = RELEASE_PAGE + latest
         # a line pin or no pin: "pull" fetches it; an exact pin never changes by itself
         note["switch"] = kind == "exact"
     if outside:
-        note["outsideLine"] = _line(outside)
-        note["outsideUrl"] = RELEASE_PAGE + outside
+        # stay with the kind of pin: an exact pin switches to the exact newer version, a line pin to the newer line
+        note["outsideTarget"] = outside if kind == "exact" else _line(outside)
     return note
 
 
@@ -122,11 +128,10 @@ def _fetch():
     request = urllib.request.Request(
         RELEASES_URL, headers={"User-Agent": USER_AGENT, "Accept": "application/vnd.github+json"}
     )
-    # Own setting instead of HTTPS_PROXY: that would also send the connections to Exchange through the proxy
+    # Only the own setting: HTTPS_PROXY & co. of the environment are ignored (they may be meant for other traffic)
     proxy = os.environ.get("UPDATE_CHECK_PROXY", "").strip()
-    opener = urllib.request.build_opener(urllib.request.ProxyHandler({"https": proxy})) if proxy else None
-    open_url = opener.open if opener else urllib.request.urlopen
-    with open_url(request, timeout=TIMEOUT_SECONDS) as answer:  # noqa: S310 - fixed https URL
+    opener = urllib.request.build_opener(urllib.request.ProxyHandler({"https": proxy} if proxy else {}))
+    with opener.open(request, timeout=TIMEOUT_SECONDS) as answer:  # fixed https URL
         body = answer.read(MAX_BYTES + 1)
     if len(body) > MAX_BYTES:
         raise ValueError("answer too large")
@@ -155,8 +160,10 @@ def check(fetch=None, now=None):
     except Exception as e:
         problem = _problem(e)
         with _lock:
+            repeated = _state["ok"] is False and _state["problem"] == problem
             _state.update(checkedAt=now, ok=False, problem=problem)
-        log.info("Versionspruefung nicht moeglich (%s) - naechster Versuch spaeter", problem)
+        if not repeated:  # once, not every 6 hours on a server without internet
+            log.info("Versionspruefung nicht moeglich (%s) - naechster Versuch spaeter", problem)
         return False
     with _lock:
         _state.update(checkedAt=now, ok=True, problem=None, versions=versions)

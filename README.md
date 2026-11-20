@@ -147,7 +147,7 @@ sudo docker compose ps          # status should be "healthy"
 sudo docker compose logs -f     # follow the logs (Ctrl+C stops the display)
 ```
 
-**Internet in operation:** the application only connects to the DC, file server, SMTP and, if used, Exchange – and once a day to GitHub to look for a newer version ([Version check](#version-check), switched off with `UPDATE_CHECK=false`). Without internet everything works the same, only that note stays away (see [section 9](#9-security-notes)). To isolate the container further, restrict the outgoing traffic of the Docker network `samonboarding` (subnet `DOCKER_SUBNET`) in the firewall of the host, router or NAS. For updates without internet see [Without internet](#without-internet).
+**Internet in operation:** the application only connects to the DC, file server, SMTP and, if used, Exchange – and about once a day to GitHub (`api.github.com`) to look for a newer version ([Version check](#version-check), switched off with `UPDATE_CHECK=false`). Without internet everything works the same, only that note stays away (see [section 9](#9-security-notes)). To isolate the container further, restrict the outgoing traffic of the Docker network `samonboarding` (subnet `DOCKER_SUBNET`) in the firewall of the host, router or NAS. For updates without internet see [Without internet](#without-internet).
 
 ### Step 5: Sign in
 
@@ -220,7 +220,7 @@ All settings are in the file **`.env`** (template: `env.example` in the release 
 | `LOG_RETENTION_DAYS` | `90` | Data protection: older log entries are deleted daily. `0` = unlimited |
 | `OFFBOARD_RETENTION_DAYS` | `180` | Data protection: restore entries are deleted this many days after offboarding. `0` = unlimited |
 | `UPDATE_CHECK` | `true` | Once a day ask GitHub whether there is a newer version; administrators then see a note ([Version check](#version-check)). `false` = off |
-| `UPDATE_CHECK_PROXY` | empty | Proxy for the version check if the server reaches the internet only through a proxy (e.g. `http://proxy.example.local:3128`) |
+| `UPDATE_CHECK_PROXY` | empty | Proxy only for the version check if the server reaches the internet only through a proxy (e.g. `http://proxy.firma.local:3128`, `http://` only) |
 
 Notes:
 
@@ -622,18 +622,18 @@ Only settings in `.env` changed: `sudo docker compose up -d` is enough. All user
 
 ### Version check
 
-For everyone who does not update the container automatically: once a day (first one minute after the start) the **server** fetches the list of published versions from GitHub – the same place `docker compose pull` fetches from. If there is a newer version, **only administrators** see a note at the top of every page with the version, a *What's new?* link and the commands to update:
+For everyone who does not update the container automatically: about once a day the **server** fetches the list of published versions from GitHub (`api.github.com`) – one minute after every start, then every 24 hours, after a failure at most every 6 hours. If there is a newer version, **only administrators** see a note at the top of every page with the version, a *What's new?* link and the commands to update:
 
 ```bash
 sudo sh update.sh
 # or
-sudo docker compose pull && sudo docker compose up -d
+docker compose pull && docker compose up -d
 ```
 
-- **Nothing is sent along:** no version, no identifier, no data from the AD. The comparison happens on your server. GitHub only sees that the server's address fetches the list of versions once a day. The browser never connects to GitHub.
+- **Nothing is sent along:** no version, no identifier, no data from the AD. The comparison happens on your server. GitHub only sees the IP address of your internet connection and that a SAMONBOARDING there fetches the list of versions. The browser never connects to GitHub.
 - **Security updates** (`-s1`, `-s2` …) are marked as such: same program, updated packages.
 - **Fixed version** (`SAMONBOARDING_VERSION` in `.env`): with `2.6` the note names the newest 2.6.x and mentions a newer line (e.g. 2.7) separately, with the command to switch (`sudo sh update.sh --version 2.7`). With an exact version such as `2.6.2`, `docker compose pull` fetches nothing new – the note then names `sudo sh update.sh --version <new version>`.
-- **Without internet**, or if GitHub cannot be reached, nothing happens: no error message, no slower loading. The diagnostic package shows the reason. Through a proxy: `UPDATE_CHECK_PROXY` in `.env`.
+- **Without internet**, or if GitHub cannot be reached, nothing happens: no error message, no slower loading. The diagnostic package shows the reason. Through a proxy: `UPDATE_CHECK_PROXY=http://proxy:port` in `.env` (`http://` only; other proxy variables such as `HTTPS_PROXY` are deliberately not used for it). For a firewall rule: the target is `api.github.com`, port 443.
 - **Switching it off:** `UPDATE_CHECK=false` in `.env`, then `sudo docker compose up -d`.
 
 ### What happens on a version change

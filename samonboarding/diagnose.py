@@ -160,7 +160,7 @@ ENV_RULES = {
     "ALLOW_HTTP": "show",
     "SAMONBOARDING_TLS_SELF_SIGNED": "show",
     "SAMONBOARDING_COMPOSE": "show",
-    "SAMONBOARDING_VERSION": "show",
+    "SAMONBOARDING_VERSION": "set",  # shown checked as updatePruefung.festeVersion
     "UPDATE_CHECK": "show",
     "UPDATE_CHECK_PROXY": "set",
 }

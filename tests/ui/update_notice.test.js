@@ -15,7 +15,9 @@ assert.ok(html.includes('Neue Version verfügbar:'));
 assert.ok(html.includes('>2.7.0<'));
 assert.ok(html.includes('href="https://github.com/soleil0815/samonboarding/releases/tag/v2.7.0" target="_blank" rel="noopener noreferrer"'));
 assert.ok(html.includes('sudo sh update.sh<'));
-assert.ok(html.includes('docker compose pull &amp;&amp; docker compose up -d'));
+assert.ok(html.replace(/<[^>]+>/g, '').includes('docker compose pull &amp;&amp; docker compose up -d'));
+// the command wraps only between its parts, never inside "up -d"
+assert.ok(html.includes('<span class="whitespace-nowrap">docker compose up -d</span>'));
 assert.ok(!html.includes('--version'));
 
 // a security update is named as such
@@ -29,16 +31,20 @@ assert.ok(html.includes('sudo sh update.sh --version 2.6.2-s1'));
 assert.ok(!html.includes('docker compose pull'));
 
 // a newer line outside the fixed version, nothing newer inside it
-html = updateNoticeHtml({installed: '2.6.2', latest: null, outside: '2.7.0', outsideLine: '2.7'});
+html = updateNoticeHtml({installed: '2.6.2', latest: null, outside: '2.7.0', outsideTarget: '2.7'});
 assert.ok(html.includes('Neuere Versionsreihe außerhalb der festen Version'));
 assert.ok(html.includes('sudo sh update.sh --version 2.7'));
 assert.ok(!html.includes('Neue Version verfügbar:'));
 
 // anything that is not a version number is never put into a link or a command
-html = updateNoticeHtml({kind: 'update', level: 'version', installed: '<b>x</b>', latest: '2.7.0"><script>', outside: 'javascript:alert(1)', outsideLine: '2.7'});
+html = updateNoticeHtml({kind: 'update', level: 'version', installed: '<b>x</b>', latest: '2.7.0"><script>', outside: 'javascript:alert(1)', outsideTarget: '2.7'});
 assert.strictEqual(html, '');
 html = updateNoticeHtml({kind: 'update', level: 'version', installed: '<b>x</b>', latest: '2.7.0'});
 assert.ok(html.includes('&lt;b&gt;x&lt;/b&gt;'));
 assert.ok(!html.includes('<b>x'));
+
+// an exact pin switches to the exact newer version
+html = updateNoticeHtml({installed: '2.6.2', latest: null, outside: '2.7.0', outsideTarget: '2.7.0'});
+assert.ok(html.includes('sudo sh update.sh --version 2.7.0<'));
 
 console.log('update_notice: fertig');
