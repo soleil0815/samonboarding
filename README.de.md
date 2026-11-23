@@ -55,7 +55,7 @@ Die Anwendung läuft als Docker-Container (FastAPI + ldap3), die Oberfläche ist
 Diese fünf Punkte erklären das ganze Konzept:
 
 1. **Es gibt kein Dienstkonto.** Jeder meldet sich mit seinem *eigenen* AD-Konto an. Alle Aktionen laufen im Namen dieses Benutzers. Was das AD ihm nicht erlaubt, kann er auch hier nicht tun. Die Rechte werden also im AD vergeben (Delegierung), nicht in der Anwendung.
-2. **Die Verbindung zum DC ist immer verschlüsselt.** Am liebsten per LDAPS (Port 636). Hat der DC kein Zertifikat – in Windows-Domänen häufig –, verbindet sich die Anwendung über Port 389 und verschlüsselt die Verbindung mit NTLM („Sign & Seal“, wie Windows-Werkzeuge). Die Verschlüsselung ist nötig, weil AD das Setzen von Passwörtern nur über eine verschlüsselte Verbindung erlaubt.
+2. **Die Verbindung zum DC ist immer verschlüsselt.** Am liebsten per LDAPS (Port 636). Hat der DC kein Zertifikat – in Windows-Domänen häufig –, verbindet sich die Anwendung über Port 389 und verschlüsselt die Verbindung mit Kerberos oder NTLM („Sign & Seal“, wie Windows-Werkzeuge). Die Verschlüsselung ist nötig, weil AD das Setzen von Passwörtern nur über eine verschlüsselte Verbindung erlaubt.
 3. **Zwei Rollen**, abhängig von den Gruppen des angemeldeten Benutzers (verschachtelte Mitgliedschaften zählen mit):
 
    | Rolle | Voraussetzung | Darf |
@@ -82,7 +82,7 @@ Nach der Anmeldung zeigt die **Startseite**, was ansteht: aktive Konten ohne Anm
 ## 2. Voraussetzungen
 
 - Ein Linux-Server, eine VM oder ein NAS (z. B. **Synology** mit *Container Manager*) mit **Docker** und **Docker Compose** (`docker compose` oder `docker-compose`)
-- Der Server erreicht den Domain Controller über **TCP 636** (LDAPS) oder **TCP 389** (verschlüsseltes LDAP, ohne Zertifikat auf dem DC) und kann dessen Namen auflösen
+- Der Server erreicht den Domain Controller über **TCP 636** (LDAPS) oder **TCP 389** (verschlüsseltes LDAP, ohne Zertifikat auf dem DC; für Kerberos auch **TCP 88**) und kann dessen Namen auflösen
 - Ein **Domain Controller** (Samba AD oder Windows Server), am besten mit LDAPS (siehe [Abschnitt 5](#5-active-directory-vorbereiten))
 - Optional: ein SMTP-Server für Benachrichtigungen
 
@@ -205,7 +205,8 @@ Alle Einstellungen stehen in der Datei **`.env`** (Vorlage: `env.example` am Rel
 | `AD_DC_IP` | `10.0.10.5` | IP-Adresse oder Name des Domain Controllers |
 | `CUSTOM_OPERATOR_GROUP` | leer | sAMAccountName einer zusätzlichen Gruppe, deren Mitglieder Operatoren sind. Die eingebaute Gruppe *Konten-Operatoren* (Account Operators) gilt immer, erkannt an ihrer SID |
 | `LDAP_CA_FILE` | leer | Pfad (im Container) zu einer CA-Datei im PEM-Format. Gesetzt: Das Zertifikat des DC wird geprüft |
-| `LDAP_SASL_ENCRYPTION` | `true` | Ist LDAPS (636) nicht verfügbar (kein Zertifikat auf dem DC): über Port 389 verbinden und mit NTLM verschlüsseln (Sign & Seal). Auch Passwörter setzen funktioniert so. `false` = nur LDAPS. Ohne Wirkung, wenn `LDAP_CA_FILE` gesetzt ist |
+| `LDAP_SASL_ENCRYPTION` | `true` | Ist LDAPS (636) nicht verfügbar (kein Zertifikat auf dem DC): über Port 389 verbinden und mit Kerberos oder NTLM verschlüsseln (Sign & Seal). Auch Passwörter setzen funktioniert so. `false` = nur LDAPS. Ohne Wirkung, wenn `LDAP_CA_FILE` gesetzt ist |
+| `LDAP_KERBEROS` | `true` | Für das verschlüsselte 389: zuerst Kerberos, sonst NTLM. Braucht `AD_DC_IP` als DNS-Name des DC, Port 88 und die richtige Uhrzeit. `false` = nur NTLM |
 | `LDAP_ALLOW_PLAIN` | `false` | `true` = letzter Ausweg: unverschlüsseltes LDAP (Port 389), wenn weder LDAPS noch die verschlüsselte Verbindung klappt. Passwörter gehen dann im Klartext übers Netz, Passwörter setzen geht nicht, und DCs mit LDAP-Signierung lehnen ab – seit 2.9.0 nicht mehr nötig. Ohne Wirkung, wenn `LDAP_CA_FILE` gesetzt ist (dann wird nie auf Klartext gewechselt) |
 | `SESSION_IDLE_MINUTES` | `30` | Abmeldung nach so vielen Minuten ohne Aktivität |
 | `SESSION_MAX_HOURS` | `12` | Höchstdauer einer Sitzung, auch bei durchgehender Aktivität. Danach neu anmelden (die Rolle wird dabei neu bestimmt) |
@@ -288,7 +289,10 @@ samba-tool domain passwordsettings show
 
 ### 5.2 Windows Server AD
 
-**Ohne LDAPS:** Viele Windows-Domänen haben kein Zertifikat auf ihren DCs. Die Anwendung verbindet sich dann über Port 389 und verschlüsselt die Verbindung mit NTLM (Sign & Seal) – Anmeldung, alle Änderungen und das Setzen von Passwörtern funktionieren, auch wenn der DC LDAP-Signierung verlangt. Einzustellen ist dafür nichts (`LDAP_SASL_ENCRYPTION=true` ist Standard). NTLM muss für den DC erlaubt sein (Standard). Das Diagnosepaket zeigt, welche Verbindungsart genutzt wird. LDAPS bleibt die bessere Wahl: TLS ist stärker als die NTLM-Verschlüsselung (eine mitgeschnittene NTLM-Anmeldung lässt sich offline angreifen, und aufgezeichnete Sitzungen kann später entschlüsseln, wer das Passwort kennt), und mit `LDAP_CA_FILE` weist sich der DC aus. Hat LDAPS für einen DC einmal funktioniert, weicht die Anwendung für ihn bis zum nächsten Neustart nie mehr auf 389 aus.
+**Ohne LDAPS:** Viele Windows-Domänen haben kein Zertifikat auf ihren DCs. Die Anwendung verbindet sich dann über Port 389 und verschlüsselt die Verbindung – Anmeldung, alle Änderungen und das Setzen von Passwörtern funktionieren, auch wenn der DC LDAP-Signierung verlangt. Einzustellen ist dafür nichts (`LDAP_SASL_ENCRYPTION=true` ist Standard).
+
+- **Zuerst Kerberos** (AES-Verschlüsselung, der DC weist sich aus, funktioniert auch, wo NTLM abgeschaltet ist). Dafür muss `AD_DC_IP` der **DNS-Name** des DC sein (z. B. `dc01.firma.local`, keine IP-Adresse – das Ticket wird genau für diesen Namen ausgestellt), der Server muss den DC über **Port 88 (TCP)** erreichen, und die Uhren dürfen höchstens 5 Minuten abweichen. Die Kerberos-Konfiguration schreibt die Anwendung selbst aus `AD_DOMAIN` und `AD_DC_IP`; Tickets bleiben im Speicher. `LDAP_KERBEROS=false` schaltet es ab.
+- **Sonst NTLM** (wenn `AD_DC_IP` eine IP-Adresse ist oder Kerberos nicht geht). NTLM muss für den DC erlaubt sein (Standard). Ein falsches Passwort wird nie mit beiden probiert (es zählte sonst doppelt für die Sperre); hat Kerberos für einen DC einmal funktioniert, weicht die Anwendung für ihn bis zum nächsten Neustart nie mehr auf NTLM aus. Das Diagnosepaket zeigt, welche Verbindungsart genutzt wird. LDAPS bleibt die bessere Wahl: TLS ist stärker als die NTLM-Verschlüsselung (eine mitgeschnittene NTLM-Anmeldung lässt sich offline angreifen, und aufgezeichnete Sitzungen kann später entschlüsseln, wer das Passwort kennt), und mit `LDAP_CA_FILE` weist sich der DC aus. Hat LDAPS für einen DC einmal funktioniert, weicht die Anwendung für ihn bis zum nächsten Neustart nie mehr auf 389 aus.
 
 **LDAPS:** Der Domain Controller braucht ein Zertifikat mit dem Verwendungszweck *Serverauthentifizierung*, in dem der DNS-Name des DC steht. Am einfachsten geht das mit einer **Active Directory-Zertifikatdienste (AD CS)**-Unternehmens-CA. Domain Controller bekommen dann automatisch ein passendes Zertifikat, und LDAPS ist auf Port 636 verfügbar. Ohne CA kannst du ein Zertifikat auch manuell ausstellen und im Computerzertifikatspeicher des DC (Eigene Zertifikate) installieren.
 

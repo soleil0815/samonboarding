@@ -777,6 +777,11 @@ def hints(data):
             + ("Kerberos" if c["transport"].endswith("kerberos") else "NTLM")
             + ". Sicherer ist ein Zertifikat auf dem DC (LDAPS)."
         )
+        if c["transport"].endswith("ntlm"):
+            out.append(
+                "Kerberos wurde nicht genutzt: dafür AD_DC_IP als DNS-Name des DC eintragen (keine IP), Port 88 zum DC "
+                "freigeben und die Uhrzeit prüfen (LDAP_KERBEROS=true)."
+            )
     if c.get("transport") == "ldap-plain":
         out.append("Die Verbindung zum DC ist UNVERSCHLÜSSELT (Port 389, LDAP_ALLOW_PLAIN).")
     if c.get("fehler"):

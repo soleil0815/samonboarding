@@ -384,7 +384,7 @@ The application's messages come from the server; in the English interface they a
 | *Too many failed sign-ins* | Wait a few minutes |
 | *Domain controller … not reachable* | DC down, network or firewall. Inform an administrator |
 | *Setting the password failed* | The password does not meet the policy, or you lack rights on the OU. Rarely: the connection to the DC is unencrypted (`LDAP_ALLOW_PLAIN`) – the diagnostic package shows the kind of connection |
-| Diagnostic package: *no LDAPS, encrypted with NTLM* | The DC has no certificate. Everything works, setting passwords too. A certificate on the DC makes it more secure (README, section 5) |
+| Diagnostic package: *no LDAPS, encrypted with NTLM* | The DC has no certificate. Everything works, setting passwords too. Better: Kerberos (`AD_DC_IP` as the DC's DNS name, port 88 open, correct time) or a certificate on the DC (README, section 5) |
 | *insufficientAccessRights* | You lack rights on this OU in AD (delegation) |
 | *This account is protected* | Member of a privileged group. Intended protection |
 | *You were signed out because nothing happened for 30 minutes* | Intended. Sign in again. After a restart of the application (e.g. an update) you also need to sign in again |

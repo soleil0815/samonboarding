@@ -142,6 +142,15 @@ class StartTests(unittest.TestCase):
             self.assertEqual(ldap_seal._spnego_class(protocol).available_protocols(), [protocol, "negotiate"])
 
 
+class DiagnoseHintTests(unittest.TestCase):
+    def test_ntlm_connection_explains_how_to_get_kerberos(self):
+        from samonboarding import diagnose
+
+        ntlm = " ".join(diagnose.hints({"verbindung": {"transport": "ldap-sealed-ntlm"}}))
+        self.assertIn("Port 88", ntlm)
+        self.assertNotIn("Port 88", " ".join(diagnose.hints({"verbindung": {"transport": "ldap-sealed-kerberos"}})))
+
+
 @unittest.skipUnless(os.environ.get("SAMONB_TEST_DC_NAME") and kerberos.available(), "kein Test-DC mit Kerberos")
 class RealKerberosTests(unittest.TestCase):
     def test_kerberos_connection_can_set_a_password(self):

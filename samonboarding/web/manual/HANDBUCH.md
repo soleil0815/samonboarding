@@ -380,7 +380,7 @@ docker compose logs -f
 | *Zu viele fehlgeschlagene Anmeldungen* | Einige Minuten warten |
 | *Domain Controller … nicht erreichbar* | DC aus, Netzwerk oder Firewall. Administrator informieren |
 | *Passwort setzen fehlgeschlagen* | Passwort entspricht nicht der Richtlinie, oder dir fehlen Rechte auf der OU. Selten: die Verbindung zum DC ist unverschlüsselt (`LDAP_ALLOW_PLAIN`) – das Diagnosepaket zeigt die Verbindungsart |
-| Diagnosepaket: *kein LDAPS, verschlüsselt mit NTLM* | Der DC hat kein Zertifikat. Alles funktioniert, auch Passwörter setzen. Sicherer wird es mit einem Zertifikat auf dem DC (README, Abschnitt 5) |
+| Diagnosepaket: *kein LDAPS, verschlüsselt mit NTLM* | Der DC hat kein Zertifikat. Alles funktioniert, auch Passwörter setzen. Besser: Kerberos (`AD_DC_IP` als DNS-Name des DC, Port 88 offen, Uhrzeit stimmt) oder ein Zertifikat auf dem DC (README, Abschnitt 5) |
 | *insufficientAccessRights* | Dir fehlen im AD Rechte auf dieser OU (Delegierung) |
 | *Dieses Konto ist geschützt* | Mitglied einer privilegierten Gruppe. Gewollter Schutz |
 | *Sie wurden abgemeldet, weil 30 Minuten lang nichts passiert ist* | Gewollt. Neu anmelden. Nach einem Neustart der Anwendung (z. B. Update) ist ebenfalls eine neue Anmeldung nötig |
