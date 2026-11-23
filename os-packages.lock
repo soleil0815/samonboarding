@@ -1,5 +1,5 @@
 # All Debian packages in the finished image per architecture (<arch> name=version), from the Debian
-# snapshot in images.lock (20261110T120000Z). Written by scripts/pins.py os-lock; every build is compared.
+# snapshot in images.lock (20261123T190000Z). Written by scripts/pins.py os-lock; every build is compared.
 # Debian sometimes rebuilds a package for one architecture only (version with '+b1').
 amd64 base-files=13.8+deb13u7
 amd64 base-passwd=3.6.7
@@ -36,12 +36,12 @@ amd64 libffi8=3.4.8-2
 amd64 libgcc-s1=14.2.0-19
 amd64 libgdbm6t64=1.24-2
 amd64 libgmp10=2:6.3.0+dfsg-3
-amd64 libgssapi-krb5-2=1.21.3-5+deb13u1
+amd64 libgssapi-krb5-2=1.21.3-5+deb13u2
 amd64 libhogweed6t64=3.10.1-1
-amd64 libk5crypto3=1.21.3-5+deb13u1
+amd64 libk5crypto3=1.21.3-5+deb13u2
 amd64 libkeyutils1=1.6.3-6
-amd64 libkrb5-3=1.21.3-5+deb13u1
-amd64 libkrb5support0=1.21.3-5+deb13u1
+amd64 libkrb5-3=1.21.3-5+deb13u2
+amd64 libkrb5support0=1.21.3-5+deb13u2
 amd64 liblastlog2-2=2.41.5-0+deb13u1
 amd64 liblz4-1=1.10.0-4
 amd64 liblzma5=5.8.1-1+deb13u2
@@ -122,12 +122,12 @@ arm64 libffi8=3.4.8-2
 arm64 libgcc-s1=14.2.0-19
 arm64 libgdbm6t64=1.24-2
 arm64 libgmp10=2:6.3.0+dfsg-3
-arm64 libgssapi-krb5-2=1.21.3-5+deb13u1
+arm64 libgssapi-krb5-2=1.21.3-5+deb13u2
 arm64 libhogweed6t64=3.10.1-1
-arm64 libk5crypto3=1.21.3-5+deb13u1
+arm64 libk5crypto3=1.21.3-5+deb13u2
 arm64 libkeyutils1=1.6.3-6
-arm64 libkrb5-3=1.21.3-5+deb13u1
-arm64 libkrb5support0=1.21.3-5+deb13u1
+arm64 libkrb5-3=1.21.3-5+deb13u2
+arm64 libkrb5support0=1.21.3-5+deb13u2
 arm64 liblastlog2-2=2.41.5-0+deb13u1
 arm64 liblz4-1=1.10.0-4
 arm64 liblzma5=5.8.1-1+deb13u2
