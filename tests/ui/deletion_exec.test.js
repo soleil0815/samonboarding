@@ -40,8 +40,19 @@ const base = {account:{name:'<b>A</b>', sam:'aalt', dn:'CN=a', groups:[]}, simul
   console.assert(calls.length === 0 && confirms === 1 && api.getPlan(), 'Abbruch ohne Request');
   // Success
   confirmAnswer = true;
-  execResp = {body:{status:'success', accountDeleted:true, message:'Konto aalt und 1 Ordner wurden gelöscht.', results:[{kind:'profile', label:'Profil', path:'\\\\fs\\p$\\aalt.V2', status:'deleted', files:2, dirs:1, links:1, takeovers:2, errors:[], errorCount:0}]}};
+  // the server starts a job (since 2.11.0) - the page polls it: first running, then the result
+  execResp = {body:{status:'started', jobId:'S1', kind:'single', total:1}};
+  const single = (status, extra) => ({id:'S1', kind:'single', total:1, done: status === 'running' ? 0 : 1, finished: status !== 'running',
+    items:[Object.assign({dn:'CN=a', sam:'aalt', name:'Alt, Anna', status, message:'', results:[]}, extra || {})]});
+  jobs = [single('running'), single('success', {accountDeleted:true, message:'Konto aalt und 1 Ordner wurden gelöscht.', results:[{kind:'profile', label:'Profil', path:'\\\\fs\\p$\\aalt.V2', status:'deleted', files:2, dirs:1, links:1, takeovers:2, errors:[], errorCount:0}]})];
+  const st0 = global.setTimeout; let ticks = [];
+  global.setTimeout = (fn) => { ticks.push(fn); return 1; };
   await api.executeDeletion();
+  await new Promise(r => st0(r, 20));
+  h = els['del-sim-result'].innerHTML;
+  console.assert(h.includes('Löschvorgang läuft auf dem Server') && h.includes('Seite verlassen') && !h.includes('nicht schließen'), 'Laeuft-Anzeige ' + h.slice(0, 160));
+  while(ticks.length) { ticks.shift()(); await new Promise(r => st0(r, 20)); }
+  global.setTimeout = st0;
   const body = JSON.parse(calls.find(c => c[0] === '/api/deletion/execute')[1]);
   console.assert(body.userDn === 'CN=a' && body.planId === 'P1' && body.confirmSam === 'aalt' && body.password === 'geheim', 'Payload ' + JSON.stringify(body));
   h = els['del-sim-result'].innerHTML;
@@ -51,8 +62,9 @@ const base = {account:{name:'<b>A</b>', sam:'aalt', dn:'CN=a', groups:[]}, simul
   // Partial
   simResp = Object.assign({}, base, {planId:'P2', planExpiresAt:null});
   await api.simulateDeletion('CN=a'); els['del-confirm-sam'].value = 'aalt';
-  execResp = {body:{status:'partial', accountDeleted:false, message:'Nicht alle Ordner konnten gelöscht werden. Das AD-Konto wurde NICHT gelöscht.', results:[{kind:'profile', label:'Profil', path:'p', status:'failed', files:1, dirs:0, errors:['p\\\\x: <img src=x>', 'b'], errorCount:5}]}};
-  await api.executeDeletion();
+  execResp = {body:{status:'started', jobId:'S1', kind:'single', total:1}};
+  jobs = [single('partial', {accountDeleted:false, message:'Nicht alle Ordner konnten gelöscht werden. Das AD-Konto wurde NICHT gelöscht.', results:[{kind:'profile', label:'Profil', path:'p', status:'failed', files:1, dirs:0, errors:['p\\\\x: <img src=x>', 'b'], errorCount:5}]})];
+  await api.executeDeletion(); await new Promise(r => st0(r, 20));
   h = els['del-sim-result'].innerHTML;
   console.assert(h.includes('NICHT gelöscht') && h.includes('Fehlgeschlagen') && h.includes('3 weitere') && !h.includes('<img') && h.includes('&lt;img'), 'Teilfehler-Anzeige');
   // Server error

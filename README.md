@@ -533,7 +533,7 @@ The menu item *Konten löschen* is only visible to administrators. Account Opera
 - The signed-in administrator needs the Windows right *Take ownership of files or other objects* on the file server (Domain Admins and local administrators have it by default). Without it the folder remains an obstacle and the simulation reports *no access*
 - Without the option everything works as described: missing access prevents deletion
 
-Deletion is **permanent, without a recycle bin**. The AD account can only be recovered via the AD Recycle Bin (if enabled), the files only from a backup or the file server's shadow copies. With very large profiles deletion can take a few minutes; do not close the page meanwhile.
+Deletion is **permanent, without a recycle bin**. The AD account can only be recovered via the AD Recycle Bin (if enabled), the files only from a backup or the file server's shadow copies. With very large profiles deletion can take a few minutes. It runs as a job on the server (single and batch deletion): you may leave or reload the page, the deletion continues and the result mail is sent anyway. When an administrator opens *Konten löschen* again, the page shows the running or just-finished deletion with progress and result (only to the administrator who started it, finished ones for one hour); *Ergebnis ausblenden* (hide result) removes it from the page.
 
 **Protections:**
 

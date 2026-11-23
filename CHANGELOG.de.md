@@ -7,6 +7,13 @@ Update auf dem Server: `sudo sh update.sh` oder `docker compose pull && docker c
 
 Einträge, die mit „Sicherheit:“ oder „Behoben:“ beginnen, werden in der Oberfläche entsprechend markiert.
 
+## 2.11.0 – 2026-11-23
+- Geändert: Das Löschen eines einzelnen Kontos läuft jetzt wie die Sammellöschung als Auftrag auf dem Server. Seite schließen, neu laden oder ein Zeitlimit des Proxys spielen keine Rolle mehr: Die Löschung läuft weiter, und die Ergebnis-Mail kommt in jedem Fall.
+  - Laufende Löschungen werden wiedergefunden: Öffnet ein Administrator **Konten löschen** erneut (auch nach Neuladen oder neuer Anmeldung), zeigt die Seite die laufende oder gerade beendete Löschung mit Fortschritt und Ergebnis – bei Einzel- und Sammellöschung. **Ergebnis ausblenden** nimmt sie von der Seite (in den Berichten bleibt sie).
+  - Statt der Warnung „Seite nicht schließen“ steht jetzt: „Löschvorgang läuft auf dem Server. Sie können die Seite verlassen; das Ergebnis erscheint hier und per E-Mail (falls eingerichtet).“
+  - Eine Löschung gehört dem Administrator, der sie gestartet hat; andere Administratoren sehen sie nicht. Beendete Löschungen bleiben eine Stunde im Arbeitsspeicher (Kontoname und Ergebnis), nie auf der Festplatte.
+- Behoben: In der englischen Oberfläche erschien das Ergebnis einer Einzellöschung (Meldung, Anzahl Dateien und Ordner, Besitz übernommen) teils auf Deutsch.
+
 ## 2.10.0 – 2026-11-23
 - Neu: Kerberos für die verschlüsselte Verbindung ohne Zertifikat. Hat der DC kein LDAPS, meldet sich die Anwendung auf Port 389 jetzt zuerst mit Kerberos an und verschlüsselt damit (AES); der DC weist sich dabei aus, und es funktioniert auch in Domänen, in denen NTLM abgeschaltet ist. NTLM bleibt der Rückfall.
   - Voraussetzungen: `AD_DC_IP` als DNS-Name des DC (z. B. `dc01.firma.local`, keine IP-Adresse – das Ticket wird genau für diesen Namen ausgestellt), Port 88 (TCP) vom Server zum DC und eine Uhrzeit, die weniger als 5 Minuten abweicht. Sonst nichts einzustellen: Das Programm schreibt seine Kerberos-Konfiguration selbst aus `AD_DOMAIN` und `AD_DC_IP` (nur AES, keine DNS-Abfragen). Das Ticket einer Anmeldung liegt nur während des Verbindungsaufbaus im Speicher und wird dann gelöscht.
