@@ -11,10 +11,12 @@ which NTLM is switched off. It needs:
 - the MIT Kerberos libraries and the Python packages gssapi and krb5 (in the image).
 
 The configuration (krb5.conf) is written by the program itself from AD_DOMAIN and AD_DC_IP - no DNS lookups, no file
-on the host. Tickets stay in memory only (gssapi acquire_cred_with_password); nothing is written to a credential
-cache file.
+on the host. Only AES is allowed. The ticket of a sign-in is fetched into its own in-memory credential cache
+(new_ticket) and destroyed as soon as the encrypted connection is set up (destroy_ticket) - never written to disk
+and not kept in the process.
 """
 
+import atexit
 import contextlib
 import ipaddress
 import logging
@@ -22,6 +24,7 @@ import os
 import re
 import tempfile
 import threading
+from dataclasses import dataclass
 
 from . import config
 
@@ -79,7 +82,12 @@ def principal(bind_user, domain):
     return f"{user}@{realm}"
 
 
+_SAFE = re.compile(r"[A-Za-z0-9.-]+")
+
+
 def config_text(domain, kdc):
+    if not _SAFE.fullmatch(str(domain or "")) or not _SAFE.fullmatch(str(kdc or "")):
+        raise ValueError("Ungültiger Domänen- oder DC-Name für Kerberos")
     realm = realm_of(domain)
     dom = str(domain).strip().lower()
     return (
@@ -92,6 +100,9 @@ def config_text(domain, kdc):
         "    dns_canonicalize_hostname = false\n"
         "    udp_preference_limit = 0\n"
         "    forwardable = false\n"
+        "    permitted_enctypes = aes256-cts-hmac-sha1-96 aes128-cts-hmac-sha1-96\n"
+        "    default_tkt_enctypes = aes256-cts-hmac-sha1-96 aes128-cts-hmac-sha1-96\n"
+        "    default_tgs_enctypes = aes256-cts-hmac-sha1-96 aes128-cts-hmac-sha1-96\n"
         "    default_ccache_name = MEMORY:samonboarding\n"
         "[realms]\n"
         f"    {realm} = {{\n"
@@ -134,3 +145,57 @@ def credential_error(error):
             return CREDENTIAL_ERRORS[int(match.group(1))]
         error = getattr(error, "base_error", None) or error.__cause__ or error.__context__
     return ""
+
+
+def remove_config():
+    """At exit: the generated krb5.conf is not left behind in /tmp."""
+    path = _written.get("path")
+    if path:
+        with contextlib.suppress(OSError):
+            os.unlink(path)
+
+
+atexit.register(remove_config)
+
+
+@dataclass
+class Ticket:
+    context: object
+    ccache: object
+    name: str  # "MEMORY:<unique>" for pyspnego (KerberosCCache)
+
+
+def new_ticket(principal_name, password):
+    """Kerberos ticket (TGT) for one sign-in, in its own in-memory credential cache. Raises the krb5 error (wrong
+    password: see credential_error)."""
+    import krb5
+
+    ctx = krb5.init_context()
+    princ = krb5.parse_name_flags(ctx, principal_name.encode("utf-8"))
+    opt = krb5.get_init_creds_opt_alloc(ctx)
+    krb5.get_init_creds_opt_set_forwardable(opt, False)
+    cred = krb5.get_init_creds_password(ctx, princ, opt, password=password.encode("utf-8"))
+    ccache = krb5.cc_new_unique(ctx, b"MEMORY")
+    try:
+        krb5.cc_initialize(ctx, ccache, cred.client)
+        krb5.cc_store_cred(ctx, ccache, cred)
+    except Exception:
+        krb5.cc_destroy(ctx, ccache)
+        raise
+    return Ticket(ctx, ccache, "MEMORY:" + _text(ccache.name))
+
+
+def destroy_ticket(ticket):
+    """Remove the credential cache with the user's tickets (the encrypted connection keeps only its session key)."""
+    if ticket is None:
+        return
+    import krb5
+
+    try:
+        krb5.cc_destroy(ticket.context, ticket.ccache)
+    except Exception as e:  # never stop a sign-in because of this - but say so
+        log.warning("Kerberos-Ticket nicht geloescht: %s", type(e).__name__)
+
+
+def _text(value):
+    return value.decode("utf-8") if isinstance(value, bytes) else str(value)

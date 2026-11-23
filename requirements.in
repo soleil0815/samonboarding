@@ -19,3 +19,5 @@ pypsrp>=0.8.1,<1
 # Linux wheels: the Dockerfile compiles both in its own stage against the MIT Kerberos libraries.
 gssapi>=1.9,<2
 krb5>=0.7,<1
+# samonboarding/ldap_seal.py builds on pyspnego (also its SPNEGO class, a private part): stay in the 0.12 series
+pyspnego>=0.12.4,<0.13

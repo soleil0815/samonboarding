@@ -14,7 +14,7 @@ from ldap3.core.exceptions import LDAPException
 from starlette.middleware.base import BaseHTTPMiddleware
 
 from . import i18n, offboard_store, privacy, reports, timing, updatecheck
-from .config import DATA_DIR, HTTPS_PORT, VERSION
+from .config import CONFIG_FILE, DATA_DIR, HTTPS_PORT, VERSION, default_config
 from .routers import (
     auth,
     certificate,
@@ -41,7 +41,7 @@ from .routers import (
 from .routers import (
     reports as reports_router,
 )
-from .storage import restrict
+from .storage import load_json, restrict
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
 log = logging.getLogger(__name__)
@@ -70,6 +70,16 @@ async def _lifespan(app):
         HTTPS_PORT,
         f", Zertifikat: {cert}" if cert else "",
     )
+    try:
+        # Kerberos configuration from AD_DOMAIN/AD_DC_IP right at the start: no library in the process looks up a
+        # KDC or a host name in the DNS (MIT defaults) - also not SMB or Exchange
+        from . import kerberos
+
+        if kerberos.available():
+            cfg = load_json(CONFIG_FILE, default_config)
+            kerberos.ensure_config(cfg["domain"], cfg["dc_ip"])
+    except Exception as e:
+        log.warning("Kerberos-Konfiguration nicht geschrieben: %s", e)
     try:
         reports.import_legacy_audit()
     except Exception as e:

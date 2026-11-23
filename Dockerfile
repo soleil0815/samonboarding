@@ -63,7 +63,9 @@ RUN set -eu; \
     apt-get $apt_opts update; \
     DEBIAN_FRONTEND=noninteractive apt-get $apt_opts install -y --no-install-recommends gcc libc6-dev libkrb5-dev
 COPY requirements.txt requirements-build.txt ./
-ENV PIP_DISABLE_PIP_VERSION_CHECK=1
+# As reproducible as possible: no debug data, no random build paths in the compiled files, fixed time stamps
+ENV PIP_DISABLE_PIP_VERSION_CHECK=1 SOURCE_DATE_EPOCH=1700000000 CFLAGS="-g0 -O2 -ffile-prefix-map=/tmp/=/" \
+    LDFLAGS="-Wl,--strip-all"
 RUN pip install --no-cache-dir --no-deps -r requirements-build.txt \
  && grep -E '^(gssapi|krb5)==' requirements.txt > kerberos.txt \
  && test "$(wc -l < kerberos.txt)" -eq 2 \
@@ -115,11 +117,12 @@ WORKDIR /app
 # pip check verifies that everything fits together
 ENV PIP_DISABLE_PIP_VERSION_CHECK=1 PYTHONDONTWRITEBYTECODE=1
 COPY requirements.txt .
-COPY --from=kerberos /wheels /tmp/wheels
 # pip, setuptools and wheel are only needed for installing, not at runtime. pip brings its own copies of urllib3,
 # certifi and msgpack, which are often outdated (Trivy findings) - so all of it is removed after the check,
 # including the copy of pip in ensurepip.
-RUN pip install --no-cache-dir --no-deps /tmp/wheels/*.whl && rm -rf /tmp/wheels \
+# The Kerberos wheels from stage 2 are only mounted for this step - they are not left in a layer of the image
+RUN --mount=type=bind,from=kerberos,source=/wheels,target=/tmp/wheels \
+    pip install --no-cache-dir --no-deps /tmp/wheels/*.whl \
  && pip install --no-cache-dir --no-deps -r requirements.txt && pip check \
  && python -c "import gssapi, krb5" \
  && (pip uninstall -y setuptools wheel >/dev/null 2>&1 || true) && pip check \

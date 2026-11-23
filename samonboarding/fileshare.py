@@ -468,7 +468,15 @@ class SmbBackend:
         except ImportError as e:
             raise FsError("other", "Das Paket 'smbprotocol' ist nicht installiert (Image neu bauen).") from e
         self._smb = smbclient
-        self._kw = {"username": username, "password": password, "connection_timeout": timeout, "connection_cache": {}}
+        # NTLM as before 2.10.0: pyspnego's "negotiate" would now also try Kerberos and then NTLM in the same call -
+        # a wrong password would count twice towards the account lockout
+        self._kw = {
+            "username": username,
+            "password": password,
+            "connection_timeout": timeout,
+            "connection_cache": {},
+            "auth_protocol": "ntlm",
+        }
 
     def close(self):
         try:

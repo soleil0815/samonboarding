@@ -103,16 +103,28 @@ class StartTests(unittest.TestCase):
                 raise kerberos_error
             return mock.Mock(step=mock.Mock(return_value=b"token"))
 
+        def ticket(principal_name, password):
+            self.tickets = getattr(self, "tickets", 0) + 1
+            if kerberos_error:
+                raise kerberos_error  # the KDC refuses (or cannot be reached) when the ticket is requested
+            return kerberos.Ticket(None, None, "MEMORY:test")
+
         conn = mock.Mock(response=[])
         conn.search.return_value = False
-        with mock.patch.object(ldap_seal, "_client_context", side_effect=context):
+        with (
+            mock.patch.object(ldap_seal, "_client_context", side_effect=context),
+            mock.patch.object(kerberos, "new_ticket", side_effect=ticket),
+            mock.patch.object(kerberos, "destroy_ticket") as destroy,
+        ):
             result = ldap_seal._start(conn, "anna@firma.local", "x", "dc01.firma.local", self.KRB)
+        self.destroyed = destroy.call_count
         return result[2], used
 
     def test_kerberos_first_with_the_configured_name(self):
         kind, used = self._start()
         self.assertEqual(kind, "kerberos")
-        self.assertEqual(used, [("kerberos", "anna@FIRMA.LOCAL", "dc01.firma.local")])
+        self.assertEqual([(u[0], u[2]) for u in used], [("kerberos", "dc01.firma.local")])
+        self.assertEqual(getattr(used[0][1], "ccache", ""), "MEMORY:test")  # the ticket of this sign-in only
 
     def test_wrong_password_is_never_tried_with_ntlm(self):
         from ldap3.core.exceptions import LDAPBindError
@@ -123,10 +135,9 @@ class StartTests(unittest.TestCase):
     def test_kerberos_not_possible_then_ntlm_and_remembered(self):
         with self.assertLogs("samonboarding", level="INFO"):
             kind, used = self._start(Exception("Cannot contact any KDC for realm"))
-        self.assertEqual(kind, "ntlm")
-        self.assertEqual([u[0] for u in used], ["kerberos", "ntlm"])
+        self.assertEqual((kind, [u[0] for u in used], self.tickets), ("ntlm", ["ntlm"], 1))
         kind, used = self._start(Exception("Cannot contact any KDC for realm"))
-        self.assertEqual([u[0] for u in used], ["ntlm"])  # not tried again on every request
+        self.assertEqual(([u[0] for u in used], self.tickets), (["ntlm"], 1))  # not tried again on every request
 
     def test_after_kerberos_worked_no_fallback_to_ntlm(self):
         self._start()
@@ -140,6 +151,42 @@ class StartTests(unittest.TestCase):
             self.skipTest("pyspnego fehlt")
         for protocol in ("kerberos", "ntlm"):
             self.assertEqual(ldap_seal._spnego_class(protocol).available_protocols(), [protocol, "negotiate"])
+
+
+class OtherPathsTests(unittest.TestCase):
+    """SMB and Exchange keep NTLM: pyspnego's negotiate would otherwise try Kerberos and NTLM with one password."""
+
+    def test_smb_uses_ntlm(self):
+        from samonboarding import fileshare
+
+        with mock.patch.dict(sys.modules, {"smbclient": mock.Mock()}):
+            backend = fileshare.SmbBackend("admin@firma.local", "x")
+        self.assertEqual(backend._kw["auth_protocol"], "ntlm")
+
+    def test_ticket_cache_is_destroyed(self):
+        destroyed = []
+        fake = mock.Mock()
+        fake.cc_destroy.side_effect = lambda ctx, cc: destroyed.append(cc)
+        with mock.patch.dict(sys.modules, {"krb5": fake}):
+            kerberos.destroy_ticket(kerberos.Ticket("ctx", "cc", "MEMORY:x"))
+            kerberos.destroy_ticket(None)
+        self.assertEqual(destroyed, ["cc"])
+
+    def test_names_are_checked_before_they_go_into_the_configuration(self):
+        for domain in ("firma.local\n[realms]", "firma local", "firma.local}"):
+            with self.assertRaises(ValueError):
+                kerberos.config_text(domain, "dc01.firma.local")
+        self.assertIn("aes256-cts-hmac-sha1-96", kerberos.config_text("firma.local", "dc01.firma.local"))
+
+    def test_spnego_offers_exactly_one_mechanism(self):
+        try:
+            from spnego._context import GSSMech
+            from spnego._spnego import unpack_token
+        except ImportError:  # pragma: no cover
+            self.skipTest("pyspnego fehlt")
+        ctx = ldap_seal._client_context("FIRMA\\anna", "x", "dc01.firma.local", "ntlm")
+        token = unpack_token(ctx.step())
+        self.assertEqual(token.mech_types, [GSSMech.ntlm.value])
 
 
 class DiagnoseHintTests(unittest.TestCase):

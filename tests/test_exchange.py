@@ -137,7 +137,7 @@ class SessionTests(unittest.TestCase):
         kw = FakeWSMan.last.kw
         self.assertEqual(
             (FakeWSMan.last.server, kw["path"], kw["ssl"], kw["port"], kw["auth"]),
-            ("exch01.x.local", "/PowerShell", True, 443, "negotiate"),
+            ("exch01.x.local", "/PowerShell", True, 443, "ntlm"),  # "negotiate" stays NTLM (no double count)
         )
         self.assertEqual((kw["username"], kw["password"], kw["cert_validation"]), ("admin@x.local", "geheim", True))
         self.assertGreater(kw["read_timeout"], kw["operation_timeout"])

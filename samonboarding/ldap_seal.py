@@ -125,18 +125,24 @@ _kerberos_missing: dict = {}
 
 
 def _start(conn, user, password, host, kerberos):
-    """Create the context and its first token: Kerberos first (if possible), else NTLM. Returns (ctx, token, kind)."""
+    """Create the context and its first token: Kerberos first (if possible), else NTLM.
+    Returns (ctx, token, kind, ticket) - the ticket (Kerberos) must be destroyed after the bind."""
     from . import kerberos as krb
 
     target = (kerberos or {}).get("target", "")
     if kerberos and _kerberos_missing.get(target, 0) <= time.monotonic():
+        ticket = None
         try:
-            ctx = _client_context(kerberos["principal"], password, target, "kerberos")
+            import spnego
+
+            ticket = krb.new_ticket(kerberos["principal"], password)
+            ctx = _client_context(spnego.KerberosCCache(ccache=ticket.name), None, target, "kerberos")
             token = ctx.step()
             _kerberos_seen.add(target)
             _kerberos_missing.pop(target, None)
-            return ctx, token, "kerberos"
+            return ctx, token, "kerberos", ticket
         except Exception as e:
+            krb.destroy_ticket(ticket)
             reason = krb.credential_error(e)
             if reason:
                 # the KDC refused the password or the account: do NOT try NTLM with the same password as well
@@ -150,7 +156,7 @@ def _start(conn, user, password, host, kerberos):
             _kerberos_missing[target] = time.monotonic() + KERBEROS_RETRY_SECONDS
     try:
         ctx = _client_context(user, password, _dns_host_name(conn) or host, "ntlm")
-        return ctx, ctx.step(), "ntlm"
+        return ctx, ctx.step(), "ntlm", None
     except Exception as e:
         raise SealError(f"Anmeldung mit Verschlüsselung nicht möglich: {type(e).__name__}") from None
 
@@ -190,7 +196,17 @@ def sealed_bind(conn, user, password, host, kerberos=None):
 
     Raises LDAPBindError for a wrong password or a locked account (like a simple bind, so the caller treats it the
     same way) and SealError if the DC does not support it or the security layer could not be negotiated."""
-    ctx, token, kind = _start(conn, user, password, host, kerberos)
+    ctx, token, kind, ticket = _start(conn, user, password, host, kerberos)
+    try:
+        return _bind_rounds(conn, ctx, token, kind)
+    finally:
+        # the user's Kerberos tickets are not kept: the established context has its own session key
+        from . import kerberos as krb
+
+        krb.destroy_ticket(ticket)
+
+
+def _bind_rounds(conn, ctx, token, kind):
     conn.sasl_mechanism = SASL_MECHANISM
     conn.sasl_in_progress = True
     try:
