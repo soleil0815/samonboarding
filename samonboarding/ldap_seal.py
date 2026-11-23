@@ -11,8 +11,8 @@ is encrypted after the bind; the DC then also accepts password changes.
 ldap3 can bind with NTLM but never seals the traffic, so the security layer sits below ldap3: after the bind, the
 connection's socket is replaced by SealedSocket, which wraps (encrypts) every outgoing LDAP message and unwraps every
 incoming one. The SASL framing is a 4-byte big-endian length followed by the wrapped token (RFC 4422 / 4752).
-pyspnego (a dependency of pypsrp, already in the image) provides NTLM and - when the Kerberos libraries are present -
-Kerberos via "negotiate".
+pyspnego (a dependency of pypsrp, already in the image) provides NTLM. Kerberos is not in the image yet; when it is
+added, the target name must come from the configuration, not from the unauthenticated RootDSE.
 """
 
 import logging
@@ -39,7 +39,7 @@ class SealedSocket:
     def __init__(self, sock, ctx):
         self._sock = sock
         self._ctx = ctx
-        self._raw = b""
+        self._raw = bytearray()  # bytearray: appending chunks does not copy the whole buffer each time
         self._plain = b""
 
     def sendall(self, data):
@@ -55,7 +55,8 @@ class SealedSocket:
             if not chunk:
                 raise OSError("LDAP-Verbindung vom Server geschlossen")
             self._raw += chunk
-        out, self._raw = self._raw[:n], self._raw[n:]
+        out = bytes(self._raw[:n])
+        del self._raw[:n]
         return out
 
     def recv(self, size):

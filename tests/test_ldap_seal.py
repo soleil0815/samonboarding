@@ -142,6 +142,7 @@ class AttemptOrderTests(unittest.TestCase):
     def setUp(self):
         # module state of ldap_client (LDAPS just failed / last connection) must not leak between tests
         ldap_client._ldaps_missing.clear()
+        ldap_client._ldaps_seen.clear()
         ldap_client.last_transport.update(kind="", dc="")
 
     def _attempts(self, ca, sasl, plain):
@@ -209,6 +210,7 @@ class LdapsMemoryTests(unittest.TestCase):
 
     def setUp(self):
         ldap_client._ldaps_missing.clear()
+        ldap_client._ldaps_seen.clear()
         ldap_client.last_transport.update(kind="", dc="")
 
     def _connect(self, sealed_ok=True):
@@ -251,6 +253,93 @@ class LdapsMemoryTests(unittest.TestCase):
         ldap_client._ldaps_missing["192.0.2.10"] = 0  # pause over
         with self.assertNoLogs("samonboarding", level="INFO"):  # nothing new - nothing written again
             self.assertEqual(self._connect(), ["ldaps", "ldap-sealed"])
+
+
+class StickyLdapsTests(unittest.TestCase):
+    def setUp(self):
+        ldap_client._ldaps_missing.clear()
+        ldap_client._ldaps_seen.clear()
+        ldap_client.last_transport.update(kind="", dc="")
+
+    def test_once_ldaps_worked_a_failure_on_636_never_falls_back(self):
+        from ldap3.core.exceptions import LDAPCommunicationError
+
+        calls, state = [], {"ldaps": True}
+
+        def fake_open(dc, user, password, kind):
+            calls.append(kind)
+            if kind == "ldaps" and not state["ldaps"]:
+                raise LDAPCommunicationError("connection reset")  # e.g. someone on the network path
+            return mock.Mock(sob_transport=kind)
+
+        with (
+            mock.patch.object(ldap_client, "_connection_attempts", return_value=["ldaps", "ldap-sealed"]),
+            mock.patch.object(ldap_client, "_open", side_effect=fake_open),
+        ):
+            with ldap_client.ldap_connection("192.0.2.10", "admin@firma.local", "x"):
+                pass
+            state["ldaps"] = False
+            with self.assertRaises(ldap_client.DcUnreachable), self.assertLogs("samonboarding", level="WARNING"):
+                with ldap_client.ldap_connection("192.0.2.10", "admin@firma.local", "x"):
+                    pass
+        self.assertEqual(calls, ["ldaps", "ldaps"])  # no NTLM exchange on 389 after LDAPS was there
+
+    def test_no_referrals_are_followed(self):
+        made = []
+        with (
+            mock.patch.object(ldap_client.ldap3, "Server"),
+            mock.patch.object(
+                ldap_client.ldap3, "Connection", side_effect=lambda *a, **kw: made.append(kw) or mock.Mock()
+            ),
+        ):
+            ldap_client._open("192.0.2.10", "admin@firma.local", "x", "ldaps")
+        self.assertIs(made[0]["auto_referrals"], False)
+
+
+class RealNtlmTests(unittest.TestCase):
+    """The real NTLM sealing of pyspnego (client and server in this process): framing, sequence numbers, tampering."""
+
+    def setUp(self):
+        import tempfile
+
+        try:
+            import spnego
+        except ImportError:  # pragma: no cover - the image always has it (pypsrp)
+            self.skipTest("pyspnego fehlt")
+        users = tempfile.NamedTemporaryFile("w", delete=False, suffix=".txt")
+        users.write("FIRMA:anna:Geheim1!\n")
+        users.close()
+        self.addCleanup(os.unlink, users.name)
+        patch = mock.patch.dict(os.environ, {"NTLM_USER_FILE": users.name})
+        patch.start()
+        self.addCleanup(patch.stop)
+        req = spnego.ContextReq.default | spnego.ContextReq.integrity | spnego.ContextReq.confidentiality
+        self.client = spnego.client("FIRMA\\anna", "Geheim1!", protocol="ntlm", context_req=req)
+        self.server = spnego.server(protocol="ntlm")
+        token = self.client.step()
+        token = self.server.step(token)
+        self.server.step(self.client.step(token))
+
+    def test_many_messages_both_ways_in_small_pieces(self):
+        to_server = RawSocket()
+        client = ldap_seal.SealedSocket(to_server, self.client)
+        messages = [b"\x30" + bytes([i]) * (i * 50 + 1) for i in range(20)]
+        for m in messages:
+            client.sendall(m)
+        self.assertNotIn(messages[5], to_server.sent)
+        server = ldap_seal.SealedSocket(RawSocket(to_server.sent, chunk=7), self.server)
+        got = b""
+        while len(got) < sum(map(len, messages)):
+            got += server.recv(1000)
+        self.assertEqual(got, b"".join(messages))
+
+    def test_a_changed_byte_is_refused(self):
+        to_server = RawSocket()
+        ldap_seal.SealedSocket(to_server, self.client).sendall(b"\x30\x05hello")
+        broken = bytearray(to_server.sent)
+        broken[-1] ^= 1
+        with self.assertRaises(OSError):
+            ldap_seal.SealedSocket(RawSocket(bytes(broken), chunk=100), self.server).recv(100)
 
 
 class DiagnoseTests(unittest.TestCase):

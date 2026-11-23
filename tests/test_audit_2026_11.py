@@ -28,6 +28,7 @@ class LdapsCertificateTests(unittest.TestCase):
     def setUp(self):
         # module state of ldap_client (LDAPS just failed / last connection) must not leak between tests
         ldap_client._ldaps_missing.clear()
+        ldap_client._ldaps_seen.clear()
         ldap_client.last_transport.update(kind="", dc="")
 
     def test_no_fallback_on_rejected_certificate(self):

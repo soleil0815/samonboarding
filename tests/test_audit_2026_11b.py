@@ -93,6 +93,7 @@ class LdapFallbackTests(unittest.TestCase):
     def setUp(self):
         # module state of ldap_client (LDAPS just failed / last connection) must not leak between tests
         ldap_client._ldaps_missing.clear()
+        ldap_client._ldaps_seen.clear()
         ldap_client.last_transport.update(kind="", dc="")
 
     def _ports(self, error_text, ca_file):

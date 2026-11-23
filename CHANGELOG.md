@@ -11,6 +11,7 @@ Entries starting with "Security:" or "Fixed:" are marked accordingly in the inte
 - New: works with domain controllers without LDAPS. Many Windows domains have no certificate on their DCs. If LDAPS (port 636) is not available, the application now connects on port 389 and encrypts the connection with NTLM ("sign and seal", as Windows tools such as RSAT do). Sign-in, all changes and setting passwords (onboarding, password reset) work this way – also when the DC requires LDAP signing. Before, only the clear-text fallback `LDAP_ALLOW_PLAIN` was left, which can never set passwords.
   - Nothing to set up: `LDAP_SASL_ENCRYPTION=true` is the default; `false` = LDAPS only. With `LDAP_CA_FILE` there is still never a fallback.
   - The diagnostic package shows the kind of connection (LDAPS, encrypted 389, unencrypted) and recommends a certificate on the DC: TLS remains stronger than NTLM encryption.
+  - Once LDAPS has worked for a DC, the application never falls back to port 389 for it (until the next restart). Referrals to other servers are no longer followed.
   - `LDAP_ALLOW_PLAIN` is no longer needed and only a last resort after the encrypted connection.
   - Kerberos instead of NTLM (for domains where NTLM is switched off) follows in a later version.
 

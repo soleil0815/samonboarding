@@ -531,7 +531,7 @@ def section_verzeichnis(anon, ctx):
         "dc": anon.host(info.get("host")) if info.get("host") else None,
         "ldapsZertifikatGeprueft": bool(config.LDAP_CA_FILE),
         "unverschluesseltErlaubt": config.LDAP_ALLOW_PLAIN,
-        "verschluesseltOhneZertifikat": config.LDAP_SASL_ENCRYPTION,
+        "verschluesseltOhneZertifikat": config.LDAP_SASL_ENCRYPTION and not config.LDAP_CA_FILE,
         "hinweis": None if info.get("type") != "unknown" else "noch nicht erkannt (erst nach einer Anmeldung)",
     }
 
@@ -576,7 +576,7 @@ def section_verbindung(anon, ctx):
     try:
         with ldap_connection(cfg["dc_ip"], user["bind_user"], user["password"]) as conn:
             out["verbindenMs"] = round((time.perf_counter() - began) * 1000)
-            out["verschluesselt"] = bool(getattr(conn.server, "ssl", False))
+            out["verschluesselt"] = getattr(conn, "sob_transport", "") not in ("", "ldap-plain")
             out["port"] = getattr(conn.server, "port", None)
             # ldaps, ldap-sealed-ntlm, ldap-sealed-kerberos or ldap-plain: how the connection is protected
             out["transport"] = getattr(conn, "sob_transport", None)

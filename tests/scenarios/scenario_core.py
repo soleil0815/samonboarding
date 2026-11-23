@@ -66,11 +66,16 @@ ok, _ = raises(lambda: login("admin", ""), 401)
 check("leeres Passwort -> 401 (kein anonymer Bind)", ok)
 ok, _ = raises(lambda: login("*)(objectClass=*", "x", ip="10.5.5.5"), 401)
 check("Filter-Injection im Login wirkungslos", ok)
+import samonboarding.ldap_client as _lc  # noqa: E402
+
+check("LDAPS hat funktioniert -> gemerkt", "10.0.10.5" in _lc._ldaps_seen or bool(_lc._ldaps_seen))
+_lc._ldaps_seen.clear()  # a DC whose LDAPS never worked in this process (otherwise: no fallback, see test_ldap_seal)
 STATE["dc_down_ssl"] = True
 STATE["ports"].clear()
 out, _, _ = login("op", "Pass2", ip="10.7.7.7")
 check("Fallback auf 389 nur bei Verbindungsfehler", STATE["ports"] == [636, 389])
 STATE["dc_down_ssl"] = False
+_lc._ldaps_missing.clear()
 exp = dict(adm)
 exp["expires"] = time.time() - 1
 M["active_sessions"]["old"] = exp

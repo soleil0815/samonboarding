@@ -11,6 +11,7 @@ Einträge, die mit „Sicherheit:“ oder „Behoben:“ beginnen, werden in der
 - Neu: funktioniert mit Domänencontrollern ohne LDAPS. Viele Windows-Domänen haben kein Zertifikat auf ihren DCs. Ist LDAPS (Port 636) nicht verfügbar, verbindet sich die Anwendung jetzt über Port 389 und verschlüsselt die Verbindung mit NTLM („Sign & Seal“, wie Windows-Werkzeuge, etwa RSAT). Anmeldung, alle Änderungen und das Setzen von Passwörtern (Onboarding, Passwort zurücksetzen) funktionieren so – auch wenn der DC LDAP-Signierung verlangt. Vorher blieb nur der Klartext-Rückfall `LDAP_ALLOW_PLAIN`, mit dem sich nie Passwörter setzen ließen.
   - Nichts einzustellen: `LDAP_SASL_ENCRYPTION=true` ist Standard; `false` = nur LDAPS. Mit `LDAP_CA_FILE` gibt es weiterhin nie einen Rückfall.
   - Das Diagnosepaket zeigt die Verbindungsart (LDAPS, verschlüsselt über 389, unverschlüsselt) und empfiehlt ein Zertifikat auf dem DC: TLS bleibt stärker als die NTLM-Verschlüsselung.
+  - Hat LDAPS für einen DC einmal funktioniert, weicht die Anwendung für ihn nie mehr auf Port 389 aus (bis zum nächsten Neustart). Verweisen (Referrals) auf andere Server wird nicht mehr gefolgt.
   - `LDAP_ALLOW_PLAIN` ist nicht mehr nötig und nur noch letzter Ausweg nach der verschlüsselten Verbindung.
   - Kerberos statt NTLM (für Domänen, in denen NTLM abgeschaltet ist) folgt in einer späteren Version.
 

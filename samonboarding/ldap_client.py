@@ -134,6 +134,9 @@ last_transport = {"kind": "", "dc": ""}
 # would otherwise first wait for the failed TLS handshake and write a warning.
 LDAPS_RETRY_SECONDS = 600
 _ldaps_missing: dict = {}
+# DCs whose LDAPS has worked in this process: a later failure on 636 is an outage (or someone on the network path
+# resetting the connection) - then never fall back to 389, where an NTLM exchange could be recorded or relayed
+_ldaps_seen: set = set()
 
 
 def transport_of(conn):
@@ -162,7 +165,7 @@ def _open(dc_ip, bind_user, password, kind):
     if kind == "ldap-sealed":
         from .ldap_seal import sealed_bind
 
-        conn = ldap3.Connection(server, authentication=ldap3.ANONYMOUS, receive_timeout=30)
+        conn = ldap3.Connection(server, authentication=ldap3.ANONYMOUS, receive_timeout=30, auto_referrals=False)
         try:
             conn.open()
             return sealed_bind(conn, bind_user, password, dc_ip)
@@ -177,6 +180,7 @@ def _open(dc_ip, bind_user, password, kind):
         authentication=ldap3.SIMPLE,
         auto_bind=True,
         receive_timeout=30,  # a hanging DC must not block a worker thread forever
+        auto_referrals=False,  # never send requests (or the password) on to another server named in a referral
     )
     setattr(conn, "sob_transport", kind)  # noqa: B010 - own marker on the ldap3 object
     return conn
@@ -191,6 +195,8 @@ def ldap_connection(dc_ip, bind_user, password):
     """
     conn = None
     attempts = _connection_attempts()
+    if dc_ip in _ldaps_seen:
+        attempts = attempts[:1]
     now = time.monotonic()
     if _ldaps_missing.get(dc_ip, 0) > now and len(attempts) > 1:
         # LDAPS of this DC failed a moment ago (no certificate): do not wait for it on every request - try again later
@@ -212,7 +218,8 @@ def ldap_connection(dc_ip, bind_user, password):
                 last_transport.update(kind=transport, dc=dc_ip)
                 if kind == "ldaps":
                     _ldaps_missing.pop(dc_ip, None)
-                elif ldaps_failed:
+                    _ldaps_seen.add(dc_ip)
+                elif ldaps_failed and kind == "ldap-sealed":
                     # the DC answers, only LDAPS is missing (no certificate) - not a DC that was down for a moment
                     _ldaps_missing[dc_ip] = now + LDAPS_RETRY_SECONDS
                 break
