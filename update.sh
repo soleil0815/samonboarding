@@ -110,7 +110,8 @@ fi
 # --- .env ------------------------------------------------------------------------------------------------------------
 env_get() {  # value of KEY in .env (last line wins), '' if missing
     [ -f .env ] || return 0
-    sed -n "s/^$1=//p" .env | tail -n 1 | tr -d '\r'
+    # a value written as KEY="2.7" or KEY='2.7' counts without the quotes (as docker compose reads it)
+    sed -n "s/^$1=//p" .env | tail -n 1 | tr -d '\r' | sed -e 's/^"\(.*\)"$/\1/' -e "s/^'\\(.*\\)'$/\\1/"
 }
 env_set() {  # set KEY=VALUE in .env (replace or append), keeps all other lines and the file rights
     tmp="$(mktemp "$HERE/.env.XXXXXX")"
@@ -118,6 +119,8 @@ env_set() {  # set KEY=VALUE in .env (replace or append), keeps all other lines 
         sed "s|^$1=.*|$1=$2|" .env > "$tmp"
     else
         cat .env > "$tmp"
+        # a .env edited by hand may end without a line break - the new line must not be glued to the last one
+        if [ -s .env ] && [ -n "$(tail -c 1 .env)" ]; then printf '\n' >> "$tmp"; fi
         printf '%s=%s\n' "$1" "$2" >> "$tmp"
     fi
     cat "$tmp" > .env
@@ -297,9 +300,15 @@ do_restore() {
             [ -e "$entry" ] || [ -L "$entry" ] || continue
             [ "$entry" = backups ] || set -- "$@" "$entry"
         done
-        if [ $# -gt 0 ]; then tar -czf "backups/vor-wiederherstellen-$stamp.tar.gz" "$@"; fi
-        chmod 600 "backups/vor-wiederherstellen-$stamp.tar.gz" 2>/dev/null || true
-        for entry in "$@"; do rm -rf "./$entry"; done
+        if [ $# -gt 0 ]; then
+            # nothing is deleted unless the safety copy is complete and readable (disk full, no rights ...)
+            safe="backups/vor-wiederherstellen-$stamp.tar.gz"
+            (umask 077 && tar -czf "$safe.tmp" "$@") || { rm -f "$safe.tmp"; exit 1; }
+            gzip -t "$safe.tmp" && tar -tzf "$safe.tmp" >/dev/null || { rm -f "$safe.tmp"; exit 1; }
+            mv "$safe.tmp" "$safe" || exit 1
+            chmod 600 "$safe" 2>/dev/null || true
+        fi
+        for entry in "$@"; do rm -rf "./$entry" || exit 1; done
     ) || fail "The current state could not be saved - nothing restored."
     if ! tar -xzf "$file" -C data; then
         if [ "$(id -u)" = 0 ]; then chown -R "$APP_UID:$APP_UID" data || true; fi

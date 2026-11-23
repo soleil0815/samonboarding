@@ -35,8 +35,22 @@ class ExchangeError(Exception):
     """Error with a readable message (never contains credentials)."""
 
 
-def clean_config(raw):
-    """Validates and normalizes the settings. Raises ValueError with a readable message."""
+BASIC_NEEDS_CERT = (
+    "Die Anmeldeart 'basic' ist nur mit geprüftem Zertifikat erlaubt - sonst könnte ein fremder Server das "
+    "Passwort mitlesen."
+)
+
+
+def check_auth_safety(cfg):
+    """Code audit 2026-11b: 'basic' sends the logged-in admin's password itself; with an unchecked certificate any
+    machine in between could pose as the Exchange server and read it. Raises ValueError."""
+    if cfg.get("auth") == "basic" and not cfg.get("verifyCert", True):
+        raise ValueError(BASIC_NEEDS_CERT)
+
+
+def clean_config(raw, strict=False):
+    """Validates and normalizes the settings. Raises ValueError with a readable message. `strict` (saving, testing)
+    also refuses combinations that would expose the password; loading keeps old files readable."""
     raw = raw or {}
     cfg = dict(default_exchange_config)
     cfg["enabled"] = bool(raw.get("enabled", False))
@@ -67,6 +81,8 @@ def clean_config(raw):
         raise ValueError("Der Domänencontroller darf nur Buchstaben, Ziffern, Punkt und Bindestrich enthalten.")
     if cfg["enabled"] and not cfg["server"]:
         raise ValueError("Bitte den Exchange-Server eintragen.")
+    if strict:
+        check_auth_safety(cfg)
     return cfg
 
 
@@ -95,6 +111,10 @@ class _Session:
 @contextmanager
 def _open_session(cfg, user):
     """Connects to the Exchange Management Shell (replaceable in tests)."""
+    try:
+        check_auth_safety(cfg)  # also for a settings file saved by an older version
+    except ValueError as e:
+        raise ExchangeError(str(e)) from None
     try:
         from pypsrp.powershell import PowerShell, RunspacePool
         from pypsrp.wsman import WSMan

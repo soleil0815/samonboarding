@@ -7,6 +7,30 @@ Update auf dem Server: `sudo sh update.sh` oder `docker compose pull && docker c
 
 Einträge, die mit „Sicherheit:“ oder „Behoben:“ beginnen, werden in der Oberfläche entsprechend markiert.
 
+## 2.7.1 – 2026-11-23
+Code-Audit 2026-11 (voller Audit wie am 3. jedes Monats).
+- Sicherheit: Wer im AD die Rolle Domänen-Admin verliert, verliert die Administrator-Seiten jetzt nach spätestens 5 Minuten und wird abgemeldet – vorher behielt eine offene Sitzung sie bis zu 12 Stunden auf Seiten, die das AD nie fragen (SMTP-Server, Zertifikat, Einstellungen).
+- Sicherheit: Mit `LDAP_CA_FILE` fällt die Verbindung nie auf unverschlüsseltes LDAP (389) zurück – auch nicht nach einem Verbindungsabbruch.
+- Sicherheit: Konten-Operatoren können kein Konto mehr über ein Template anlegen, das eine privilegierte Gruppe (z. B. Domänen-Admins) enthält; die Benutzerverwaltung lehnte dieselbe Gruppe schon ab.
+- Sicherheit: Mitglieder der eigenen Operatorgruppe (`CUSTOM_OPERATOR_GROUP`) sind wie Konten-Operatoren geschützt, und nur Administratoren dürfen jemanden in diese Gruppe aufnehmen.
+- Sicherheit: Exchange mit der Anmeldeart „basic“ ist nur noch mit geprüftem Zertifikat erlaubt – sonst könnte ein fremder Server das Passwort des Administrators mitlesen. Eine ältere Einstellungsdatei mit dieser Kombination wird vor dem Verbinden abgelehnt.
+- Sicherheit: Operatoren können offgeboardete Konten nur noch aus einer aktuellen Quell-OU wiederherstellen, und Gruppen außerhalb der freigegebenen Gruppen-OUs bleiben Administratoren vorbehalten (wie in der Benutzerverwaltung).
+- Sicherheit: Falsche Passwörter in der Bestätigung vor dem Löschen zählen jetzt jedes einzeln, auch wenn viele gleichzeitig geschickt werden.
+- Sicherheit: Neuer Header `Cross-Origin-Resource-Policy: same-origin` – fremde Webseiten können die Antworten des Programms nicht einbetten.
+- Behoben: Das Löschen von Ordnern folgt nie einer Verknüpfung ganz oben (z. B. einem Basisordner, der selbst eine Junction ist) und wählt nie einen Ordner, der Basis- oder Profilordner eines anderen Kontos ist oder in einem liegt – jetzt auch bei der Ordnerumleitung.
+- Behoben: Ein erneutes Offboarding desselben Kontos (z. B. von Hand in der OU der offgeboardeten Konten wieder aktiviert) überschreibt den Wiederherstellungs-Eintrag mit der echten früheren OU und den Gruppen nicht mehr. Die Einstellungen lehnen eine OU für offgeboardete Konten innerhalb einer Quell-OU ab.
+- Behoben: Nach einem Löschversuch, der Ordner, aber nicht das Konto gelöscht hat, sagt die Vorschau der Wiederherstellung, dass diese Ordner fehlen.
+- Behoben: Bricht beim Einrichten eines neuen Kontos die Verbindung ab (Passwort, „Kennwort bei der nächsten Anmeldung ändern“, Gruppen), wird das halbfertige Konto entfernt – vorher konnte es aktiviert mit nur einem Teil seiner Gruppen bleiben.
+- Behoben: Die Startseite zählt Konten, die in den letzten 90 Tagen angelegt wurden, nicht mehr als inaktiv; die Erfolgsmeldung nach dem Löschen zählt nur wirklich gelöschte Ordner.
+- Behoben: Ein Template, dessen Namens-Makro weder %FIRSTNAME% noch %LASTNAME% enthält, wird abgelehnt (alle Konten hätten denselben Namen bekommen).
+- Behoben: Kontenlisten, die nicht geladen werden können, zeigen den Grund statt endlos „Lade …“; ohne Quell-OUs sagen sie, wer sie einstellt. Ohne Template sagt das Onboarding das, statt mit „[object Object]“ zu scheitern.
+- Behoben: Das Schließen des Ergebnisses eines Passwort-Resets leert kein halb ausgefülltes Onboarding-Formular mehr; die Dialoge Passwort zurücksetzen und Verschieben nennen das Konto; die Lösch-Bestätigung passt aufs Handy.
+- Behoben: Englische Wörter in der deutschen und deutsche Wörter in der englischen Oberfläche (OU-Auswahl, Template-Seite, Fehlermeldungen).
+- Behoben: `update.sh --restore` löscht nichts, wenn die Sicherung der aktuellen Daten nicht geschrieben werden kann (z. B. Platte voll). `update.sh` versteht eine Version in Anführungszeichen in der `.env` und hängt eine neue Zeile nicht mehr an eine letzte Zeile ohne Zeilenumbruch.
+- Behoben: Das Sicherheitsupdate am Patchday veröffentlicht nie eine Version, die gemergt, aber noch nicht veröffentlicht ist.
+- Diagnosepaket: Anmeldenamen, die nur in den Details der Berichte stehen, und Benutzernamen hinter einem Domänennamen (`DOMÄNE\benutzer`) werden jetzt auch anonymisiert.
+- Doku: Der Datenschutz nennt die IP-Adresse, die bei fehlgeschlagenen Anmeldungen gespeichert wird, und den Browserspeicher für die Darstellung; die Liste der geschützten Gruppen ist vollständig; eine feste Versionsreihe bekommt Sicherheitsupdates nur, solange sie die neueste ist; die README-Bilder gibt es nur hell (der Hinweis in 2.5.0 war falsch).
+
 ## 2.7.0 – 2026-11-20
 - Wichtig: Ab dieser Version verbindet sich der Server etwa einmal am Tag mit dem Internet (`api.github.com`, Port 443), um nach neuen Versionen zu sehen – mitgeschickt wird nichts. Wer gar keine Verbindung nach außen möchte, trägt `UPDATE_CHECK=false` in die `.env` ein.
 - Neu: Versionsprüfung für alle, die den Container nicht automatisch aktualisieren. Einmal am Tag fragt der Server bei GitHub nach, ob es eine neuere Version gibt; Administratoren sehen dann oben auf jeder Seite einen Hinweis mit der Version, einem Link „Was ist neu?“ und den Befehlen zum Aktualisieren (`sudo sh update.sh` oder `docker compose pull && docker compose up -d`). Sicherheitsupdates (`-s1`, `-s2` …) sind als solche gekennzeichnet.

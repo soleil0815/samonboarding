@@ -3,6 +3,7 @@
 """Permissions: role check at login and server-side check of the allowed OUs."""
 
 import logging
+import time
 
 import ldap3
 from fastapi import HTTPException
@@ -10,14 +11,59 @@ from fastapi import HTTPException
 from . import acl, protection, timing
 from .config import CUSTOM_OPERATOR_GROUP, USER_FILTER
 from .dn import dn_in_any, ldap_escape
+from .errors import DcUnreachable
 from .ldap_client import ldap_search
 
 log = logging.getLogger(__name__)
 
 
+ROLE_RECHECK_SECONDS = 300
+
+
 def require_admin(user, message):
     if user.get("role") != "Administrator":
         raise HTTPException(status_code=403, detail=message)
+    _recheck_admin_role(user)
+
+
+def _recheck_admin_role(user):
+    """Code audit 2026-11b: the role is decided at login; many admin routes (settings, templates, certificate,
+    reports) never contact the DC. Check the role live in AD again at most every few minutes, so that someone
+    removed from Domain Admins, disabled or with a changed password cannot keep using an open session for hours.
+    Only real sessions (created at login) are checked."""
+    if not user.get("sid") or not user.get("password"):
+        return
+    now = time.time()
+    if now - user.get("roleChecked", user.get("created", now)) < ROLE_RECHECK_SECONDS:
+        return
+    from .config import CONFIG_FILE, default_config
+    from .dn import base_dn
+    from .ldap_client import ad_session
+    from .sessions import drop_session
+    from .storage import load_json
+
+    search_base = base_dn(load_json(CONFIG_FILE, default_config)["domain"])
+    try:
+        with ad_session(user) as conn:  # raises 401 (and ends the session) if the password is no longer valid
+            role = check_user_role(conn, search_base, user.get("username", ""), user.get("bind_user", ""), True)[0]
+    except DcUnreachable:
+        # The DC cannot be reached at all (no sign of a changed role): pages that do not need the DC (diagnostics,
+        # reports, certificate) stay usable for troubleshooting - try again in a minute, not on every request
+        log.warning("Rollenpruefung fuer %s nicht moeglich: DC nicht erreichbar", user.get("username"))
+        user["roleChecked"] = now - ROLE_RECHECK_SECONDS + 60
+        return
+    except RoleCheckError:
+        raise HTTPException(
+            status_code=503,
+            detail="Die Rolle konnte gerade nicht im Active Directory geprüft werden. Bitte erneut versuchen.",
+        ) from None
+    if role != "Administrator":
+        log.warning("Rolle von %s hat sich geaendert (%s) - Sitzung beendet", user.get("username"), role)
+        drop_session(user.get("sid"))
+        raise HTTPException(
+            status_code=401, detail="Ihre Rolle im Active Directory hat sich geändert - bitte neu anmelden."
+        )
+    user["roleChecked"] = now
 
 
 # Roles are recognized by the well-known SIDs of the groups, never by name: on German DCs the groups are called

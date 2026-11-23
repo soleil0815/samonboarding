@@ -45,6 +45,9 @@ def compose_ref():
         for line in open(".env", encoding="utf-8"):
             if "=" in line and not line.startswith("#"):
                 key, value = line.rstrip("\n").split("=", 1)
+                # like docker compose: KEY="x" and KEY='x' mean x
+                if len(value) >= 2 and value[0] == value[-1] and value[0] in "\"'":
+                    value = value[1:-1]
                 env[key] = value
     text = open("docker-compose.yml", encoding="utf-8").read()
     image = re.search(r"^\s*image:\s*(\S+)", text, re.M).group(1)

@@ -332,13 +332,17 @@ def delete_tree(backend, root, takeover=False):
             except FsError as e:
                 result.fail(f"{path}: {e.message}")
             continue
-        if path != root and hasattr(backend, "stat"):
+        if hasattr(backend, "stat"):
             # Check again right before descending: if the folder has meanwhile been replaced by a link
-            # (junction), remove only the link - never follow its target
+            # (junction), remove only the link - never follow its target. This includes the root itself:
+            # after a takeover the simulation could not look at it, so a link there is only noticed now.
             try:
                 now = run(backend.stat, path, True)
             except FsError as e:
                 result.fail(f"{path}: {e.message}")
+                continue
+            if path == root and (now.reparse or not now.is_dir):
+                result.fail(f"{path}: ist kein normaler Ordner (Verknüpfung?) – nichts gelöscht")
                 continue
             if now.reparse:
                 try:

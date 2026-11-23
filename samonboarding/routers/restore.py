@@ -20,9 +20,11 @@ from ..config import (
     OFFBOARD_RETENTION_DAYS,
     OFFBOARDING_CONFIG_FILE,
     SMTP_CONFIG_FILE,
+    USERMGMT_CONFIG_FILE,
     default_config,
     default_offboarding_config,
     default_smtp_config,
+    default_usermgmt_config,
 )
 from ..dn import base_dn, dn_in_any, dn_norm, parent_dn, rdn_label, split_dn
 from ..errors import AdError
@@ -94,8 +96,20 @@ def locate_group(conn, group):
     return ""
 
 
-def build_plan(conn, rec, off_cfg, target_ou=None, admin=True):
-    """What the restore would do. Changes nothing."""
+def operator_group_scope():
+    """OUs whose groups an operator may assign (the same rule as in user management)."""
+    mgmt_cfg = load_json(USERMGMT_CONFIG_FILE, default_usermgmt_config)
+    return [o for o in mgmt_cfg.get("groupOus", []) if o] or [_search_base()]
+
+
+def operator_may_see(rec, off_cfg):
+    """Code audit 2026-11b: an operator may only restore accounts that come from a current source OU - if an
+    administrator has since removed that OU from the offboarding, the account is no longer theirs to bring back."""
+    return dn_in_any(rec["original_ou"], [o for o in off_cfg.get("sourceOus", []) if o])
+
+
+def build_plan(conn, rec, off_cfg, target_ou=None, admin=True, group_scope=None):
+    """What the restore would do. Changes nothing. `group_scope` (operators): groups outside it are skipped."""
     sources = [o for o in off_cfg.get("sourceOus", []) if o]
     entry = locate_account(conn, rec)
     target = reject_special_dn(target_ou) if target_ou else rec["original_ou"].strip()
@@ -106,6 +120,11 @@ def build_plan(conn, rec, off_cfg, target_ou=None, admin=True):
         target = ou_entry.dn  # the DN returned by the DC is checked and used
     ou_exists = bool(ou_entry)
     ou_allowed = dn_in_any(target, sources)
+    if not admin and not operator_may_see(rec, off_cfg):
+        blockers.append(
+            "Das Konto stammt aus einer OU, die nicht mehr zu den Quell-OUs des Offboardings gehört. "
+            "Nur Administratoren können es wiederherstellen."
+        )
     if not entry:
         blockers.append("Das Konto wurde im AD nicht gefunden (gelöscht?). Es kann nicht wiederhergestellt werden.")
     elif (
@@ -130,14 +149,25 @@ def build_plan(conn, rec, off_cfg, target_ou=None, admin=True):
     for g in rec["groups"]:
         dn = locate_group(conn, g) if entry else g["dn"]
         status = "missing" if not dn else ("member" if dn_norm(dn) in current_groups else "add")
+        if status == "add" and group_scope is not None and not dn_in_any(dn, group_scope):
+            status = "outside"  # operators: the same group-OU rule as in user management
         groups.append({"name": g.get("name") or rdn_label(g["dn"]), "dn": dn or g["dn"], "status": status})
     missing = [g["name"] for g in groups if g["status"] == "missing"]
     if missing:
         notes.append("Nicht mehr vorhanden, wird übersprungen: " + ", ".join(missing))
+    outside = [g["name"] for g in groups if g["status"] == "outside"]
+    if outside:
+        notes.append("Nicht in einer freigegebenen Gruppen-OU, nur Administratoren: " + ", ".join(outside))
 
     enabled_now = bool(entry) and not (row_uac(entry) & 2)
     if entry and enabled_now:
         notes.append("Das Konto ist bereits wieder aktiv.")
+    gone = rec.get("folders_deleted") or {}
+    if gone.get("paths"):
+        notes.append(
+            "Achtung: Ein Löschversuch hat bereits Ordner dieses Kontos gelöscht - sie kommen nicht zurück: "
+            + ", ".join(gone["paths"])
+        )
     if entry and not rec["was_enabled"]:
         notes.append("Das Konto war schon vor dem Offboarding deaktiviert und bleibt deaktiviert.")
     return {
@@ -166,7 +196,11 @@ def _public(plan):
 @router.get("/api/offboarding/records")
 def list_records(user: dict = Depends(get_current_user)):
     out = []
+    off_cfg = load_json(OFFBOARDING_CONFIG_FILE, default_offboarding_config)
+    admin = is_admin(user)
     for rec in offboard_store.list_open():
+        if not admin and not operator_may_see(rec, off_cfg):
+            continue
         out.append(
             {
                 "id": rec["id"],
@@ -188,7 +222,9 @@ def preview_restore(record_id: int, targetOu: str = "", user: dict = Depends(get
     rec = _record_or_404(record_id)
     off_cfg = load_json(OFFBOARDING_CONFIG_FILE, default_offboarding_config)
     with ad_session(user) as conn:
-        return {"status": "success", **_public(build_plan(conn, rec, off_cfg, targetOu or None, is_admin(user)))}
+        admin = is_admin(user)
+        plan = build_plan(conn, rec, off_cfg, targetOu or None, admin, None if admin else operator_group_scope())
+        return {"status": "success", **_public(plan)}
 
 
 def _mail(background, user, plan, warnings):
@@ -229,7 +265,9 @@ def restore_account(
         with audited(user, "offboarding-restore", rec["current_dn"], sam=rec["sam"]) as info:
             warnings = []
             with ad_session(user) as conn:
-                plan = build_plan(conn, rec, off_cfg, (data.targetOu or "").strip() or None, is_admin(user))
+                admin = is_admin(user)
+                scope = None if admin else operator_group_scope()
+                plan = build_plan(conn, rec, off_cfg, (data.targetOu or "").strip() or None, admin, scope)
                 info["targetOu"] = plan["targetOu"]
                 if plan["blockers"]:
                     raise HTTPException(status_code=400, detail=" ".join(plan["blockers"]))
@@ -251,8 +289,8 @@ def restore_account(
                 # 2. groups
                 added, failed = [], []
                 for g in plan["groups"]:
-                    if g["status"] == "missing":
-                        continue
+                    if g["status"] in ("missing", "outside"):
+                        continue  # "outside" is listed in the notes
                     special = "" if is_admin(user) else privileged_group(conn, g["dn"])
                     if special:
                         failed.append(f"{g['name']} (privilegierte Gruppe - nur Administratoren)")

@@ -233,6 +233,12 @@ class TagTests(unittest.TestCase):
         result = pins.plan("security-update", False, ["1.48.0"], self.root)
         self.assertEqual((result["action"], result["tag"], result["commit"]), ("publish", "1.48.0-s1", False))
 
+    def test_security_update_never_publishes_an_unreleased_version(self):
+        """Code audit 2026-11b: VERSION 1.48.0 is merged but not released yet - patch day must wait for the release."""
+        for changed in (True, False):
+            result = pins.plan("security-update", changed, ["1.47.1", "1.47.1-s1"], self.root)
+            self.assertEqual((result["action"], result["commit"]), ("nothing", False))
+
     def test_tag_x_y_for_newest_of_series(self):
         result = pins.plan("security-update", True, ["1.48.0"], self.root)
         self.assertEqual((result["minor"], result["minor_latest"]), ("1.48", True))

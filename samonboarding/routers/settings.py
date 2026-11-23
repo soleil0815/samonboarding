@@ -20,6 +20,7 @@ from ..config import (
     default_smtp_config,
     default_usermgmt_config,
 )
+from ..dn import dn_in_any
 from ..exchange import ExchangeError, check_connection, clean_config, default_exchange_config
 from ..ldap_client import ad_session, detect_mail_system
 from ..mailer import render_mail, smtp_send
@@ -108,7 +109,15 @@ def get_offboarding_config(user: dict = Depends(get_current_user)):
 @router.post("/api/offboarding-config")
 def save_offboarding_config(data: OffboardingConfigModel, user: dict = Depends(get_current_user)):
     require_admin(user, "Nur Administratoren dürfen Offboarding-Konfigurationen bearbeiten.")
-    save_json(OFFBOARDING_CONFIG_FILE, {"sourceOus": clean_ou_list(data.sourceOus), "targetOu": data.targetOu.strip()})
+    sources, target = clean_ou_list(data.sourceOus), data.targetOu.strip()
+    if target and dn_in_any(target, sources):
+        # Code audit 2026-11b: offboarded accounts would stay in a source OU - they could be offboarded again (and
+        # the restore entry with their real previous OU and groups would be lost) and still look like active staff
+        raise HTTPException(
+            status_code=400,
+            detail="Die OU für offgeboardete Konten darf nicht in einer Quell-OU liegen.",
+        )
+    save_json(OFFBOARDING_CONFIG_FILE, {"sourceOus": sources, "targetOu": target})
     audit(actor_name(user), "config-offboarding", sourceOus=data.sourceOus, targetOu=data.targetOu)
     return {"status": "success"}
 
@@ -123,7 +132,7 @@ def get_exchange_config(user: dict = Depends(get_current_user)):
 def save_exchange_config(data: ExchangeConfigModel, user: dict = Depends(get_current_user)):
     require_admin(user, "Nur Administratoren dürfen die Exchange-Einstellungen bearbeiten.")
     try:
-        cfg = clean_config(data.model_dump() if hasattr(data, "model_dump") else vars(data))
+        cfg = clean_config(data.model_dump() if hasattr(data, "model_dump") else vars(data), strict=True)
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e)) from None
     save_json(EXCHANGE_CONFIG_FILE, cfg)
@@ -144,7 +153,7 @@ def test_exchange_config(data: ExchangeConfigModel, user: dict = Depends(get_cur
     require_admin(user, "Nur Administratoren.")
     cfg: dict = {}
     try:
-        cfg = clean_config(data.model_dump() if hasattr(data, "model_dump") else vars(data))
+        cfg = clean_config(data.model_dump() if hasattr(data, "model_dump") else vars(data), strict=True)
         if not cfg["server"]:
             raise ValueError("Bitte den Exchange-Server eintragen.")
         message = check_connection(cfg, user)

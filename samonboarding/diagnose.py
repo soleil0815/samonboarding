@@ -285,6 +285,27 @@ def _read_json(path):
 # Known values: everything the program knows by name is replaced wherever it appears (log messages ...)
 
 
+# Keys in the audit details that hold account or person names (code audit 2026-11b: a log line such as
+# "Sammellöschung: Fehler bei aberg" only names the account that the details list under "accounts")
+DETAIL_USER_KEYS = ("sam", "accounts", "account", "user", "users", "member", "members", "manager")
+DETAIL_NAME_KEYS = ("name", "displayName", "fullname", "givenName", "sn")
+
+
+def _learn_details(anon, raw):
+    try:
+        details = json.loads(raw or "{}")
+    except (TypeError, ValueError):
+        return
+    if not isinstance(details, dict):
+        return
+    for keys, kind in ((DETAIL_USER_KEYS, "user"), (DETAIL_NAME_KEYS, "text")):
+        for key in keys:
+            value = details.get(key)
+            for v in value if isinstance(value, list) else [value]:
+                if isinstance(v, str) and v:
+                    anon.learn("dn" if "=" in v else kind, v)
+
+
 def learn_known_values(anon, user=None):
     for name, rules in CONFIG_RULES.items():
         data, _ = _read_json(config.DATA_DIR / name)
@@ -330,10 +351,17 @@ def learn_known_values(anon, user=None):
     try:
         with _read_db(config.REPORTS_DB_FILE) as conn:
             rows = conn.execute("SELECT DISTINCT actor, target FROM audit LIMIT 5000").fetchall() if conn else []
+            # account names that only the details name (e.g. the accounts of a batch deletion)
+            sql = (
+                "SELECT DISTINCT details FROM audit WHERE details LIKE ? OR details LIKE ? OR details LIKE ? LIMIT 5000"
+            )
+            details = conn.execute(sql, ('%"sam"%', '%"accounts"%', '%"name"%')).fetchall() if conn else []
         for r in rows:
             anon.learn("user", r["actor"])
             target = str(r["target"] or "")
             anon.learn("dn" if "=" in target else "user", target)
+        for r in details:
+            _learn_details(anon, r["details"])
     except Exception:  # noqa: S110 - the package is built without them; the patterns still apply
         pass
     try:

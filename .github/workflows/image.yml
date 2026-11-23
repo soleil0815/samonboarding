@@ -37,8 +37,9 @@ on:
 permissions: {}
 
 concurrency:
-  # never two releases at the same time; checks of a pull request run separately
-  group: ${{ github.event_name == 'pull_request' && format('image-pr-{0}', github.ref) || 'image-release' }}
+  # never two releases at the same time; checks of a pull request or a push run separately (a push check in the
+  # release group could replace a waiting release or security update - GitHub keeps only one waiting run per group)
+  group: ${{ github.event_name == 'pull_request' && format('image-pr-{0}', github.ref) || github.event_name == 'push' && format('image-push-{0}', github.sha) || 'image-release' }}
   cancel-in-progress: false
 
 jobs:

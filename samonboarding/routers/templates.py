@@ -12,7 +12,7 @@ from ..config import (
     TEMPLATES_FILE,
     default_onboarding_config,
 )
-from ..naming import DEFAULT_NAMING_MACRO, normalize_home_drive
+from ..naming import DEFAULT_NAMING_MACRO, has_placeholder, normalize_home_drive
 from ..permissions import require_admin
 from ..sessions import get_current_user
 from ..storage import file_lock, load_json, save_json
@@ -93,6 +93,12 @@ def sanitize_template(raw):
         raise HTTPException(status_code=400, detail="Bitte mindestens einen Namen für das Template angeben.")
     if not tmpl["naming"]:
         tmpl["naming"] = DEFAULT_NAMING_MACRO
+    if not has_placeholder(tmpl["naming"]):
+        # code audit 2026-11b: "vorname.nachname" would make every account VORNAME.NACHNAME, VORNAME.NACHNAME2 ...
+        raise HTTPException(
+            status_code=400,
+            detail="Das Namens-Makro braucht %FIRSTNAME% und/oder %LASTNAME% (z. B. %FIRSTNAME%.%LASTNAME%).",
+        )
     for key, label in PATH_FIELDS.items():
         if len(tmpl[key]) > 260:
             raise HTTPException(status_code=400, detail=f"{label}: Maximal 260 Zeichen erlaubt.")

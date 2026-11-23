@@ -69,7 +69,7 @@ These five points explain the whole concept:
 
 ### Interface
 
-After signing in, the **home page** shows what needs doing: active accounts without a logon for 90 days, locked accounts and (for administrators) accounts ready to be deleted. One click opens the matching list. Under **Tasks** the navigation follows the life cycle of an account: **New employee** (onboarding), **User management**, **Reset password**, **Leaving** (offboarding) and **Delete accounts**; numbers next to them show how many accounts are waiting. Below that are **Settings** (templates, e-mail notification, AD structure, reports, certificate) and help. **Ctrl + K** opens the quick search for people and pages. Feedback appears as a message in the bottom right corner. Errors and long messages stay until you close them. On tablets and phones the navigation opens from the menu icon in the top left.
+After signing in, the **home page** shows what needs doing: active accounts without a logon for 90 days, locked accounts and (for administrators) accounts ready to be deleted. One click opens the matching list. Under **Tasks** the navigation follows the life cycle of an account: **New employee** (onboarding), **User management**, **Reset password**, **Leaving** (offboarding) and **Delete accounts**; numbers next to them show how many accounts are waiting. Below that are **Settings** (templates, e-mail notification, AD structure, reports, certificate, diagnostics) and help. **Ctrl + K** opens the quick search for people and pages. Feedback appears as a message in the bottom right corner. Errors and long messages stay until you close them. On tablets and phones the navigation opens from the menu icon in the top left.
 
 ![Home page “What needs doing?”: cards for accounts without a logon for 90 days, locked accounts and accounts ready to be deleted, the grouped menu with counters on the left](docs/images/start-en.png)
 
@@ -205,7 +205,7 @@ All settings are in the file **`.env`** (template: `env.example` in the release 
 | `AD_DC_IP` | `10.0.10.5` | IP address or name of the domain controller |
 | `CUSTOM_OPERATOR_GROUP` | empty | sAMAccountName of an additional group whose members are operators. The built-in *Account Operators* group always applies, recognised by its SID |
 | `LDAP_CA_FILE` | empty | Path (inside the container) to a CA file in PEM format. If set, the DC certificate is verified |
-| `LDAP_ALLOW_PLAIN` | `false` | `true` = fall back to unencrypted LDAP (port 389) if 636 is unreachable. Passwords then travel in plain text – emergencies only |
+| `LDAP_ALLOW_PLAIN` | `false` | `true` = fall back to unencrypted LDAP (port 389) if 636 is unreachable. Passwords then travel in plain text – emergencies only. Has no effect when `LDAP_CA_FILE` is set (then the connection is never downgraded) |
 | `SESSION_IDLE_MINUTES` | `30` | Sign-out after this many minutes of inactivity |
 | `SESSION_MAX_HOURS` | `12` | Maximum session length, even with continuous activity. Then sign in again (the role is determined again) |
 | `HTTPS_PORT` | `9500` | HTTPS port in the container. There is no HTTP port |
@@ -418,7 +418,7 @@ For templates set to *On-premises Exchange*, the application runs `Enable-Mailbo
 | Enable Exchange integration | Switch, **off** by default. While it is off, a template with *On-premises Exchange* only gets a warning and no mailbox is created |
 | Exchange server | Server name without `https://` (e.g. `exchange01.firma.local`), reachable from the container |
 | Port, HTTPS, verify certificate | Default `443`, HTTPS on, verification on. Only turn verification off if the certificate cannot be trusted otherwise |
-| Authentication | *Automatic (negotiate)*; if there are problems try *NTLM* or *Kerberos* |
+| Authentication | *Automatic (negotiate)*; if there are problems try *NTLM* or *Kerberos*. *Basic* sends the password itself and is only accepted with HTTPS **and** certificate verification |
 | Mailbox database | empty = Exchange chooses |
 | Domain controller | empty = the same DC the application used to create the account, so Exchange does not have to wait for replication |
 
@@ -454,7 +454,7 @@ Choose an account from the source OUs. It is **disabled**, **removed from all gr
 
 **Multi-selection:** with the checkboxes up to 25 accounts can be offboarded at once (header checkbox = all visible). Before starting, a confirmation shows the number and the names. The accounts are processed one after another; an error with one account (e.g. protected, outside the source OU) does not stop the others. At the end you see what worked and what did not. Every account has its own audit entry; the notification mail is a single summary.
 
-**Protected accounts:** privileged accounts are always rejected by the server (*403*), for all roles. Privileged means members (also through nested groups or as primary group) of *Domain Admins*, *Schema Admins*, *Enterprise Admins* and the built-in groups *Administrators*, *Account/Server/Print/Backup Operators*, as well as the built-in Administrator account (RID 500) and `krbtgt`. In the list such accounts are shown with a lock and cannot be selected. The check reads each account's real groups (`tokenGroups`) and not only the `adminCount` flag, which not every directory maintains. It is checked again when the action runs. If such an account really has to be processed, remove the membership in AD first.
+**Protected accounts:** privileged accounts are always rejected by the server (*403*), for all roles. Privileged means members (also through nested groups or as primary group) of *Domain Admins*, *Schema Admins*, *Enterprise Admins*, *Cert Publishers*, *Group Policy Creator Owners*, *Key Admins*, *Enterprise Key Admins*, the built-in groups *Administrators*, *Account/Server/Print/Backup Operators* and the own operator group (`CUSTOM_OPERATOR_GROUP`), as well as the built-in Administrator account (RID 500) and `krbtgt`. In the list such accounts are shown with a lock and cannot be selected. The check reads each account's real groups (`tokenGroups`) and not only the `adminCount` flag, which not every directory maintains. It is checked again when the action runs. If such an account really has to be processed, remove the membership in AD first.
 
 **Restore (undo offboarding):** before every offboarding the application records the OU the account was in, its groups and whether it was enabled. Under *Offgeboardete Konten wiederherstellen* (bottom of the offboarding page) every account offboarded this way is listed with a **Restore** button (*Wiederherstellen*):
 
@@ -572,7 +572,7 @@ Everything is written to **`data/reports.db`** (SQLite), without passwords. Admi
 - Deleted entries are overwritten in the database file (`secure_delete`) and cannot be recovered
 - An existing `audit.log` from older versions is imported on first start and then removed
 
-The container output (`docker compose logs -f`) is still available, limited to 3 × 10 MB. Individual browser requests (IP addresses) are not logged.
+The container output (`docker compose logs -f`) is still available, limited to 3 × 10 MB. Individual browser requests (IP addresses) are not logged; only a failed sign-in records the IP address it came from.
 
 Subject access request (Art. 15 GDPR), i.e. everything the application has stored about an account: in the interface under *Data protection*, or with
 
@@ -649,7 +649,7 @@ In `.env`:
 | `SAMONBOARDING_VERSION=` | Meaning |
 |---|---|
 | *(empty)* | always the newest version (`latest`) |
-| `2.0` | the newest 2.0.x including security updates, no jump to 2.1 or 3.0 |
+| `2.0` | the newest 2.0.x, no jump to 2.1 or 3.0. Security updates (`-s1` …) come only while 2.0 is the newest line – after 2.1 is out, switch to it |
 | `2.0.1` | exactly this version (its security updates are `2.0.1-s1`, `2.0.1-s2` …) |
 
 Then `sudo docker compose pull && sudo docker compose up -d` (or `sudo sh update.sh --version 2.0`).
@@ -695,7 +695,7 @@ A new base (e.g. Debian 14 or Python 3.14) is never chosen automatically. For th
 
 ### Automatic security updates
 
-Two workflows run on GitHub (`image.yml` with the build steps in `build.yml`, and `checks.yml`). A new program version only comes via a pull request; a pull request or a merge only checks, publishing is done by hand. Pull requests and pushes run with a **read-only** token, so code from a pull request can never commit or publish anything; only the release and the security update get write rights, and they publish only from `main`.
+Three workflows run on GitHub (`image.yml` with the build steps in `build.yml`, `checks.yml` and the ZAP scan `zap-scan.yml`). A new program version only comes via a pull request; a pull request or a merge only checks, publishing is done by hand. Pull requests and pushes run with a **read-only** token, so code from a pull request can never commit or publish anything; only the release and the security update get write rights, and they publish only from `main`.
 
 | When | What happens |
 |---|---|
@@ -767,7 +767,7 @@ A reverse proxy is no longer needed. If you use one anyway, forward to `https://
 
 - Run it in the internal network only, **not** on the internet
 - **Roles by SID:** administrators are members of *Domain Admins*, *Enterprise Admins* or *Administrators*; operators are members of *Account Operators* or your own group (`CUSTOM_OPERATOR_GROUP`). This is detected by the groups' fixed SIDs, not by name, so it also works on German DCs, and a self-made group called "Domain Admins" grants no rights
-- **What operators may not do:** only administrators can reset, move, change or restore protected accounts (Domain Admins etc.), and only administrators can add accounts to privileged groups (e.g. Backup Operators, Schema Admins). Offboarding and deleting protected accounts is blocked for everyone
+- **What operators may not do:** only administrators can reset, move, change or restore protected accounts (Domain Admins etc.), and only administrators can add accounts to privileged groups (e.g. Backup Operators, Schema Admins) – also through a template during onboarding. Operators restore offboarded accounts only from the current source OUs, and only into groups in the approved group OUs. Offboarding and deleting protected accounts is blocked for everyone
 - **Checks on the real DN:** allowed OUs are checked against the DN returned by the DC. Special DN forms like `<GUID=…>` or `<SID=…>` are rejected
 - **Delete only matching folders:** a path from an AD attribute (home folder, profile path) is only deleted if the folder name matches the user name (`mueller` or `mueller.V6`). If it points to someone else's folder, it is skipped
 - **Requests only from the own site:** write requests with a foreign `Origin` are rejected, in addition to the `SameSite=Strict` cookie. If you use a reverse proxy anyway, it must pass the `Host` header through unchanged. Requests over 6 MB are rejected, and the automatic API documentation (`/docs`) is switched off
@@ -864,9 +864,11 @@ samonboarding/
   references.py             check references to OUs/groups in the settings and update them after renames
   routers/references.py     /api/references (check) and /api/references/repair (admins only)
   acl.py                    read/modify Windows security descriptors (owner, access entries)
-  routers/                  one module per area (auth, settings, usermgmt, offboarding, restore,
-                            pwdreset, deletion, infrastructure, templates, onboarding, ui)
-  web/index.html            complete interface (HTML + JavaScript)
+  routers/                  one module per area (auth, settings, usermgmt, offboarding, restore, pwdreset,
+                            deletion, infrastructure, templates, onboarding, dashboard, people, reports,
+                            certificate, diagnose, manual, news, privacy_info, references, ui)
+  web/index.html            interface (HTML)
+  web/app.js, web/theme.js  interface logic and the appearance chosen before the page is drawn
   web/theme.json            colours and fonts of the interface (for the Docker build)
   web/i18n.json             English texts (interface, messages, mails)
   web/manual/               manual (HANDBUCH.md, MANUAL.en.md) - shown in the interface under Help → Manual
@@ -876,7 +878,7 @@ samonboarding/
   datastate.py              data state: backup before a version change, migrations, protection against older versions
 DATA-PROTECTION.md          data protection documentation (GDPR), German: DATENSCHUTZ.de.md
 Dockerfile                  stage 1 builds Tailwind CSS, fonts (Inter, IBM Plex Mono) and Font Awesome, stage 2 is the app
-tailwind.config.js          Tailwind scans samonboarding/web/*.html, colours and fonts from web/theme.json
+tailwind.config.js          Tailwind scans samonboarding/web/*.html and *.js, colours and fonts from web/theme.json
 tests/                      unit tests and scenarios (see Tests)
 pyproject.toml              ruff, pyright and pytest configuration
 requirements-dev.txt        packages for testing (exact versions)
@@ -902,7 +904,7 @@ update.sh                   manual update: remember the previous version, fetch,
 
 ### Notes
 
-- Changes to the code or to **Tailwind classes** in `web/index.html` need a new image. For development build locally: `docker build $(python3 scripts/pins.py build-args) -t samonboarding:dev .` and set `image: samonboarding:dev` in a `docker-compose.override.yml`. Published images are only built by GitHub
+- Changes to the code or to **Tailwind classes** in `web/index.html` or `web/app.js` need a new image. For development build locally: `docker build $(python3 scripts/pins.py build-args) -t samonboarding:dev .` and set `image: samonboarding:dev` in a `docker-compose.override.yml`. Published images are only built by GitHub
 - The code is part of the image and is not mounted from the host, so an image restored by a rollback also brings its own code
 - The Python packages are deliberately minimal: `fastapi`, `uvicorn`, `ldap3`, `pydantic`, plus `smbprotocol` for the file server features and `pypsrp` for the Exchange mailbox
 
@@ -926,7 +928,7 @@ The GitHub workflow runs ruff and pyright before every build, pyright with exact
 | `tests/test_exchange.py` | Exchange settings validation, calls to the Exchange Management Shell (with stand-in modules for `pypsrp`), error messages |
 | `tests/test_fileshare.py` | UNC path checks, target folders, scan, deletion with links and ownership takeover, error mapping, home folder creation |
 | `tests/test_smb_requests.py` | Builds permission requests with the real `smbprotocol` classes (no server). Skipped without `smbprotocol` |
-| `tests/test_ui.py` | Interface logic (JavaScript in `index.html`) under Node.js with a fake DOM: selection, batch simulation, password/count confirmation, progress, navigation, mobile menu, messages, restore dialog, language switch, loading only the open page. Skipped without Node.js |
+| `tests/test_ui.py` | Interface logic (`web/app.js`) under Node.js with a fake DOM: selection, batch simulation, password/count confirmation, progress, navigation, mobile menu, messages, restore dialog, language switch, loading only the open page. Skipped without Node.js |
 | `tests/test_adguid.py` | Reading `objectGUID` (raw bytes) and writing it as an LDAP filter |
 | `tests/test_i18n.py` | English: dictionary, every fixed API error message translated, mails in the chosen language |
 | `tests/test_hardening.py` | Security review: folder name matches the account, mail values (password) are never translated, sender name, file permissions 0600, Exchange basic only with HTTPS, input, special DN forms, role SIDs |
@@ -938,6 +940,11 @@ The GitHub workflow runs ruff and pyright before every build, pyright with exact
 | `tests/test_scenarios.py` | Runs the scenarios in `tests/scenarios/`: sign-in and roles, onboarding, offboarding, groups, settings, deletion (simulation, execution, ownership takeover, mail), restore after offboarding, templates, sorting, renamed/moved OUs and groups |
 | `tests/test_update_sh.py` | `update.sh` with a simulated `docker` under dash: update, going back after a failed start, newer `docker-compose.yml`, offline, restore, cleanup spares data also via links and mounted folders |
 | `tests/test_audit_2026_11.py`, `tests/ui/pdf.test.js`, `tests/ui/nav.test.js` | Code audit 2026-11: no plain-text fallback when the DC certificate is rejected, deletion protection for other accounts' folders, health check without root, backups on migration errors and retention, mails only to the AD attribute `mail`, menu per role |
+| `tests/test_audit_2026_11b.py`, `tests/scenarios/scenario_audit_2026_11b.py`, `tests/ui/audit_2026_11b.test.js` | Code audit 2026-11 (full): admin role re-checked during a session, no plain-text LDAP with a CA file, privileged template groups and the own operator group, Exchange basic only with a verified certificate, folder deletion against other accounts and links, restore scope for operators, re-offboarding, rollback of a half-created account, anonymised diagnostic package, list errors in the interface |
+| `tests/test_csp.py`, `tests/test_smoke_headers.py` | Content Security Policy (no inline scripts) and the security headers with the real packages |
+| `tests/test_dashboard.py`, `tests/test_last_logon.py`, `tests/test_people.py`, `tests/test_listcache.py` | Home page counts, last logon, quick search, list cache per session |
+| `tests/test_news.py`, `tests/test_readme.py`, `tests/test_public_repo.py` | News from the changelog, README pictures and links, nothing private in the public repository |
+| `tests/test_reproducible.py`, `tests/test_speed.py` | Reproducible image build, response times of the protection check |
 | `tests/test_datastate.py` | Backup before a version change, migrations, stop on data of a newer version, version of the `docker-compose.yml`, start script |
 | `tests/test_updatecheck.py`, `tests/ui/update_notice.test.js` | Version check: only published release numbers, fixed versions (line/exact), security updates, nothing sent along, own proxy setting, quiet failures, note only for administrators, no odd values in links or commands |
 | `tests/test_pins.py`, `tests/test_supply_chain.py` | Pinned versions and their limits, security update numbers, Trivy (simulated), GitHub workflows |

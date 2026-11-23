@@ -41,7 +41,7 @@ from ..naming import (
     valid_mail,
     valid_person_name,
 )
-from ..protection import read_sids
+from ..protection import privileged_group, read_sids
 from ..sessions import get_current_user
 from ..storage import load_json
 from .templates import template_mail_mode
@@ -157,6 +157,26 @@ def _rollback_new_account(conn, user, user_dn):
         return False
 
 
+def _finish_new_account(conn, user_dn, tmpl, home_dir, warnings, result):
+    """Steps after enabling: force a password change, read the SID for the home folder, add the groups.
+    LDAP refusals become warnings; a lost connection raises (the caller then removes the new account)."""
+    if tmpl.get("forceChange", True) and not conn.modify(user_dn, {"pwdLastSet": [(ldap3.MODIFY_REPLACE, [0])]}):
+        warnings.append("Passwortänderung beim nächsten Login konnte nicht erzwungen werden: " + ldap_error_text(conn))
+
+    result["home_sid"] = None
+    if tmpl.get("createHomeFolder") and home_dir:
+        result["home_sid"] = read_sid(conn, user_dn)
+        if not result["home_sid"]:
+            warnings.append("Basisordner nicht angelegt: Die SID des neuen Kontos konnte nicht gelesen werden.")
+
+    for group_dn in tmpl.get("groups", []):
+        if not group_dn:
+            continue
+        ok = conn.modify(group_dn, {"member": [(ldap3.MODIFY_ADD, [user_dn])]})
+        if not member_change_ok(conn, ok):
+            warnings.append(f"Gruppe '{rdn_label(group_dn)}' konnte nicht zugewiesen werden: {ldap_error_text(conn)}")
+
+
 @router.post("/api/onboard")
 def execute_onboard(data: OnboardModel, background: BackgroundTasks, user: dict = Depends(get_current_user)):
     first_name, last_name, custom_mail = data.firstName.strip(), data.lastName.strip(), data.customMail.strip()
@@ -173,7 +193,7 @@ def execute_onboard(data: OnboardModel, background: BackgroundTasks, user: dict 
     tmpls = load_json(TEMPLATES_FILE, [])
     tmpl = next((t for t in tmpls if isinstance(t, dict) and t.get("id") == data.templateId), None)
     if not tmpl:
-        raise HTTPException(status_code=400, detail="Template not found.")
+        raise HTTPException(status_code=400, detail="Template nicht gefunden.")
     if not tmpl.get("ouDn"):
         raise HTTPException(status_code=400, detail="Das Template hat keine Ziel-OU.")
 
@@ -272,8 +292,23 @@ def execute_onboard(data: OnboardModel, background: BackgroundTasks, user: dict 
                 if val is not None:
                     attributes[attr] = val
 
+            if user.get("role") != "Administrator":
+                # Code audit 2026-11b: an operator must not get a new account into a privileged group via a template
+                # (user management refuses the same group) - checked before anything is created
+                for group_dn in tmpl.get("groups", []):
+                    special = privileged_group(conn, group_dn) if group_dn else ""
+                    if special:
+                        raise HTTPException(
+                            status_code=403,
+                            detail=(
+                                f"Das Template enthält die privilegierte Gruppe „{special}“ - "
+                                "nur Administratoren dürfen damit Konten anlegen."
+                            ),
+                        )
+
             ensure(conn, conn.add(user_dn, attributes=attributes), "Benutzer anlegen")
 
+            result = {}
             try:
                 raw_pwd = f'"{password}"'.encode("utf-16-le")
                 ensure(
@@ -287,35 +322,17 @@ def execute_onboard(data: OnboardModel, background: BackgroundTasks, user: dict 
                     conn.modify(user_dn, {"userAccountControl": [(ldap3.MODIFY_REPLACE, [512 | flags])]}),
                     "Konto aktivieren",
                 )
+                _finish_new_account(conn, user_dn, tmpl, home_dir, warnings, result)
             except Exception as e:
                 # Remove the half-finished account so that a retry starts cleanly - also after a dropped
-                # connection (then via a new connection)
+                # connection (then via a new connection). Code audit 2026-11b: this covers every step up to the
+                # group memberships, so a lost connection never leaves an enabled account with a password nobody
+                # knows, without "change at next logon" and with only some of its groups.
                 if not _rollback_new_account(conn, user, user_dn):
                     log.error("Rollback fehlgeschlagen, Konto %s muss manuell entfernt werden", user_dn)
                 detail = e.detail if isinstance(e, AdError) else str(e)
                 raise AdError(f"Benutzer wurde nicht angelegt. {detail}") from e
-
-            if tmpl.get("forceChange", True) and not conn.modify(
-                user_dn, {"pwdLastSet": [(ldap3.MODIFY_REPLACE, [0])]}
-            ):
-                warnings.append(
-                    "Passwortänderung beim nächsten Login konnte nicht erzwungen werden: " + ldap_error_text(conn)
-                )
-
-            home_sid = None
-            if tmpl.get("createHomeFolder") and home_dir:
-                home_sid = read_sid(conn, user_dn)
-                if not home_sid:
-                    warnings.append("Basisordner nicht angelegt: Die SID des neuen Kontos konnte nicht gelesen werden.")
-
-            for group_dn in tmpl.get("groups", []):
-                if not group_dn:
-                    continue
-                ok = conn.modify(group_dn, {"member": [(ldap3.MODIFY_ADD, [user_dn])]})
-                if not member_change_ok(conn, ok):
-                    warnings.append(
-                        f"Gruppe '{rdn_label(group_dn)}' konnte nicht zugewiesen werden: {ldap_error_text(conn)}"
-                    )
+            home_sid = result.get("home_sid")
         if home_sid:
             info["homeFolder"] = create_home(user, home_dir, home_sid, warnings)
         if mail_mode == "exchange":

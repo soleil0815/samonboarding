@@ -71,7 +71,7 @@ Diese fünf Punkte erklären das ganze Konzept:
 
 ### Oberfläche
 
-Nach der Anmeldung zeigt die **Startseite**, was ansteht: aktive Konten ohne Anmeldung seit 90 Tagen, gesperrte Konten und (für Administratoren) Konten, die bereit zum Löschen sind. Ein Klick öffnet die passende Liste. Unter **Aufgaben** folgt die Navigation dem Lebenszyklus eines Kontos: **Neuer Mitarbeiter** (Onboarding), **Benutzerverwaltung**, **Passwort zurücksetzen**, **Austritt** (Offboarding) und **Konten löschen**; Zahlen daneben zeigen, wie viele Konten dort warten. Darunter liegen **Einstellungen** (Templates, E-Mail-Benachrichtigung, AD-Struktur, Berichte, Zertifikat) und Hilfe. Mit **Strg + K** öffnet sich die Schnellsuche für Personen und Seiten. Rückmeldungen erscheinen als Meldung unten rechts. Fehler und lange Meldungen bleiben stehen, bis sie geschlossen werden. Auf Tablet und Handy klappt die Navigation über das Menü-Symbol oben links auf.
+Nach der Anmeldung zeigt die **Startseite**, was ansteht: aktive Konten ohne Anmeldung seit 90 Tagen, gesperrte Konten und (für Administratoren) Konten, die bereit zum Löschen sind. Ein Klick öffnet die passende Liste. Unter **Aufgaben** folgt die Navigation dem Lebenszyklus eines Kontos: **Neuer Mitarbeiter** (Onboarding), **Benutzerverwaltung**, **Passwort zurücksetzen**, **Austritt** (Offboarding) und **Konten löschen**; Zahlen daneben zeigen, wie viele Konten dort warten. Darunter liegen **Einstellungen** (Templates, E-Mail-Benachrichtigung, AD-Struktur, Berichte, Zertifikat, Diagnose) und Hilfe. Mit **Strg + K** öffnet sich die Schnellsuche für Personen und Seiten. Rückmeldungen erscheinen als Meldung unten rechts. Fehler und lange Meldungen bleiben stehen, bis sie geschlossen werden. Auf Tablet und Handy klappt die Navigation über das Menü-Symbol oben links auf.
 
 ![Startseite „Was steht an?“: Karten für Konten ohne Anmeldung seit 90 Tagen, gesperrte Konten und Konten bereit zum Löschen, links das gegliederte Menü mit Zählern](docs/images/start.png)
 
@@ -205,7 +205,7 @@ Alle Einstellungen stehen in der Datei **`.env`** (Vorlage: `env.example` am Rel
 | `AD_DC_IP` | `10.0.10.5` | IP-Adresse oder Name des Domain Controllers |
 | `CUSTOM_OPERATOR_GROUP` | leer | sAMAccountName einer zusätzlichen Gruppe, deren Mitglieder Operatoren sind. Die eingebaute Gruppe *Konten-Operatoren* (Account Operators) gilt immer, erkannt an ihrer SID |
 | `LDAP_CA_FILE` | leer | Pfad (im Container) zu einer CA-Datei im PEM-Format. Gesetzt: Das Zertifikat des DC wird geprüft |
-| `LDAP_ALLOW_PLAIN` | `false` | `true` = Fallback auf unverschlüsseltes LDAP (Port 389), falls 636 nicht erreichbar ist. Passwörter gehen dann im Klartext übers Netz – nur im Notfall |
+| `LDAP_ALLOW_PLAIN` | `false` | `true` = Fallback auf unverschlüsseltes LDAP (Port 389), falls 636 nicht erreichbar ist. Passwörter gehen dann im Klartext übers Netz – nur im Notfall. Ohne Wirkung, wenn `LDAP_CA_FILE` gesetzt ist (dann wird nie auf Klartext gewechselt) |
 | `SESSION_IDLE_MINUTES` | `30` | Abmeldung nach so vielen Minuten ohne Aktivität |
 | `SESSION_MAX_HOURS` | `12` | Höchstdauer einer Sitzung, auch bei durchgehender Aktivität. Danach neu anmelden (die Rolle wird dabei neu bestimmt) |
 | `HTTPS_PORT` | `9500` | Port für HTTPS im Container. Einen HTTP-Port gibt es nicht |
@@ -418,7 +418,7 @@ Für Templates mit der Einstellung *Exchange im eigenen Haus* führt die Anwendu
 | Exchange-Anbindung aktivieren | Schalter, standardmäßig **aus**. Ist er aus, bekommt ein Template mit *Exchange im eigenen Haus* nur eine Warnung und das Postfach wird nicht angelegt |
 | Exchange-Server | Servername ohne `https://` (z. B. `exchange01.firma.local`), erreichbar vom Container aus |
 | Port, HTTPS, Zertifikat prüfen | Standard `443`, HTTPS an, Prüfung an. Die Prüfung nur ausschalten, wenn das Zertifikat nicht anders vertraut werden kann |
-| Anmeldeart | *Automatisch (negotiate)*, bei Problemen *NTLM* oder *Kerberos* probieren |
+| Anmeldeart | *Automatisch (negotiate)*, bei Problemen *NTLM* oder *Kerberos* probieren. *Basic* schickt das Passwort selbst und wird nur mit HTTPS **und** Zertifikatsprüfung angenommen |
 | Postfach-Datenbank | leer = Exchange wählt selbst |
 | Domänencontroller | leer = derselbe DC, mit dem die Anwendung das Konto angelegt hat. So muss Exchange nicht auf die Replikation warten |
 
@@ -454,7 +454,7 @@ Aus der Liste der Quell-OUs ein Konto wählen. Es wird **deaktiviert**, aus **al
 
 **Mehrfachauswahl:** Über die Kontrollkästchen lassen sich bis zu 25 Konten auf einmal offboarden (Kopf-Kästchen = alle sichtbaren). Vor dem Start erscheint eine Bestätigung mit Anzahl und Namen. Die Konten werden nacheinander verarbeitet, ein Fehler bei einem Konto (z. B. geschützt, außerhalb der Quell-OU) stoppt die anderen nicht. Am Ende steht, was geklappt hat und was nicht. Jedes Konto hat einen eigenen Audit-Eintrag, die Benachrichtigungs-Mail ist eine Sammelmail.
 
-**Geschützte Konten:** Privilegierte Konten werden vom Server grundsätzlich abgelehnt (*403*), für alle Rollen. Als privilegiert gelten Mitglieder (auch über verschachtelte Gruppen oder als primäre Gruppe) von *Domänen-Admins*, *Schema-Admins*, *Organisations-Admins* und den eingebauten Gruppen *Administratoren*, *Konten-/Server-/Druck-/Sicherungs-Operatoren* sowie das integrierte Administratorkonto (RID 500) und `krbtgt`. In der Liste erscheinen solche Konten mit Schloss und ohne Auswahl. Die Prüfung liest für jedes Konto die echten Gruppen (`tokenGroups`) und nicht nur das Merkmal `adminCount`, das nicht jedes Verzeichnis pflegt. Beim Ausführen wird erneut geprüft. Soll ein solches Konto trotzdem bearbeitet werden, zuerst die Mitgliedschaft im AD entfernen.
+**Geschützte Konten:** Privilegierte Konten werden vom Server grundsätzlich abgelehnt (*403*), für alle Rollen. Als privilegiert gelten Mitglieder (auch über verschachtelte Gruppen oder als primäre Gruppe) von *Domänen-Admins*, *Schema-Admins*, *Organisations-Admins*, *Zertifikatherausgeber*, *Richtlinien-Ersteller-Besitzer*, *Schlüsseladministratoren*, *Organisationsschlüsseladministratoren*, den eingebauten Gruppen *Administratoren*, *Konten-/Server-/Druck-/Sicherungs-Operatoren* und der eigenen Operatorgruppe (`CUSTOM_OPERATOR_GROUP`) sowie das integrierte Administratorkonto (RID 500) und `krbtgt`. In der Liste erscheinen solche Konten mit Schloss und ohne Auswahl. Die Prüfung liest für jedes Konto die echten Gruppen (`tokenGroups`) und nicht nur das Merkmal `adminCount`, das nicht jedes Verzeichnis pflegt. Beim Ausführen wird erneut geprüft. Soll ein solches Konto trotzdem bearbeitet werden, zuerst die Mitgliedschaft im AD entfernen.
 
 **Wiederherstellen (Offboarding rückgängig machen):** Vor jedem Offboarding merkt sich die Anwendung, in welcher OU das Konto lag, in welchen Gruppen es war und ob es aktiv war. Unter *Offgeboardete Konten wiederherstellen* (unten auf der Offboarding-Seite) steht jedes so offgeboardete Konto mit dem Knopf **Wiederherstellen**:
 
@@ -572,7 +572,7 @@ Alles wird in **`data/reports.db`** (SQLite) geschrieben, ohne Passwörter. Admi
 - Gelöschte Einträge werden in der Datenbankdatei überschrieben (`secure_delete`) und lassen sich nicht wiederherstellen
 - Ein vorhandenes `audit.log` aus älteren Versionen wird beim ersten Start übernommen und danach entfernt
 
-Die Ausgabe des Containers (`docker compose logs -f`) gibt es weiterhin, begrenzt auf 3 × 10 MB. Zugriffe einzelner Browser (IP-Adressen) werden nicht protokolliert.
+Die Ausgabe des Containers (`docker compose logs -f`) gibt es weiterhin, begrenzt auf 3 × 10 MB. Zugriffe einzelner Browser (IP-Adressen) werden nicht protokolliert; nur eine fehlgeschlagene Anmeldung vermerkt die IP-Adresse, von der sie kam.
 
 Auskunft für eine betroffene Person (Art. 15 DSGVO), also alles, was die Anwendung über ein Konto gespeichert hat: in der Oberfläche unter *Datenschutz* oder per
 
@@ -649,7 +649,7 @@ In der `.env`:
 | `SAMONBOARDING_VERSION=` | Bedeutung |
 |---|---|
 | *(leer)* | immer die neueste Version (`latest`) |
-| `2.0` | die neueste 2.0.x samt Sicherheitsupdates, kein Sprung auf 2.1 oder 3.0 |
+| `2.0` | die neueste 2.0.x, kein Sprung auf 2.1 oder 3.0. Sicherheitsupdates (`-s1` …) gibt es nur, solange 2.0 die neueste Reihe ist – nach 2.1 dorthin wechseln |
 | `2.0.1` | genau diese Version (Sicherheitsupdates dazu heißen `2.0.1-s1`, `2.0.1-s2` …) |
 
 Danach `sudo docker compose pull && sudo docker compose up -d` (oder `sudo sh update.sh --version 2.0`).
@@ -695,7 +695,7 @@ Ein neuer Unterbau (z. B. Debian 14 oder Python 3.14) wird nie automatisch gewä
 
 ### Automatische Sicherheitsupdates
 
-Auf GitHub laufen zwei Workflows (`image.yml` mit den Bauschritten in `build.yml`, und `checks.yml`). Eine neue Programmversion kommt nur über einen Pull Request; ein Pull Request oder ein Merge prüft nur, veröffentlicht wird von Hand. Pull Requests und Pushes laufen mit einem Token **nur zum Lesen**, Code aus einem Pull Request kann also nie etwas committen oder veröffentlichen; Schreibrechte bekommen nur das Release und das Sicherheitsupdate, und die veröffentlichen nur von `main`.
+Auf GitHub laufen drei Workflows (`image.yml` mit den Bauschritten in `build.yml`, `checks.yml` und der ZAP-Scan `zap-scan.yml`). Eine neue Programmversion kommt nur über einen Pull Request; ein Pull Request oder ein Merge prüft nur, veröffentlicht wird von Hand. Pull Requests und Pushes laufen mit einem Token **nur zum Lesen**, Code aus einem Pull Request kann also nie etwas committen oder veröffentlichen; Schreibrechte bekommen nur das Release und das Sicherheitsupdate, und die veröffentlichen nur von `main`.
 
 | Wann | Was passiert |
 |---|---|
@@ -767,7 +767,7 @@ Ein Reverse Proxy ist nicht mehr nötig. Wer trotzdem einen verwendet, leitet an
 
 - Nur im internen Netz betreiben, **nicht** ins Internet stellen
 - **Rollen über SIDs:** Administrator ist, wer in *Domänen-Admins*, *Organisations-Admins* oder *Administratoren* ist; Operator, wer in *Konten-Operatoren* oder der eigenen Gruppe (`CUSTOM_OPERATOR_GROUP`) ist. Erkannt wird das an den festen SIDs der Gruppen, nicht am Namen. Das funktioniert damit auch auf deutschen DCs, und eine selbst angelegte Gruppe namens „Domain Admins“ gibt keine Rechte
-- **Was Operatoren nicht dürfen:** Geschützte Konten (Domänen-Admins & Co.) können nur Administratoren zurücksetzen, verschieben, ändern oder wiederherstellen, und nur Administratoren dürfen Konten in privilegierte Gruppen aufnehmen (z. B. Sicherungs-Operatoren, Schema-Admins). Offboarding und Löschen geschützter Konten sind für alle gesperrt
+- **Was Operatoren nicht dürfen:** Geschützte Konten (Domänen-Admins & Co.) können nur Administratoren zurücksetzen, verschieben, ändern oder wiederherstellen, und nur Administratoren dürfen Konten in privilegierte Gruppen aufnehmen (z. B. Sicherungs-Operatoren, Schema-Admins) – auch über ein Template beim Onboarding. Operatoren stellen offgeboardete Konten nur aus den aktuellen Quell-OUs wieder her und nur in Gruppen aus den freigegebenen Gruppen-OUs. Offboarding und Löschen geschützter Konten sind für alle gesperrt
 - **Prüfung am echten DN:** Freigegebene OUs werden an dem DN geprüft, den der DC zurückliefert. DN-Sonderformen wie `<GUID=…>` oder `<SID=…>` werden abgelehnt
 - **Löschen nur passender Ordner:** Ein Pfad aus dem AD-Attribut (Basisordner, Profilpfad) wird nur gelöscht, wenn der Ordnername zum Benutzernamen passt (`mueller` oder `mueller.V6`). Steht dort der Ordner eines anderen, wird er übersprungen
 - **Anfragen nur von der eigenen Seite:** Schreibende Anfragen mit fremdem `Origin` werden abgewiesen, zusätzlich zum Cookie mit `SameSite=Strict`. Wer doch einen Reverse Proxy einsetzt, muss den `Host`-Header unverändert durchreichen. Anfragen über 6 MB werden abgelehnt, und die automatische API-Dokumentation (`/docs`) ist abgeschaltet
@@ -864,9 +864,11 @@ samonboarding/
   references.py             Verweise auf OUs/Gruppen in den Einstellungen prüfen und nach Umbenennen anpassen
   routers/references.py     /api/references (Prüfung) und /api/references/repair (nur Admins)
   acl.py                    Windows-Sicherheitsdeskriptoren lesen/ändern (Besitz, Zugriffseintrag)
-  routers/                  je Funktionsbereich ein Modul (auth, settings, usermgmt, offboarding, restore,
-                            pwdreset, deletion, infrastructure, templates, onboarding, ui)
-  web/index.html            komplette Oberfläche (HTML + JavaScript)
+  routers/                  je Funktionsbereich ein Modul (auth, settings, usermgmt, offboarding, restore, pwdreset,
+                            deletion, infrastructure, templates, onboarding, dashboard, people, reports,
+                            certificate, diagnose, manual, news, privacy_info, references, ui)
+  web/index.html            Oberfläche (HTML)
+  web/app.js, web/theme.js  Logik der Oberfläche und die Darstellung, die vor dem Zeichnen gewählt wird
   web/theme.json            Farben und Schriften der Oberfläche (für den Docker-Build)
   web/i18n.json             englische Texte (Oberfläche, Meldungen, Mails)
   web/manual/               Handbuch (HANDBUCH.md, MANUAL.en.md) - erscheint in der Oberfläche unter Hilfe → Handbuch
@@ -876,7 +878,7 @@ samonboarding/
   datastate.py              Datenstand: Sicherung vor einem Versionswechsel, Migrationen, Schutz vor älteren Versionen
 DATENSCHUTZ.de.md           Datenschutz-Dokumentation (DSGVO), englisch: DATA-PROTECTION.md
 Dockerfile                  Stufe 1 baut Tailwind-CSS, Schriften (Inter, IBM Plex Mono) und Font Awesome, Stufe 2 ist die App
-tailwind.config.js          Tailwind scannt samonboarding/web/*.html, Farben und Schriften aus web/theme.json
+tailwind.config.js          Tailwind scannt samonboarding/web/*.html und *.js, Farben und Schriften aus web/theme.json
 tests/                      Unit-Tests und Szenarien (siehe Tests)
 pyproject.toml              Konfiguration von ruff, pyright und pytest
 requirements-dev.txt        Pakete zum Testen (exakte Versionen)
@@ -902,7 +904,7 @@ update.sh                   Update von Hand: vorherige Version merken, holen, st
 
 ### Hinweise
 
-- Änderungen am Code oder an **Tailwind-Klassen** in `web/index.html` brauchen ein neues Image. Für die Entwicklung lokal bauen: `docker build $(python3 scripts/pins.py build-args) -t samonboarding:dev .` und in einer `docker-compose.override.yml` `image: samonboarding:dev` eintragen. Veröffentlichte Images baut nur GitHub
+- Änderungen am Code oder an **Tailwind-Klassen** in `web/index.html` oder `web/app.js` brauchen ein neues Image. Für die Entwicklung lokal bauen: `docker build $(python3 scripts/pins.py build-args) -t samonboarding:dev .` und in einer `docker-compose.override.yml` `image: samonboarding:dev` eintragen. Veröffentlichte Images baut nur GitHub
 - Der Code steckt im Image und wird nicht vom Host eingebunden – so bringt ein zurückgeholtes Image beim Zurückrollen auch seinen eigenen Code mit
 - Die Python-Pakete sind bewusst minimal: `fastapi`, `uvicorn`, `ldap3`, `pydantic`, für die Dateiserver-Funktionen `smbprotocol` und für das Exchange-Postfach `pypsrp`
 
@@ -926,7 +928,7 @@ Der GitHub-Workflow führt ruff und pyright vor jedem Bau aus, pyright mit genau
 | `tests/test_exchange.py` | Exchange-Einstellungen prüfen, Aufrufe an die Exchange-Verwaltungsshell (mit Ersatzmodulen für `pypsrp`), Fehlermeldungen |
 | `tests/test_fileshare.py` | UNC-Pfadprüfung, Zielordner, Scan, Löschen mit Verknüpfungen und Besitzübernahme, Fehlerabbildung, Basisordner anlegen |
 | `tests/test_smb_requests.py` | Baut Berechtigungs-Anfragen mit den echten `smbprotocol`-Klassen (ohne Server). Wird ohne `smbprotocol` übersprungen |
-| `tests/test_ui.py` | Oberflächenlogik (JavaScript in `index.html`) unter Node.js mit Fake-DOM: Auswahl, Sammel-Simulation, Passwort-/Anzahl-Bestätigung, Fortschritt, Navigation, mobiles Menü, Meldungen, Wiederherstellen-Dialog, Sprachumschaltung, Laden nur des geöffneten Bereichs. Wird ohne Node.js übersprungen |
+| `tests/test_ui.py` | Oberflächenlogik (`web/app.js`) unter Node.js mit Fake-DOM: Auswahl, Sammel-Simulation, Passwort-/Anzahl-Bestätigung, Fortschritt, Navigation, mobiles Menü, Meldungen, Wiederherstellen-Dialog, Sprachumschaltung, Laden nur des geöffneten Bereichs. Wird ohne Node.js übersprungen |
 | `tests/test_adguid.py` | `objectGUID` lesen (Rohbytes) und als LDAP-Filter schreiben |
 | `tests/test_i18n.py` | Englisch: Wörterbuch, jede feste Fehlermeldung der API übersetzt, Mails in der gewählten Sprache |
 | `tests/test_hardening.py` | Sicherheitsprüfung: Ordnername passt zum Konto, Mail-Werte (Passwort) werden nie übersetzt, Absendername, Dateirechte 0600, Exchange basic nur mit HTTPS, Eingaben, DN-Sonderformen, Rollen-SIDs |
@@ -938,6 +940,11 @@ Der GitHub-Workflow führt ruff und pyright vor jedem Bau aus, pyright mit genau
 | `tests/test_scenarios.py` | Startet die Szenarien in `tests/scenarios/`: Anmeldung und Rollen, Onboarding, Offboarding, Gruppen, Einstellungen, Löschen (Simulation, Ausführung, Besitzübernahme, Mail), Wiederherstellen nach dem Offboarding, Templates, Sortierung, umbenannte/verschobene OUs und Gruppen |
 | `tests/test_update_sh.py` | `update.sh` mit nachgebautem `docker` unter dash: Update, Rückkehr bei Fehlstart, neuere `docker-compose.yml`, offline, Wiederherstellen, Aufräumen schont Daten auch über Verknüpfungen und eingebundene Ordner |
 | `tests/test_audit_2026_11.py`, `tests/ui/pdf.test.js`, `tests/ui/nav.test.js` | Code-Audit 2026-11: kein Klartext-Rückfall bei abgelehntem DC-Zertifikat, Löschschutz für Ordner anderer Konten, Gesundheitscheck ohne root, Sicherungen bei Migrationsfehlern und Löschfristen, Mails nur an das AD-Attribut `mail`, Menü je Rolle |
+| `tests/test_audit_2026_11b.py`, `tests/scenarios/scenario_audit_2026_11b.py`, `tests/ui/audit_2026_11b.test.js` | Code-Audit 2026-11 (voll): Administratorrolle während der Sitzung neu geprüft, kein Klartext-LDAP mit CA-Datei, privilegierte Template-Gruppen und die eigene Operatorgruppe, Exchange basic nur mit geprüftem Zertifikat, Ordner-Löschung gegen andere Konten und Verknüpfungen, Wiederherstellung für Operatoren eingegrenzt, erneutes Offboarding, Rückbau eines halb angelegten Kontos, anonymes Diagnosepaket, Listenfehler in der Oberfläche |
+| `tests/test_csp.py`, `tests/test_smoke_headers.py` | Content Security Policy (keine Inline-Skripte) und die Sicherheits-Header mit den echten Paketen |
+| `tests/test_dashboard.py`, `tests/test_last_logon.py`, `tests/test_people.py`, `tests/test_listcache.py` | Zahlen der Startseite, letzte Anmeldung, Schnellsuche, Listen-Zwischenspeicher je Sitzung |
+| `tests/test_news.py`, `tests/test_readme.py`, `tests/test_public_repo.py` | Neuigkeiten aus dem Changelog, README-Bilder und Links, nichts Privates im öffentlichen Repository |
+| `tests/test_reproducible.py`, `tests/test_speed.py` | Reproduzierbarer Image-Bau, Antwortzeiten der Schutzprüfung |
 | `tests/test_datastate.py` | Sicherung vor einem Versionswechsel, Migrationen, Abbruch bei Daten einer neueren Version, Kennung der `docker-compose.yml`, Startskript |
 | `tests/test_updatecheck.py`, `tests/ui/update_notice.test.js` | Versionsprüfung: nur veröffentlichte Versionsnummern, feste Versionen (Reihe/genau), Sicherheitsupdates, nichts mitgeschickt, eigene Proxy-Einstellung, stille Fehler, Hinweis nur für Administratoren, keine fremden Werte in Links oder Befehlen |
 | `tests/test_pins.py`, `tests/test_supply_chain.py` | Festgelegte Versionen und ihre Grenzen, Nummern der Sicherheitsupdates, Trivy (nachgestellt), Workflows auf GitHub |
