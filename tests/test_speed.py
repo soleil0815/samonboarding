@@ -145,7 +145,7 @@ class InfrastructureTests(unittest.TestCase):
             mock.patch.object(infrastructure, "ldap_search", search),
             mock.patch.object(infrastructure, "load_json", lambda *a: {"domain": "firma.local"}),
         ):
-            return infrastructure.get_ad_infrastructure(user={"sid": "s1"}, **params), searches
+            return infrastructure.get_ad_infrastructure(user={"sid": "s1", "role": "Administrator"}, **params), searches
 
     def test_only_ous_when_nothing_else_is_needed(self):
         out, searches = self.run_infra(gruppen=False, benutzer=False)

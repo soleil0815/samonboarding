@@ -38,7 +38,7 @@ SAMONBOARDING ist eine Weboberfläche für den Lebenszyklus von Benutzerkonten i
 | **Konten löschen** | Deaktivierte Konten samt Profil- und Basisordnern endgültig löschen (nur Administratoren) |
 | **Templates** | Vorlagen für das Onboarding |
 | **E-Mail-Benachrichtigung** | SMTP-Server und welche Mails verschickt werden |
-| **AD-Struktur** | Übersicht über OUs und Gruppen |
+| **AD-Struktur** | Übersicht über alle OUs und Gruppen der Domäne (nur Administratoren) |
 | **Berichte** | Wer hat wann was getan, Programm-Meldungen (nur Administratoren) |
 | **Zertifikat** | HTTPS-Zertifikat hochladen (nur Administratoren) |
 | **Diagnose** | Anonymes Diagnosepaket für die Fehlersuche (nur Administratoren) |
@@ -84,7 +84,7 @@ Die Rolle ergibt sich aus der Gruppenmitgliedschaft im AD. Erkannt wird sie an d
 | Onboarding, Benutzerverwaltung, Passwort, Offboarding, Wiederherstellen | ja, in den freigegebenen OUs | ja |
 | Einstellungen der Module, Templates | nur ansehen | ja |
 | SMTP- und Exchange-Einstellungen | nein | ja |
-| Konten löschen, Berichte, Zertifikat | nein | ja |
+| Konten löschen, Berichte, Zertifikat, AD-Struktur, Diagnose | nein | ja |
 | Geschützte Konten (z. B. Domänen-Admins) bearbeiten | nein | ja (Offboarding und Löschen: für niemanden) |
 | In privilegierte Gruppen aufnehmen | nein | ja |
 

@@ -7,6 +7,9 @@ Update auf dem Server: `sudo sh update.sh` oder `docker compose pull && docker c
 
 Einträge, die mit „Sicherheit:“ oder „Behoben:“ beginnen, werden in der Oberfläche entsprechend markiert.
 
+## 2.8.0 – 2026-11-23
+- Geändert: Die Struktur der Domäne sehen nur noch Administratoren. Operatoren (Konten-Operatoren und die eigene Operatorgruppe) sehen den Menüpunkt **AD-Struktur** nicht mehr, die Schnellsuche bietet ihn nicht mehr an, und der Server lehnt die Seite für sie ab wie die anderen Administrator-Seiten. Auch die Auswahllisten ihrer Seiten kommen nicht mehr aus der ganzen Domäne: Sie bekommen nur die freigegebenen Ziel-OUs fürs Verschieben und die Gruppen aus den Templates (für die Vorschau beim Onboarding) – nie die Liste aller OUs, Gruppen oder Benutzer.
+
 ## 2.7.1 – 2026-11-23
 Code-Audit 2026-11 (voller Audit wie am 3. jedes Monats).
 - Sicherheit: Wer im AD die Rolle Domänen-Admin verliert, verliert die Administrator-Seiten jetzt nach spätestens 5 Minuten und wird abgemeldet – vorher behielt eine offene Sitzung sie bis zu 12 Stunden auf Seiten, die das AD nie fragen (SMTP-Server, Zertifikat, Einstellungen).

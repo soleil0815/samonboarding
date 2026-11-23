@@ -7,6 +7,9 @@ Update on the server: `sudo sh update.sh` or `docker compose pull && docker comp
 
 Entries starting with "Security:" or "Fixed:" are marked accordingly in the interface.
 
+## 2.8.0 – 2026-11-23
+- Changed: the structure of the domain is for administrators only. Operators (Account Operators and the own operator group) no longer see the menu item **AD structure**, the quick search no longer offers it, and the server refuses the page to them like the other administrator pages. The selection lists of their pages no longer come from the whole domain either: they get only the target OUs released for moving and the groups named in the templates (for the preview during onboarding) – never the list of all OUs, groups or users.
+
 ## 2.7.1 – 2026-11-23
 Code audit 2026-11 (full audit, as on the 3rd of every month).
 - Security: an administrator who loses the Domain Admins role in the AD now loses the admin pages within 5 minutes and is signed out – before, an open session kept them for up to 12 hours on pages that never ask the AD (SMTP server, certificate, settings).

@@ -451,6 +451,9 @@ function setupRoleVisibility(role) {
     if(navCert) navCert.style.display = role === "Administrator" ? '' : 'none';
     const navDiagnose = document.getElementById('nav-diagnose');
     if(navDiagnose) navDiagnose.style.display = role === "Administrator" ? '' : 'none';
+    // The structure of the whole domain (all OUs and groups) is for administrators only
+    const navInfra = document.getElementById('nav-infra');
+    if(navInfra) navInfra.style.display = role === "Administrator" ? '' : 'none';
     // Support card on the start page: only administrators see it
     const startCoffee = document.getElementById('start-coffee');
     if(startCoffee) startCoffee.style.display = role === "Administrator" ? '' : 'none';
@@ -3143,21 +3146,25 @@ const INFRA_GROUPS = new Set(['hire', 'templates', 'infra']);
 const INFRA_USERS = new Set(['templates']);
 function infraQuery(tab, force) {
     const q = [`gruppen=${INFRA_GROUPS.has(tab) ? 1 : 0}`, `benutzer=${INFRA_USERS.has(tab) ? 1 : 0}`];
+    if(tab === 'infra') q.push('struktur=1');  // the page "AD-Struktur": administrators only (the server checks)
     if(force === true) q.push('frisch=1');
     return '?' + q.join('&');
 }
 
 async function loadInfrastructure(force) {
     const res = await fetch('/api/ad/infrastructure' + infraQuery(currentTab, force));
-    if(res.ok) {
-        adData = Object.assign({}, adData, await res.json());
-        if (adData.error && !window._infraErrShown) {
-            window._infraErrShown = true;
-            alert("AD-Abfrage fehlgeschlagen: " + adData.error);
-        }
-        populateDropdowns();
-        renderInfraView();
+    if(!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        if(res.status === 403) showToast(detailText(data.detail) || 'Nur Administratoren.', 'error');
+        return;
     }
+    adData = Object.assign({}, adData, await res.json());
+    if (adData.error && !window._infraErrShown) {
+        window._infraErrShown = true;
+        alert("AD-Abfrage fehlgeschlagen: " + adData.error);
+    }
+    populateDropdowns();
+    renderInfraView();
 }
 
 // ---------------------------------------------------------------
