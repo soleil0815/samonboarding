@@ -147,6 +147,8 @@ ENV_RULES = {
     "LDAP_CA_FILE": "set",
     "LDAP_ALLOW_PLAIN": "show",
     "LDAP_SASL_ENCRYPTION": "show",
+    "LDAP_KERBEROS": "show",
+    "KRB5_CONFIG": "show",  # set by the program itself (kerberos.py): path of the generated krb5.conf
     "SESSION_IDLE_MINUTES": "show",
     "SESSION_MAX_HOURS": "show",
     "HTTPS_PORT": "show",

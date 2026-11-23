@@ -15,6 +15,9 @@ Pinned in `requirements.txt`, installed from PyPI at build time. / Feste Version
 | Uvicorn | BSD-3-Clause | Webserver / web server |
 | ldap3 | LGPL-3.0-or-later | LDAP-Zugriff, unverändert als Bibliothek genutzt / LDAP access, used unchanged as a library |
 | smbprotocol, pyspnego | MIT | Dateiserver über SMB / file servers via SMB |
+| gssapi | ISC | Kerberos für die verschlüsselte LDAP-Verbindung ohne Zertifikat / Kerberos for the encrypted LDAP connection without a certificate |
+| krb5 | MIT | Kerberos (Anmeldung mit Passwort) / Kerberos (sign-in with a password) |
+| decorator | BSD-2-Clause | Unterabhängigkeit von gssapi / sub-dependency of gssapi |
 | pypsrp | MIT | Exchange über PowerShell Remoting / Exchange via PowerShell remoting |
 | cryptography | Apache-2.0 oder/or BSD-3-Clause | TLS, Zertifikate / TLS, certificates |
 | requests, opentelemetry-api | Apache-2.0 | Unterabhängigkeiten / sub-dependencies |
@@ -41,8 +44,8 @@ Beim Docker-Build aus npm geholt (feste Versionen in `package.json` und `package
 
 ## Docker base image / Docker-Basisimage
 
-`python:3.13-slim-trixie` (Debian 13; exact version and digest in `images.lock`, Debian packages in `os-packages.lock`). Contains software under various free licences; details in the image under `/usr/share/doc/*/copyright`. The Node image from `images.lock` is only used for building and is not part of the final image.
-Enthält Software unter verschiedenen freien Lizenzen; Details im Image unter `/usr/share/doc/*/copyright`. Das Node-Image aus `images.lock` wird nur beim Bau genutzt und ist nicht im fertigen Image enthalten.
+`python:3.13-slim-trixie` (Debian 13; exact version and digest in `images.lock`, Debian packages in `os-packages.lock`). Contains software under various free licences; details in the image under `/usr/share/doc/*/copyright`. The Node image from `images.lock` is only used for building and is not part of the final image. The MIT Kerberos libraries (`libgssapi-krb5-2`, `libkrb5-3`, MIT licence) are installed from the same Debian snapshot; gssapi and krb5 are compiled against them in a separate build stage (compiler and headers are not in the final image).
+Enthält Software unter verschiedenen freien Lizenzen; Details im Image unter `/usr/share/doc/*/copyright`. Das Node-Image aus `images.lock` wird nur beim Bau genutzt und ist nicht im fertigen Image enthalten. Die MIT-Kerberos-Bibliotheken (`libgssapi-krb5-2`, `libkrb5-3`, MIT-Lizenz) kommen aus demselben Debian-Snapshot; gssapi und krb5 werden in einer eigenen Bau-Stufe dagegen kompiliert (Compiler und Header sind nicht im fertigen Image).
 
 ## Trademarks / Marken
 

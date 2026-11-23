@@ -7,6 +7,13 @@ Update auf dem Server: `sudo sh update.sh` oder `docker compose pull && docker c
 
 Einträge, die mit „Sicherheit:“ oder „Behoben:“ beginnen, werden in der Oberfläche entsprechend markiert.
 
+## 2.10.0 – 2026-11-23
+- Neu: Kerberos für die verschlüsselte Verbindung ohne Zertifikat. Hat der DC kein LDAPS, meldet sich die Anwendung auf Port 389 jetzt zuerst mit Kerberos an und verschlüsselt damit (AES); der DC weist sich dabei aus, und es funktioniert auch in Domänen, in denen NTLM abgeschaltet ist. NTLM bleibt der Rückfall.
+  - Voraussetzungen: `AD_DC_IP` als DNS-Name des DC (z. B. `dc01.firma.local`, keine IP-Adresse – das Ticket wird genau für diesen Namen ausgestellt), Port 88 (TCP) vom Server zum DC und eine Uhrzeit, die weniger als 5 Minuten abweicht. Sonst nichts einzustellen: Das Programm schreibt seine Kerberos-Konfiguration selbst aus `AD_DOMAIN` und `AD_DC_IP`; Tickets bleiben nur im Speicher.
+  - Ein falsches Passwort wird nie zusätzlich mit NTLM probiert (es zählte sonst doppelt für die Kontosperre). Hat Kerberos für einen DC einmal funktioniert, weicht die Anwendung für ihn nie mehr auf NTLM aus (bis zum nächsten Neustart).
+  - `LDAP_KERBEROS=false` schaltet es ab (nur NTLM). Das Diagnosepaket zeigt `ldap-sealed-kerberos` oder `ldap-sealed-ntlm`.
+  - Das Image enthält jetzt die MIT-Kerberos-Bibliotheken und die Python-Pakete gssapi und krb5 (in einer eigenen Bau-Stufe kompiliert).
+
 ## 2.9.0 – 2026-11-23
 - Neu: funktioniert mit Domänencontrollern ohne LDAPS. Viele Windows-Domänen haben kein Zertifikat auf ihren DCs. Ist LDAPS (Port 636) nicht verfügbar, verbindet sich die Anwendung jetzt über Port 389 und verschlüsselt die Verbindung mit NTLM („Sign & Seal“, wie Windows-Werkzeuge, etwa RSAT). Anmeldung, alle Änderungen und das Setzen von Passwörtern (Onboarding, Passwort zurücksetzen) funktionieren so – auch wenn der DC LDAP-Signierung verlangt. Vorher blieb nur der Klartext-Rückfall `LDAP_ALLOW_PLAIN`, mit dem sich nie Passwörter setzen ließen.
   - Nichts einzustellen: `LDAP_SASL_ENCRYPTION=true` ist Standard; `false` = nur LDAPS. Mit `LDAP_CA_FILE` gibt es weiterhin nie einen Rückfall.

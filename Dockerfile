@@ -38,7 +38,40 @@ RUN npx tailwindcss -c tailwind.config.js -i tailwind.input.css -o dist/app.css 
  && ls dist/vendor/fonts/files | grep -q 'ibm-plex-mono-latin-400-normal.woff2'
 
 # ---------------------------------------------------------------------------
-# Stage 2: the application itself
+# Stage 2: Kerberos for Python (gssapi, krb5) - compiled here against the MIT Kerberos libraries of the same
+# Debian snapshot, because PyPI has no Linux wheels for them. Compiler and headers stay in this stage; the final
+# image only gets the two wheels and the Kerberos runtime libraries. Build tools with exact versions
+# (requirements-build.txt), the two packages with the versions from requirements.txt.
+# ---------------------------------------------------------------------------
+FROM ${PYTHON_IMAGE} AS kerberos
+ARG DEBIAN_SNAPSHOT
+WORKDIR /build
+RUN set -eu; \
+    test -n "${DEBIAN_SNAPSHOT:-}" || { echo "DEBIAN_SNAPSHOT is missing (images.lock)"; exit 1; }; \
+    . /etc/os-release; \
+    key=""; for f in /usr/share/keyrings/debian-archive-keyring.pgp /usr/share/keyrings/debian-archive-keyring.gpg; do \
+      if [ -f "$f" ]; then key="$f"; break; fi; done; \
+    test -n "$key" || { echo "Debian archive keyring missing"; exit 1; }; \
+    rm -f /etc/apt/sources.list /etc/apt/sources.list.d/*; \
+    for archive in debian debian-security; do \
+      if [ "$archive" = debian ]; then suites="$VERSION_CODENAME $VERSION_CODENAME-updates"; \
+      else suites="$VERSION_CODENAME-security"; fi; \
+      printf 'Types: deb\nURIs: http://snapshot.debian.org/archive/%s/%s\nSuites: %s\nComponents: main\nSigned-By: %s\n\n' \
+        "$archive" "$DEBIAN_SNAPSHOT" "$suites" "$key" >> /etc/apt/sources.list.d/snapshot.sources; \
+    done; \
+    apt_opts="-o Acquire::Check-Valid-Until=false -o Acquire::Retries=5 -o Acquire::http::Timeout=60"; \
+    apt-get $apt_opts update; \
+    DEBIAN_FRONTEND=noninteractive apt-get $apt_opts install -y --no-install-recommends gcc libc6-dev libkrb5-dev
+COPY requirements.txt requirements-build.txt ./
+ENV PIP_DISABLE_PIP_VERSION_CHECK=1
+RUN pip install --no-cache-dir --no-deps -r requirements-build.txt \
+ && grep -E '^(gssapi|krb5)==' requirements.txt > kerberos.txt \
+ && test "$(wc -l < kerberos.txt)" -eq 2 \
+ && pip wheel --no-cache-dir --no-deps --no-build-isolation -w /wheels -r kerberos.txt \
+ && ls /wheels/gssapi-*.whl /wheels/krb5-*.whl
+
+# ---------------------------------------------------------------------------
+# Stage 3: the application itself
 # ---------------------------------------------------------------------------
 # Official, lightweight Python image with a fixed version
 FROM ${PYTHON_IMAGE}
@@ -67,6 +100,8 @@ RUN set -eu; \
     apt-get $apt_opts update; \
     DEBIAN_FRONTEND=noninteractive apt-get $apt_opts full-upgrade -y --no-install-recommends; \
     test -f /usr/share/zoneinfo/Europe/Berlin || DEBIAN_FRONTEND=noninteractive apt-get $apt_opts install -y --no-install-recommends tzdata; \
+    # Kerberos runtime (MIT) for the encrypted LDAP connection without a certificate (gssapi, krb5 - see stage 2)
+    DEBIAN_FRONTEND=noninteractive apt-get $apt_opts install -y --no-install-recommends libgssapi-krb5-2 libkrb5-3; \
     apt-get clean; \
     rm -rf /var/lib/apt/lists/*
 
@@ -80,10 +115,13 @@ WORKDIR /app
 # pip check verifies that everything fits together
 ENV PIP_DISABLE_PIP_VERSION_CHECK=1 PYTHONDONTWRITEBYTECODE=1
 COPY requirements.txt .
+COPY --from=kerberos /wheels /tmp/wheels
 # pip, setuptools and wheel are only needed for installing, not at runtime. pip brings its own copies of urllib3,
 # certifi and msgpack, which are often outdated (Trivy findings) - so all of it is removed after the check,
 # including the copy of pip in ensurepip.
-RUN pip install --no-cache-dir --no-deps -r requirements.txt && pip check \
+RUN pip install --no-cache-dir --no-deps /tmp/wheels/*.whl && rm -rf /tmp/wheels \
+ && pip install --no-cache-dir --no-deps -r requirements.txt && pip check \
+ && python -c "import gssapi, krb5" \
  && (pip uninstall -y setuptools wheel >/dev/null 2>&1 || true) && pip check \
  && python -m pip uninstall -y pip \
  && rm -rf /usr/local/lib/python3*/ensurepip/_bundled \

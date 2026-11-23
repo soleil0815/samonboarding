@@ -49,7 +49,9 @@ jobs:
           /tmp/lint/bin/pip install --quiet --disable-pip-version-check "ruff==$(sed -n 's/^ruff==//p' requirements-dev.txt)"
           /tmp/lint/bin/ruff check .
           /tmp/lint/bin/ruff format --check .
-          # type check against exactly the package versions of the image (requirements.txt)
+          # type check against exactly the package versions of the image (requirements.txt); gssapi and krb5 are
+          # compiled (no Linux wheels) and need the Kerberos headers
+          sudo apt-get update -qq && sudo DEBIAN_FRONTEND=noninteractive apt-get install -qq -y --no-install-recommends libkrb5-dev
           /tmp/lint/bin/pip install --quiet --disable-pip-version-check --no-deps -r requirements.txt
           /tmp/lint/bin/pip install --quiet --disable-pip-version-check "pyright==$(sed -n 's/^pyright==//p' requirements-dev.txt)"
           /tmp/lint/bin/pyright --pythonpath /tmp/lint/bin/python
