@@ -97,8 +97,9 @@ def record(**fields):
 
 def record_entry(*, user_guid, sam, name, original_dn, original_ou, was_enabled, groups, actor):
     """Returns (id, created). Create an entry (before offboarding). An open entry for the same account is
-    replaced - unless the account still sits where that entry left it: then it is being offboarded a second time (e.g. from the OU of offboarded
-    accounts) and the entry with the real previous OU and groups is kept (code audit 2026-11b)."""
+    replaced - unless the account still sits where that entry left it: then it is being offboarded a second time
+    (e.g. from the OU of offboarded accounts) and the entry with the real previous OU and groups is kept
+    (code audit 2026-11b)."""
     with _db() as conn:
         if user_guid:
             same = conn.execute(
