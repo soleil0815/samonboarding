@@ -30,15 +30,15 @@ Dieses Dokument beschreibt, welche personenbezogenen Daten SAMONBOARDING verarbe
 | Daten | Wo | Zweck |
 |---|---|---|
 | Kontodaten im AD (Name, Benutzername, E-Mail, Abteilung, Firma, Telefon, Manager, OU, Gruppen; in der Offboarding-Liste zusätzlich die ungefähre letzte Anmeldung `lastLogonTimestamp` – nur angezeigt, nie gespeichert oder protokolliert; die Startseite bekommt davon nur Anzahlen, keine Namen) | **Im Active Directory**, nicht in der Anwendung. SAMONBOARDING liest und schreibt sie nur dort | Kontoverwaltung |
-| Berichte – Änderungen: Zeitpunkt, ausführender Benutzer, Aktion, Zielkonto (DN), Ergebnis, ggf. Fehlermeldung. **Keine Passwörter** | `data/reports.db` (SQLite, Tabelle `audit`) | Nachvollziehbarkeit, Sicherheit |
+| Berichte – Änderungen: Zeitpunkt, ausführender Benutzer, Aktion, Zielkonto (DN), Ergebnis, ggf. Fehlermeldung; bei einer fehlgeschlagenen Anmeldung auch der eingetippte Benutzername und die IP-Adresse des Rechners, von dem sie kam. **Keine Passwörter** | `data/reports.db` (SQLite, Tabelle `audit`) | Nachvollziehbarkeit, Sicherheit |
 | Berichte – Protokoll: Meldungen des Programms ab Stufe *Info* (z. B. Verbindungsfehler); kann Kontonamen oder Pfade enthalten. **Keine Passwörter, keine IP-Adressen je Zugriff** | `data/reports.db` (Tabelle `applog`) | Betrieb, Fehlersuche |
-| Wiederherstellungs-Einträge: Benutzername, Name, frühere OU, Gruppen, ob aktiv, wann und von wem offgeboardet. **Keine Passwörter** | `data/offboarding.db` (SQLite) | Rückgängig machen eines versehentlichen Offboardings |
+| Wiederherstellungs-Einträge: Benutzername, Name, frühere OU, Gruppen, ob aktiv, wann und von wem offgeboardet; nach einem Löschversuch, der Ordner, aber nicht das Konto gelöscht hat, auch diese Ordnerpfade. **Keine Passwörter** | `data/offboarding.db` (SQLite) | Rückgängig machen eines versehentlichen Offboardings |
 | Anmeldesitzung inkl. Passwort des angemeldeten Admins (für die Anmeldung am DC mit seinen eigenen Rechten) | **Nur im Arbeitsspeicher**, nie auf der Festplatte. Weg nach Abmelden, 30 Minuten ohne Aktivität oder Neustart | Zugriff mit den Rechten des Benutzers |
 | Konfiguration (SMTP-Zugang, Templates, OUs) | `data/*.json` | Betrieb |
 | Merkliste der Verweise: Pfad (DN) und objectGUID der OUs und Gruppen, die in den Einstellungen und Templates gewählt sind. **Keine Konten, keine Personendaten** | `data/verweise.json` | Hinweis, wenn eine OU/Gruppe im AD umbenannt, verschoben oder gelöscht wurde |
 | Kontolisten der Module und AD-Struktur (Namen/DNs für die Auswahllisten) (Zwischenspeicher, damit der Wechsel zwischen den Bereichen schnell geht) | **Nur im Arbeitsspeicher**, je Sitzung; nach 60 Sekunden ungültig und beim nächsten Zugriff entfernt, sofort geleert bei jeder Änderung, beim Abmelden und beim Neustart. **Keine Kopie in einer Datenbank** | Bedienung |
 | Benachrichtigungs-Mails (bei Onboarding und Passwort-Reset mit neuem Passwort) | Eigener Mailserver, Postfach des ausführenden Mitarbeiters | Übergabe der Zugangsdaten |
-| Spracheinstellung DE/EN, zuletzt gelesene Version der Neuigkeiten und Zeitpunkt der letzten Aktivität (für die Abmeldung bei Leerlauf) | `localStorage` im Browser | Bedienung |
+| Spracheinstellung DE/EN, Darstellung (hell/dunkel/wie das System), zuletzt gelesene Version der Neuigkeiten und Zeitpunkt der letzten Aktivität (für die Abmeldung bei Leerlauf); nur für den aktuellen Tab der Hinweis, dass die Sitzung beendet wurde | `localStorage` und `sessionStorage` im Browser. **Keine Daten aus dem AD** | Bedienung |
 | Container-Protokoll (Fehler, Hinweise) | Docker-Log, rotiert (3 × 10 MB) | Betrieb / Fehlersuche |
 | Diagnosepaket (nur auf Anforderung eines Administrators): Version, Einstellungen, Antwortzeiten, Warnungen und Fehler – **anonymisiert** (Namen, OUs, Gruppen, Server, IP- und E-Mail-Adressen, Freigaben durch Platzhalter ersetzt; die Zuordnung wird nicht gespeichert). **Keine Passwörter, keine Tokens** | Wird heruntergeladen, nicht gespeichert und nirgends hingeschickt; über die Kommandozeile in `data/diagnose/` (löschen, wenn nicht mehr gebraucht). Die Erstellung steht in den Berichten | Fehlersuche, Support |
 
@@ -63,7 +63,7 @@ Dieses Dokument beschreibt, welche personenbezogenen Daten SAMONBOARDING verarbe
   ```bash
   docker compose exec samonboarding python -m samonboarding.privacy bereinigen
   ```
-- **Backups:** Wenn `data/` gesichert wird, gelten die Fristen auch für die Sicherungen. Plant die Aufbewahrung der Backups passend. Das Programm legt vor jedem Versionswechsel selbst eine Sicherung in `data/backups/` an (nur für den Programmbenutzer lesbar) und behält nur die letzten 10. Diese Sicherungen enthalten auch Berichte und Protokoll: Die tägliche Bereinigung löscht sie, sobald sie älter als die längste Frist sind (dann ist alles darin abgelaufen); ist eine Frist `0`, bleiben sie. Ältere Sicherungen in `backups/` neben der `docker-compose.yml` stammen von `update.sh` bis Version 1.48 und können nach Prüfung gelöscht werden.
+- **Backups:** Wenn `data/` gesichert wird, gelten die Fristen auch für die Sicherungen. Plant die Aufbewahrung der Backups passend. Das Programm legt vor jedem Versionswechsel selbst eine Sicherung in `data/backups/` an (nur für den Programmbenutzer lesbar) und behält nur die letzten 10. Diese Sicherungen enthalten auch Berichte, Protokoll und Wiederherstellungs-Einträge (`offboarding.db`): Die tägliche Bereinigung löscht sie, sobald sie älter als die längste Frist sind (dann ist alles darin abgelaufen); ist eine Frist `0`, bleiben sie. Ältere Sicherungen in `backups/` neben der `docker-compose.yml` stammen von `update.sh` bis Version 1.48 und können nach Prüfung gelöscht werden.
 
 ---
 
@@ -73,7 +73,8 @@ Dieses Dokument beschreibt, welche personenbezogenen Daten SAMONBOARDING verarbe
 - Die Anwendung läuft im Container nicht als root, sondern als eigener Benutzer ohne Sonderrechte; nur er kann `data/` lesen.
 - Anmeldung nur mit AD-Konto. Jede Aktion läuft mit den Rechten des angemeldeten Benutzers am DC, nicht mit einem Dienstkonto.
 - Rollen: Operator oder Administrator. Löschen und Verwerfen ist nur Administratoren erlaubt, und der Server prüft das.
-- Domänen-Admin-Konten sind vor Offboarding und Löschung geschützt.
+- Privilegierte Konten (Mitglieder von Domänen-, Schema- und Organisations-Admins, Administratoren, den Operator-Gruppen einschließlich `CUSTOM_OPERATOR_GROUP`, Zertifikatherausgeber, Richtlinien-Ersteller-Besitzer, Schlüsseladministratoren und Organisationsschlüsseladministratoren sowie das integrierte Administratorkonto und `krbtgt`) sind vor Offboarding und Löschung geschützt.
+- Wer im AD aus den Administratorgruppen entfernt wird, verliert die Administratorfunktionen nach spätestens 5 Minuten, auch in einer offenen Sitzung.
 - Sperre nach wiederholten Fehlanmeldungen (Standard 5 Versuche / 5 Minuten).
 - Sitzungs-Cookie mit `HttpOnly`, `SameSite=Strict` und `Secure`; es endet mit dem Browser. Sitzungen liegen nur im Arbeitsspeicher und enden nach 30 Minuten ohne Aktivität (Server und Oberfläche).
 
@@ -84,13 +85,13 @@ Dieses Dokument beschreibt, welche personenbezogenen Daten SAMONBOARDING verarbe
 - **Nur HTTPS** (TLS 1.2/1.3, moderne Verfahren). Es gibt keinen HTTP-Port. Eigenes Zertifikat (Upload in der Oberfläche unter *Zertifikat* oder Dateien in `data/tls/`), sonst selbstsigniert; mit eigenem Zertifikat zusätzlich HSTS.
 
 **Datensparsamkeit**
-- Keine Passwörter in Berichten, Datenbanken oder Container-Protokoll. Einzelne Zugriffe (IP-Adressen) werden nicht protokolliert.
+- Keine Passwörter in Berichten, Datenbanken oder Container-Protokoll. Einzelne Zugriffe (IP-Adressen) werden nicht protokolliert; nur eine fehlgeschlagene Anmeldung vermerkt die IP-Adresse, von der sie kam (Nachvollziehbarkeit, Erkennen von Passwort-Raten).
 - Keine Kopie der AD-Daten. Die Anwendung speichert nur das Nötigste für Nachweis und Wiederherstellung.
 
 **Trennung vom Internet**
 - Keine externen Ressourcen. Ein Content-Security-Policy-Header verbietet dem Browser fremde Server.
 - Keine CDNs, keine Telemetrie. Einzige Verbindung ins Internet ist die tägliche Versionsprüfung des Servers bei GitHub: ein einfacher Abruf der öffentlichen Versionsliste ohne mitgeschickte Daten, abschaltbar mit `UPDATE_CHECK=false`. IPv6 ist für das Container-Netz abgeschaltet.
-- Security-Header: `X-Frame-Options: DENY`, `X-Content-Type-Options: nosniff` und `Referrer-Policy: same-origin`.
+- Security-Header: `X-Frame-Options: DENY`, `X-Content-Type-Options: nosniff`, `Referrer-Policy: same-origin`, `Cross-Origin-Opener-Policy` und `Cross-Origin-Resource-Policy: same-origin`.
 
 **Speicherbegrenzung**
 - Automatische Löschung nach Fristen ([Abschnitt 3](#3-speicherdauer-und-automatische-löschung)).

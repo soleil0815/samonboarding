@@ -593,7 +593,8 @@
                             <div><strong id="prev-lbl-groups" class="text-slate-300 block mb-1">Zugewiesene Gruppen:</strong> <span id="prev-groups" translate="no" class="text-cyan-400 font-sans block leading-relaxed">-</span></div>
                         </div>
 
-                        <button data-on-click="submitOnboarding()" id="btn-submit-onboard" class="btn-primary w-full py-3.5 rounded-xl font-semibold text-white text-sm">
+                        <p id="hire-no-templates" class="hidden text-xs text-amber-300/90"><i class="fa-solid fa-circle-info mr-1" aria-hidden="true"></i> Noch kein Template vorhanden - ohne Template kann kein Konto angelegt werden. Administratoren legen eines unter „Templates“ an.</p>
+                        <button data-on-click="submitOnboarding()" id="btn-submit-onboard" class="btn-primary w-full py-3.5 rounded-xl font-semibold text-white text-sm disabled:opacity-40 disabled:cursor-not-allowed">
                             Mitarbeiter im Active Directory anlegen
                         </button>
                     </div>
@@ -1253,6 +1254,7 @@
     <div id="move-user-modal" class="modal-backdrop hidden">
         <div class="modal-panel bg-slate-900 border border-slate-800 rounded-2xl max-w-md w-full p-6 space-y-5 shadow-2xl relative">
             <h3 class="text-lg font-bold text-slate-100 flex items-center gap-2"><i class="fa-solid fa-folder-tree text-cyan-400"></i> Benutzer in andere OU verschieben</h3>
+            <p class="text-xs text-slate-400 -mt-3">Konto: <strong id="move-user-name" translate="no" class="font-mono text-slate-100"></strong></p>
             <input type="hidden" id="move-user-dn">
             <div>
                 <label class="block text-xs text-slate-400 mb-1.5">Ziel-OU wählen (Nur konfigurierte Ziel-OUs)</label>
@@ -1286,6 +1288,7 @@
     <div id="pwdreset-modal" class="modal-backdrop hidden">
         <div class="modal-panel bg-slate-900 border border-slate-800 rounded-2xl max-w-md w-full p-6 space-y-5 shadow-2xl relative">
             <h3 class="text-lg font-bold text-slate-100 flex items-center gap-2"><i class="fa-solid fa-key text-cyan-400"></i> Kennwort zurücksetzen</h3>
+            <p class="text-xs text-slate-400 -mt-3">Konto: <strong id="pwdreset-target-name" translate="no" class="font-mono text-slate-100"></strong></p>
             <input type="hidden" id="pwdreset-target-dn">
             
             <div>
@@ -1339,7 +1342,7 @@
                 <button data-on-click="copyToClipboard()" id="btn-copy-clip" class="btn-primary py-2.5 rounded-xl text-xs font-semibold text-white"><i class="fa-solid fa-copy mr-1"></i> Kopieren</button>
                 <button data-on-click="generatePDF()" id="btn-pdf-print" class="py-2.5 bg-emerald-600 hover:bg-emerald-500 rounded-xl text-xs font-semibold text-white shadow"><i class="fa-solid fa-file-pdf mr-1"></i> PDF-Zugangsdaten</button>
             </div>
-            <button data-on-click="hideElement('result-modal'); resetOnboardingForm()" id="btn-close-res" class="w-full py-2 bg-slate-800 hover:bg-slate-700 rounded-xl text-xs font-medium text-slate-300">Schließen</button>
+            <button data-on-click="closeResultModal()" id="btn-close-res" class="w-full py-2 bg-slate-800 hover:bg-slate-700 rounded-xl text-xs font-medium text-slate-300">Schließen</button>
         </div>
     </div>
 

@@ -11,7 +11,7 @@ import logging
 
 import ldap3
 
-from . import acl, listcache, timing
+from . import acl, config, listcache, timing
 from .dn import ldap_escape
 
 log = logging.getLogger(__name__)
@@ -87,6 +87,39 @@ def _sid_list(entry, attr):
     return out, True
 
 
+def _dc_base(dn):
+    return ",".join(p for p in dn.split(",") if p.strip().lower().startswith("dc="))
+
+
+def custom_operator_sids(conn, dn):
+    """SIDs of the own operator group (CUSTOM_OPERATOR_GROUP): its members get operator rights in this program, so
+    they are protected like the members of the built-in Account Operators (code audit 2026-11b). Returns an empty
+    set without such a group and None when the lookup failed (callers then refuse, as with every failed check)."""
+    name = config.CUSTOM_OPERATOR_GROUP
+    if not name:
+        return set()
+    flt = f"(&(objectClass=group)(sAMAccountName={ldap_escape(name)}))"
+    try:
+        from .ldap_client import ldap_search  # here: ldap_client is loaded after this module
+
+        out = set()
+        for row in ldap_search(conn, _dc_base(dn), flt, ["objectSid"]):
+            values = row.get("objectSid")
+            for value in values if isinstance(values, (list, tuple)) else [values]:
+                try:
+                    out.add(acl.sid_from_ldap(value))
+                except (acl.AclError, ValueError, TypeError):
+                    continue
+        return out
+    except Exception as e:
+        log.warning("Eigene Operatorgruppe nicht lesbar: %s", e)
+        return None
+
+
+def _custom_label():
+    return f"Mitglied von „{config.CUSTOM_OPERATOR_GROUP}“ (Operatorgruppe)"
+
+
 def privileged_reason(conn, user_dn):
     """Reason why the account is protected (empty = not protected). A single LDAP query."""
     if not conn.search(
@@ -113,6 +146,12 @@ def privileged_reason(conn, user_dn):
             rid = sid.rsplit("-", 1)[-1]
             if rid.isdigit() and int(rid) in DOMAIN_GROUP_RIDS:
                 return f"Mitglied von „{DOMAIN_GROUP_RIDS[int(rid)]}“"
+    if groups and config.CUSTOM_OPERATOR_GROUP:
+        custom = custom_operator_sids(conn, user_dn)
+        if custom is None:
+            return "Schutzprüfung nicht möglich"
+        if custom & set(groups):
+            return _custom_label()
     if not groups:
         # tokenGroups not readable (otherwise it always contains at least the primary group)
         log.warning("tokenGroups fuer %s nicht lesbar - pruefe adminCount und die verschachtelten Gruppen", user_dn)
@@ -128,7 +167,10 @@ def privileged_reason(conn, user_dn):
 
 def _nested_privileged(conn, user_dn):
     """Privileged group via (also nested) membership; when in doubt, 'protected'."""
-    base = ",".join(p for p in user_dn.split(",") if p.strip().lower().startswith("dc="))
+    base = _dc_base(user_dn)
+    custom = custom_operator_sids(conn, user_dn)
+    if custom is None:
+        return "Schutzprüfung nicht möglich"
     try:
         flt = f"(&(objectClass=group)(member:1.2.840.113556.1.4.1941:={ldap_escape(user_dn)}))"
         if not conn.search(base, flt, ldap3.SUBTREE, attributes=["objectSid"]):
@@ -140,6 +182,8 @@ def _nested_privileged(conn, user_dn):
                 continue
             sids, _ = _sid_list(entry, "objectSid")
             for sid in sids:
+                if sid in custom:
+                    return _custom_label()
                 if sid in BUILTIN_GROUPS:
                     return f"Mitglied von „{BUILTIN_GROUPS[sid]}“"
                 rid = sid.rsplit("-", 1)[-1]
@@ -170,11 +214,16 @@ def privileged_group(conn, group_dn):
     privileged group (e.g. "IT-Admins" in Domain Admins) also counts as privileged - anyone added to it would
     get the same rights."""
     sids, _ok = read_sids(conn, group_dn, "objectSid", "(objectClass=group)")
+    custom = custom_operator_sids(conn, group_dn)
+    if custom is None:
+        return "Gruppenprüfung nicht möglich"
     for sid in sids:
+        if sid in custom:
+            return f"{config.CUSTOM_OPERATOR_GROUP} (Operatorgruppe)"
         name = _privileged_name(sid)
         if name:
             return name
-    base = ",".join(p for p in group_dn.split(",") if p.strip().lower().startswith("dc="))
+    base = _dc_base(group_dn)
     try:
         flt = f"(&(objectClass=group)(member:1.2.840.113556.1.4.1941:={ldap_escape(group_dn)}))"
         if not conn.search(base, flt, ldap3.SUBTREE, attributes=["objectSid"]):
@@ -185,6 +234,8 @@ def privileged_group(conn, group_dn):
             if entry.get("type") != "searchResEntry":
                 continue
             for sid in _sid_list(entry, "objectSid")[0]:
+                if sid in custom:
+                    return f"Mitglied von „{config.CUSTOM_OPERATOR_GROUP}“"
                 name = _privileged_name(sid)
                 if name:
                     return f"Mitglied von „{name}“"

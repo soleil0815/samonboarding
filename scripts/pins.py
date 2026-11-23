@@ -828,6 +828,16 @@ def _plan(mode, changed, published, root):
             }
         tag, commit = version, False
     elif mode == "security-update":
+        if version not in published and not any(t.startswith(version + "-s") for t in published):
+            # Code audit 2026-11b: a merged but not yet released version must never go out via patch day - only
+            # the release by hand (after the owner's go) publishes a new version
+            return {
+                "action": "nothing",
+                "tag": version,
+                "latest": False,
+                "commit": False,
+                "reason": f"{version} is not released yet - the security update waits for the release",
+            }
         if changed:
             counters = [security_counter(version, read_text(CHANGELOGS["de"], root))]
             keys = [tag_key(t) for t in published if t.startswith(version + "-s")]

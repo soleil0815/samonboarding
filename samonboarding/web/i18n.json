@@ -964,6 +964,36 @@
 ,
   "Nichts aus dem Internet": "Nothing from the internet",
   "Oberfläche, Schriften und Icons kommen vom eigenen Server. Kein CDN, kein Tracking, keine Telemetrie. Nur der Server fragt einmal am Tag bei GitHub nach einer neueren Version, ohne Daten mitzuschicken.": "Interface, fonts and icons come from your own server. No CDN, no tracking, no telemetry. Only the server asks GitHub once a day for a newer version, without sending any data."
+,
+  "Ihre Rolle im Active Directory hat sich geändert - bitte neu anmelden.": "Your role in Active Directory has changed - please sign in again."
+,
+  "Menge": "Amount",
+  "Die Anmeldeart 'basic' ist nur mit geprüftem Zertifikat erlaubt - sonst könnte ein fremder Server das Passwort mitlesen.": "The 'basic' sign-in method is only allowed with a verified certificate - otherwise another server could read the password.",
+  "nur Administratoren (außerhalb der Gruppen-OUs)": "administrators only (outside the group OUs)",
+  "Das Konto stammt aus einer OU, die nicht mehr zu den Quell-OUs des Offboardings gehört. Nur Administratoren können es wiederherstellen.": "The account comes from an OU that is no longer one of the offboarding source OUs. Only administrators can restore it.",
+  "Die OU für offgeboardete Konten darf nicht in einer Quell-OU liegen.": "The OU for offboarded accounts must not be inside a source OU."
+,
+  "Zur Bestätigung den Benutzernamen": "To confirm, enter the user name",
+  "und Ihr Passwort eingeben:": "and your password:",
+  "Die Liste konnte nicht geladen werden.": "The list could not be loaded.",
+  "Später erneut versuchen oder die Seite neu laden.": "Try again later or reload the page.",
+  "Die OUs werden oben auf dieser Seite eingestellt.": "The OUs are set at the top of this page.",
+  "Bitte einen Administrator bitten, die OUs einzustellen.": "Please ask an administrator to set the OUs.",
+  "Noch kein Template vorhanden - ohne Template kann kein Konto angelegt werden. Administratoren legen eines unter „Templates“ an.": "No template yet - an account cannot be created without one. Administrators create one under “Templates”.",
+  "Nur lesen": "Read only",
+  "Noch keine Templates angelegt. Mit „Neues Template“ das erste anlegen.": "No templates yet. Create the first one with “New template”.",
+  "Noch keine Templates angelegt. Templates legen Administratoren an.": "No templates yet. Administrators create templates.",
+  "Template kopiert.": "Template copied.",
+  "Template gelöscht.": "Template deleted.",
+  "Unbekannter Fehler": "Unknown error",
+  "Konto:": "Account:",
+  "Das Namens-Makro braucht %FIRSTNAME% und/oder %LASTNAME% (z. B. %FIRSTNAME%.%LASTNAME%).": "The naming macro needs %FIRSTNAME% and/or %LASTNAME% (e.g. %FIRSTNAME%.%LASTNAME%)."
+,
+  "\\\\server\\freigabe$": "\\\\server\\share$"
+,
+  "enthalten": "included",
+  "Zuklappen": "Collapse",
+  "Aufklappen": "Expand"
  },
  "patterns": [
   [
@@ -1765,6 +1795,42 @@
   [
    "aktualisiert … {0} s",
    "refreshing … {0} s"
+  ],
+  [
+   "Das Template enthält die privilegierte Gruppe „{0}“ - nur Administratoren dürfen damit Konten anlegen.",
+   "The template contains the privileged group “{0}” - only administrators may create accounts with it."
+  ],
+  [
+   "Mitglied von „{0}“ (Operatorgruppe)",
+   "member of “{0}” (operator group)"
+  ],
+  [
+   "{0} (Operatorgruppe)",
+   "{0} (operator group)"
+  ],
+  [
+   "Nicht in einer freigegebenen Gruppen-OU, nur Administratoren: {0}",
+   "Not in an approved group OU, administrators only: {0}"
+  ],
+  [
+   "Achtung: Ein Löschversuch hat bereits Ordner dieses Kontos gelöscht - sie kommen nicht zurück: {0}",
+   "Caution: a deletion attempt has already deleted folders of this account - they will not come back: {0}"
+  ],
+  [
+   "Template „{0}“ gespeichert.",
+   "Template “{0}” saved."
+  ],
+  [
+   "Template „{0}“ wirklich löschen?",
+   "Really delete the template “{0}”?"
+  ],
+  [
+   "Fehler im Formular: {0}",
+   "Error in the form: {0}"
+  ],
+  [
+   "Fehler beim Anlegen: {0}",
+   "Error while creating: {0}"
   ]
  ]
 }

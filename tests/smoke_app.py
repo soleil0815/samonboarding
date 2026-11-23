@@ -64,7 +64,12 @@ def main():
             json.loads(body or b"null")
         except ValueError:
             problems.append("/api/public-config liefert kein JSON")
-        for name in ("content-security-policy", "x-frame-options", "x-content-type-options"):
+        for name in (
+            "content-security-policy",
+            "x-frame-options",
+            "x-content-type-options",
+            "cross-origin-resource-policy",
+        ):
             expect(name in headers, f"Sicherheits-Header {name} fehlt")
         expect(headers.get("cache-control") == "no-store", "Cache-Control no-store fehlt bei /api/")
         expect("total;dur=" in headers.get("server-timing", ""), "Server-Timing fehlt bei /api/")

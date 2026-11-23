@@ -266,9 +266,12 @@ class Anonymizer:
         return s
 
     def _domain_user(self, m):
-        if _PLACEHOLDER.match(m.group(1).lower()):
-            return m.group(0)
-        return f"{self.placeholder('domain', m.group(1)).upper()}\\{self.placeholder('user', m.group(2))}"
+        # the domain may already be a placeholder (a known NetBIOS name is replaced first) - the user name after
+        # the backslash must still go (code audit 2026-11b); placeholder() keeps values that already are one
+        domain = (
+            m.group(1) if _PLACEHOLDER.match(m.group(1).lower()) else self.placeholder("domain", m.group(1)).upper()
+        )
+        return f"{domain}\\{self.placeholder('user', m.group(2))}"
 
     def _quoted(self, m):
         inner = next(g for g in m.groups() if g is not None)

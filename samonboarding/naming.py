@@ -63,6 +63,11 @@ def remove_umlauts(text):
 _MACRO_RE = re.compile(r"%(FIRSTNAME|LASTNAME)(?:\[(\d+)\]%|%(?:\[(\d+)\])?)")
 
 
+def has_placeholder(macro):
+    """Does the naming macro use %FIRSTNAME% or %LASTNAME% at all? Without one, every account gets the same name."""
+    return bool(_MACRO_RE.search(str(macro or "").upper()))
+
+
 def apply_macro(macro, firstname, lastname):
     names = {"FIRSTNAME": remove_umlauts(firstname), "LASTNAME": remove_umlauts(lastname)}
 

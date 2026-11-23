@@ -7,6 +7,30 @@ Update on the server: `sudo sh update.sh` or `docker compose pull && docker comp
 
 Entries starting with "Security:" or "Fixed:" are marked accordingly in the interface.
 
+## 2.7.1 – 2026-11-23
+Code audit 2026-11 (full audit, as on the 3rd of every month).
+- Security: an administrator who loses the Domain Admins role in the AD now loses the admin pages within 5 minutes and is signed out – before, an open session kept them for up to 12 hours on pages that never ask the AD (SMTP server, certificate, settings).
+- Security: with `LDAP_CA_FILE` set, the connection never falls back to unencrypted LDAP (389) – not even after a connection reset. A certificate whose name does not match the DC now counts as rejected.
+- Security: an Account Operator can no longer create an account through a template that contains a privileged group (e.g. Domain Admins); user management already refused the same group.
+- Security: members of the own operator group (`CUSTOM_OPERATOR_GROUP`) are protected like Account Operators, and only administrators may add anyone to that group.
+- Security: Exchange with sign-in method "basic" is only allowed with a verified certificate – otherwise another server could read the administrator's password. An older settings file with this combination is refused before connecting.
+- Security: restoring an offboarded account as an operator only works for accounts from a current source OU, and groups outside the approved group OUs are left for administrators (as in user management).
+- Security: wrong passwords in the confirmation before deleting now each count, even when many are sent at the same time.
+- Security: new header `Cross-Origin-Resource-Policy: same-origin` – other websites cannot embed the program's responses.
+- Fixed: deleting folders never follows a link at the top of a folder (e.g. a home folder that is itself a junction), and never picks a folder that is another account's home or profile folder or lies inside one – now for folder redirection too.
+- Fixed: offboarding the same account again (e.g. re-enabled by hand in the OU of offboarded accounts) no longer overwrites the restore entry with its real previous OU and groups. The settings refuse an OU for offboarded accounts inside a source OU.
+- Fixed: after a deletion that removed folders but not the account, the restore preview says that these folders are gone.
+- Fixed: if the connection breaks while a new account is being set up (password, "change at next logon", groups), the half-finished account is removed – before, it could stay enabled with only some of its groups.
+- Fixed: the start page no longer counts accounts created in the last 90 days as inactive; the success message after deleting counts only folders that were really deleted.
+- Fixed: a template whose naming macro has no %FIRSTNAME% or %LASTNAME% is refused (every account would have had the same name).
+- Fixed: account lists that cannot be loaded show the reason instead of "Loading" forever; without source OUs they say who sets them. Without a template, onboarding says so instead of failing with "[object Object]".
+- Fixed: closing the result of a password reset no longer empties a half-filled onboarding form; the password-reset and move dialogs name the account; the delete confirmation fits on a phone.
+- Fixed: English words in the German interface and German words in the English one (OU picker, template page, error messages).
+- Fixed: `update.sh --restore` deletes nothing if the safety copy of the current data cannot be written (e.g. disk full). `update.sh` understands a version written in quotes in `.env` and no longer glues a new line to a last line without a line break.
+- Fixed: the patch-day security update never publishes a version that has been merged but not released yet.
+- Diagnostic package: logon names that only appear in the details of the reports and user names after a domain name (`DOMAIN\user`) are now anonymised too.
+- Docs: data protection names the IP address stored for failed sign-ins and the browser storage for the appearance; the list of protected groups is complete; a fixed version line only gets security updates while it is the newest; the README pictures exist in light only (the note in 2.5.0 was wrong).
+
 ## 2.7.0 – 2026-11-20
 - Important: from this version on the server connects to the internet about once a day (`api.github.com`, port 443) to look for new versions – nothing is sent along. Anyone who wants no connection to the outside at all sets `UPDATE_CHECK=false` in `.env`.
 - New: version check for everyone who does not update the container automatically. Once a day the server asks GitHub whether there is a newer version; administrators then see a note at the top of every page with the version, a "What's new?" link and the update commands (`sudo sh update.sh` or `docker compose pull && docker compose up -d`). Security updates (`-s1`, `-s2` …) are marked as such.

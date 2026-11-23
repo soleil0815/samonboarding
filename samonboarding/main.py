@@ -225,6 +225,8 @@ async def _security_headers(request: Request, call_next):
     resp.headers.setdefault("X-Frame-Options", "DENY")
     resp.headers.setdefault("Referrer-Policy", "same-origin")
     resp.headers.setdefault("Cross-Origin-Opener-Policy", "same-origin")
+    # other sites must not embed our responses (scripts, images, downloads) - code audit 2026-11b (ZAP 90004)
+    resp.headers.setdefault("Cross-Origin-Resource-Policy", "same-origin")
     resp.headers.setdefault("Permissions-Policy", "camera=(), microphone=(), geolocation=(), payment=()")
     # The browser may load only from our own server (no CDNs, no Google Fonts, no tracking)
     resp.headers.setdefault("Content-Security-Policy", CSP)

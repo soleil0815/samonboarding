@@ -30,15 +30,15 @@ This document describes the personal data SAMONBOARDING processes: where it is k
 | Data | Where | Purpose |
 |---|---|---|
 | Account data in AD (name, user name, e-mail, department, company, phone, manager, OU, groups; in the offboarding list also the approximate last logon `lastLogonTimestamp` – only displayed, never stored or logged; the home page receives only counts from it, no names) | **In Active Directory**, not in the application. SAMONBOARDING only reads and writes it there | Account management |
-| Reports – changes: time, acting user, action, target account (DN), result, error message if any. **No passwords** | `data/reports.db` (SQLite, table `audit`) | Accountability, security |
+| Reports – changes: time, acting user, action, target account (DN), result, error message if any; for a failed sign-in also the user name typed and the IP address of the computer it came from. **No passwords** | `data/reports.db` (SQLite, table `audit`) | Accountability, security |
 | Reports – log: program messages from level *Info* upwards (e.g. connection errors); may contain account names or paths. **No passwords, no per-request IP addresses** | `data/reports.db` (table `applog`) | Operation, troubleshooting |
-| Restore entries: user name, name, previous OU, groups, whether enabled, when and by whom offboarded. **No passwords** | `data/offboarding.db` (SQLite) | Undoing an accidental offboarding |
+| Restore entries: user name, name, previous OU, groups, whether enabled, when and by whom offboarded; after a deletion attempt that removed folders but not the account, also those folder paths. **No passwords** | `data/offboarding.db` (SQLite) | Undoing an accidental offboarding |
 | Sign-in session including the signed-in admin's password (needed to bind to the DC with their own rights) | **Memory only**, never written to disk. Gone after sign-out, 30 minutes of inactivity or restart | Access with the user's own rights |
 | Configuration (SMTP account, templates, OUs) | `data/*.json` | Operation |
 | Reference list: path (DN) and objectGUID of the OUs and groups chosen in the settings and templates. **No accounts, no personal data** | `data/verweise.json` | Notice when an OU/group was renamed, moved or deleted in AD |
 | Account lists of the modules and AD structure (names/DNs for the pickers) (cache, so that switching between pages is fast) | **In memory only**, per session; invalid after 60 seconds and removed on the next access, cleared immediately on every change, on sign-out and on restart. **No copy in a database** | Operation |
 | Notification mails (for onboarding and password reset they contain the new password) | Your own mail server, mailbox of the acting employee | Handing over credentials |
-| Language setting DE/EN, the last version read in News and the time of the last activity (for sign-out when idle) | Browser `localStorage` | Usability |
+| Language setting DE/EN, appearance (light/dark/system), the last version read in News and the time of the last activity (for sign-out when idle); for the current tab only, the note that the session has ended | Browser `localStorage` and `sessionStorage`. **No data from the AD** | Usability |
 | Container log (errors, notices) | Docker log, rotated (3 × 10 MB) | Operation / troubleshooting |
 | Diagnostic package (only when an administrator asks for it): version, settings, response times, warnings and errors – **anonymised** (names, OUs, groups, servers, IP and e-mail addresses, shares replaced by placeholders; the mapping is not stored). **No passwords, no tokens** | Downloaded, not stored and never sent anywhere; from the command line in `data/diagnose/` (delete when no longer needed). Its creation is recorded in the reports | Troubleshooting, support |
 
@@ -63,7 +63,7 @@ This document describes the personal data SAMONBOARDING processes: where it is k
   ```bash
   docker compose exec samonboarding python -m samonboarding.privacy bereinigen
   ```
-- **Backups:** if you back up `data/`, the retention periods apply to the backups as well. Plan backup retention to match. Before every version change the program itself creates a backup in `data/backups/` (readable only by the program user) and keeps only the last 10. These backups also contain reports and log: the daily clean-up deletes them once they are older than the longest retention period (then everything in them has expired); if a period is `0`, they are kept. Older backups in `backups/` next to the `docker-compose.yml` come from `update.sh` up to version 1.48 and can be deleted after checking.
+- **Backups:** if you back up `data/`, the retention periods apply to the backups as well. Plan backup retention to match. Before every version change the program itself creates a backup in `data/backups/` (readable only by the program user) and keeps only the last 10. These backups also contain reports, log and restore entries (`offboarding.db`): the daily clean-up deletes them once they are older than the longest retention period (then everything in them has expired); if a period is `0`, they are kept. Older backups in `backups/` next to the `docker-compose.yml` come from `update.sh` up to version 1.48 and can be deleted after checking.
 
 ---
 
@@ -73,7 +73,8 @@ This document describes the personal data SAMONBOARDING processes: where it is k
 - The application does not run as root in the container but as its own user without special rights; only this user can read `data/`.
 - Sign-in with an AD account only. Every action runs with the signed-in user's own rights on the DC, not with a service account.
 - Roles: operator or administrator. Deleting and discarding are reserved for administrators, and the server enforces this.
-- Domain admin accounts are protected against offboarding and deletion.
+- Privileged accounts (members of Domain, Schema and Enterprise Admins, Administrators, the operator groups including `CUSTOM_OPERATOR_GROUP`, Cert Publishers, Group Policy Creator Owners, Key Admins and Enterprise Key Admins, plus the built-in Administrator and `krbtgt`) are protected against offboarding and deletion.
+- An administrator removed from the administrator groups in the AD loses the administrator functions within 5 minutes, even in an open session.
 - Lock-out after repeated failed sign-ins (default 5 attempts / 5 minutes).
 - The session cookie uses `HttpOnly`, `SameSite=Strict` and `Secure`, and ends when the browser closes. Sessions are held in memory only and end after 30 minutes of inactivity (server and interface).
 
@@ -84,13 +85,13 @@ This document describes the personal data SAMONBOARDING processes: where it is k
 - **HTTPS only** (TLS 1.2/1.3, modern ciphers). There is no HTTP port. Your own certificate (upload in the interface under *Certificate*, or files in `data/tls/`), otherwise self-signed; with your own certificate HSTS is sent as well.
 
 **Data minimisation**
-- No passwords in the reports, the databases or the container log. Individual requests (IP addresses) are not logged.
+- No passwords in the reports, the databases or the container log. Individual requests (IP addresses) are not logged; only a failed sign-in records the IP address it came from (accountability, detecting password guessing).
 - No copy of the AD data. The application stores only what it needs for accountability and restore.
 
 **Separation from the internet**
 - No external resources. A Content Security Policy header forbids the browser to contact other servers.
 - No CDNs, no telemetry. The only internet connection is the server's daily version check at GitHub: a plain fetch of the public list of versions with nothing sent along, switched off with `UPDATE_CHECK=false`. IPv6 is disabled for the container network.
-- Security headers: `X-Frame-Options: DENY`, `X-Content-Type-Options: nosniff` and `Referrer-Policy: same-origin`.
+- Security headers: `X-Frame-Options: DENY`, `X-Content-Type-Options: nosniff`, `Referrer-Policy: same-origin`, `Cross-Origin-Opener-Policy` and `Cross-Origin-Resource-Policy: same-origin`.
 
 **Storage limitation**
 - Automatic deletion after the retention periods ([section 3](#3-retention-and-automatic-deletion)).

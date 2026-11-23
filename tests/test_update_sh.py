@@ -445,6 +445,33 @@ class UpdateShTests(unittest.TestCase):
         self.assertEqual((self.dir / "data" / "config.json").read_text(encoding="utf-8"), "{}")
         self.assertFalse(os.path.lexists(self.dir / "data" / "lnk"))
 
+    # --- Code audit 2026-11b -----------------------------------------------------------------------------------------
+    def test_restore_deletes_nothing_when_the_safety_copy_fails(self):
+        real_tar = shutil.which("tar")
+        fake = self.bin / "tar"
+        fake.write_text(
+            f'#!/bin/sh\nif [ "$1" = "-czf" ]; then : > "$2"; echo "disk full" >&2; exit 2; fi\nexec {real_tar} "$@"\n',
+            encoding="utf-8",
+        )
+        fake.chmod(0o755)
+        self.make_backup("vor-2.1.0-20261101-030000.tar.gz", {"config.json": '{"alt": 1}'})
+        (self.dir / "data" / "config.json").write_text('{"jetzt": 1}', encoding="utf-8")
+        done = self.run_update("--restore", "data/backups/vor-2.1.0-20261101-030000.tar.gz", "-y")
+        self.assertNotEqual(done.returncode, 0)
+        self.assertEqual((self.dir / "data" / "config.json").read_text(encoding="utf-8"), '{"jetzt": 1}')
+        self.assertFalse([p for p in (self.dir / "data" / "backups").iterdir() if "wiederherstellen" in p.name])
+
+    def test_new_line_is_not_glued_to_a_last_line_without_line_break(self):
+        (self.dir / ".env").write_text("AD_DOMAIN=firma.local", encoding="utf-8")
+        self.assertEqual(self.run_update("--version", "2.0").returncode, 0)
+        self.assertEqual(self.env_text(), "AD_DOMAIN=firma.local\nSAMONBOARDING_VERSION=2.0\n")
+
+    def test_quoted_version_in_env_is_understood(self):
+        (self.dir / ".env").write_text('AD_DOMAIN=firma.local\nSAMONBOARDING_VERSION="2.0"\n', encoding="utf-8")
+        done = self.run_update()
+        self.assertEqual(done.returncode, 0, done.stdout + done.stderr)
+        self.assertIn(["pull", f"{REPO}:2.0"], self.state()["calls"])
+
     def test_cleanup_without_leftovers(self):
         done = self.run_update("--cleanup", "-y")
         self.assertEqual(done.returncode, 0)

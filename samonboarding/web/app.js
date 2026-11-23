@@ -220,10 +220,11 @@ const I18N_ATTRS = ['placeholder', 'title', 'aria-label'];
 const i18nTextOrig = new WeakMap();
 const i18nAttrOrig = new WeakMap();
 
-function i18nSkip(node) {
+function i18nSkip(node, attr) {
     const el = node.nodeType === 1 ? node : node.parentElement;
     if (!el || !el.closest) return true;
-    if (el.closest('script, style, textarea')) return true;
+    // the text inside a textarea is the user's input; its placeholder is ours (attr)
+    if (el.closest(attr ? 'script, style' : 'script, style, textarea')) return true;
     const marked = el.closest('[translate]');
     return !!(marked && marked.getAttribute('translate') === 'no');
 }
@@ -245,7 +246,7 @@ function i18nApply(root) {
     });
     const els = root.nodeType === 1 ? [root, ...root.querySelectorAll('[placeholder],[title],[aria-label]')] : [];
     els.forEach(el => {
-        if (i18nSkip(el)) return;
+        if (i18nSkip(el, true)) return;
         let orig = i18nAttrOrig.get(el);
         if (!orig) { orig = {}; i18nAttrOrig.set(el, orig); }
         I18N_ATTRS.forEach(a => {
@@ -1071,13 +1072,34 @@ async function saveUserMgmtConfig() {
     }
 }
 
+// Code audit 2026-11b: an account list that cannot be loaded says why (instead of "Lade Benutzer..." forever), and
+// an empty list without configured OUs says that an administrator has to set them
+function accountsText(n) { return n === 1 ? '1 Konto' : `${n} Konten`; }
+
+async function showListProblem(tbodyId, cols, res, data) {
+    const tbody = document.getElementById(tbodyId);
+    if(!tbody) return;
+    let text = '', hint = '';
+    if(res && !res.ok) {
+        let detail = '';
+        try { detail = (await res.json()).detail; } catch(e) { detail = ''; }
+        text = typeof detail === 'string' && detail ? detail : 'Die Liste konnte nicht geladen werden.';
+        hint = 'Später erneut versuchen oder die Seite neu laden.';
+    } else if(data && data.warning && !(data.users || []).length) {
+        text = data.warning;
+        hint = currentUserRole === 'Administrator' ? 'Die OUs werden oben auf dieser Seite eingestellt.' : 'Bitte einen Administrator bitten, die OUs einzustellen.';
+    }
+    if(!text) return;
+    tbody.innerHTML = `<tr><td colspan="${cols}" class="p-6 text-center text-amber-300/90"><i class="fa-solid fa-circle-exclamation mr-1" aria-hidden="true"></i> <span>${esc(text)}</span><div class="text-slate-500 text-xs mt-1">${esc(hint)}</div></td></tr>`;
+}
+
 async function loadUserMgmtUsers(force) {
     const res = await fetch('/api/usermgmt/users' + freshQuery(force));
-    if(res.ok) {
-        const data = await res.json();
-        cachedUserMgmtUsers = data.users || [];
-        renderUserMgmtTable(cachedUserMgmtUsers);
-    }
+    if(!res.ok) return showListProblem('usermgmt-user-list', 5, res);
+    const data = await res.json();
+    cachedUserMgmtUsers = data.users || [];
+    renderUserMgmtTable(cachedUserMgmtUsers);
+    showListProblem('usermgmt-user-list', 5, null, data);
 }
 
 function filterUserMgmtTable() {
@@ -1093,7 +1115,7 @@ function filterUserMgmtTable() {
 
 function renderUserMgmtTable(users) {
     const tbody = document.getElementById('usermgmt-user-list');
-    document.getElementById('usermgmt-count').textContent = `${users.length} Konten`;
+    document.getElementById('usermgmt-count').textContent = accountsText(users.length);
 
     if(users.length === 0) {
         tbody.innerHTML = `<tr><td colspan="5" class="p-6 text-center text-slate-500 italic">Keine passenden Benutzer gefunden oder keine Quell-OUs konfiguriert.</td></tr>`;
@@ -1132,6 +1154,7 @@ function esc(value) {
 
 function openMoveUserModal(dn, sam) {
     document.getElementById('move-user-dn').value = dn;
+    document.getElementById('move-user-name').textContent = sam || dn;
     const targetSelect = document.getElementById('move-target-ou');
     const ousToUse = adData.ous.filter(o => globalAllowedTargetOus.includes(o.dn));
 
@@ -1177,7 +1200,7 @@ async function openUserGroupsModal(dn, sam) {
 
         let html = "";
         if(available.length === 0) {
-            html = `<div class="text-slate-500 italic p-2">Keine Gruppen in den konfigurierten Gruppen-OUs gefunden.</div>`;
+            html = `<div translate="yes" class="text-slate-500 italic p-2">Keine Gruppen in den konfigurierten Gruppen-OUs gefunden.</div>`;
         } else {
             available.forEach(g => {
                 const isMember = memberOf.includes(g.dn.toLowerCase());
@@ -1225,11 +1248,11 @@ async function _submitUpdateUserGroups() {
 
 async function loadOffboardingUsers(force) {
     const res = await fetch('/api/offboarding/users' + freshQuery(force));
-    if(res.ok) {
-        const data = await res.json();
-        cachedOffboardUsers = data.users || [];
-        filterOffboardTable();
-    }
+    if(!res.ok) return showListProblem('offboard-user-list', 7, res);
+    const data = await res.json();
+    cachedOffboardUsers = data.users || [];
+    filterOffboardTable();
+    showListProblem('offboard-user-list', 7, null, data);
 }
 
 const OFF_BATCH_MAX = 25;
@@ -1387,7 +1410,7 @@ function renderRestorePlan() {
     const body = document.getElementById('restore-body');
     const options = [...new Set([p.originalOu, ...(p.ouOptions || []), p.targetOu])].filter(Boolean);
     const ouSelect = `<select id="restore-ou" data-on-change="onRestoreOuChange()" class="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-slate-100 text-xs font-mono">${options.map(o => `<option value="${esc(o)}" ${o === p.targetOu ? 'selected' : ''}>${nt(o)}${o === p.originalOu ? '  (vorher)' : ''}</option>`).join('')}</select>`;
-    const stat = {add: ['fa-plus', 'text-emerald-400', 'wird wieder zugewiesen'], member: ['fa-check', 'text-slate-400', 'bereits Mitglied'], missing: ['fa-triangle-exclamation', 'text-amber-400', 'gibt es nicht mehr']};
+    const stat = {add: ['fa-plus', 'text-emerald-400', 'wird wieder zugewiesen'], member: ['fa-check', 'text-slate-400', 'bereits Mitglied'], missing: ['fa-triangle-exclamation', 'text-amber-400', 'gibt es nicht mehr'], outside: ['fa-lock', 'text-amber-400', 'nur Administratoren (außerhalb der Gruppen-OUs)']};
     const groups = (p.groups || []).length
         ? p.groups.map(g => { const s = stat[g.status] || stat.add; return `<li class="flex items-center gap-2"><i class="fa-solid ${s[0]} ${s[1]} w-4 text-center"></i><span class="text-slate-100">${nt(g.name)}</span><span class="text-slate-500 text-xs">${s[2]}</span></li>`; }).join('')
         : '<li class="text-slate-500">Keine Gruppen gespeichert.</li>';
@@ -1689,7 +1712,7 @@ function filterOffboardTable() {
 function renderOffboardTable(users) {
     const tbody = document.getElementById('offboard-user-list');
     const countBadge = document.getElementById('offboard-count');
-    countBadge.textContent = `${users.length} Konten`;
+    countBadge.textContent = accountsText(users.length);
     const known = new Set(cachedOffboardUsers.filter(offboardable).map(u => u.dn));
     [...offSelected].forEach(dn => { if(!known.has(dn)) offSelected.delete(dn); });
     updateOffboardSelection();
@@ -1736,11 +1759,11 @@ function renderOffboardTable(users) {
 
 async function loadPwdResetUsers(force) {
     const res = await fetch('/api/pwdreset/users' + freshQuery(force));
-    if(res.ok) {
-        const data = await res.json();
-        cachedPwdResetUsers = data.users || [];
-        renderPwdResetTable(cachedPwdResetUsers);
-    }
+    if(!res.ok) return showListProblem('pwdreset-user-list', 4, res);
+    const data = await res.json();
+    cachedPwdResetUsers = data.users || [];
+    renderPwdResetTable(cachedPwdResetUsers);
+    showListProblem('pwdreset-user-list', 4, null, data);
 }
 
 function filterPwdResetTable() {
@@ -1754,7 +1777,7 @@ function filterPwdResetTable() {
 function renderPwdResetTable(users) {
     const tbody = document.getElementById('pwdreset-user-list');
     const countBadge = document.getElementById('pwdreset-count');
-    countBadge.textContent = `${users.length} Konten`;
+    countBadge.textContent = accountsText(users.length);
 
     if(users.length === 0) {
         tbody.innerHTML = `<tr><td colspan="4" class="p-6 text-center text-slate-500 italic">Keine passenden Benutzer gefunden.</td></tr>`;
@@ -1787,6 +1810,7 @@ function renderPwdResetTable(users) {
 
 function openPwdResetModal(dn, sam, isLocked) {
     document.getElementById('pwdreset-target-dn').value = dn;
+    document.getElementById('pwdreset-target-name').textContent = sam || dn;
     document.getElementById('pwdreset-mode').value = 'auto';
     document.getElementById('pwdreset-new').value = '';
     document.getElementById('pwdreset-confirm').value = '';
@@ -1836,6 +1860,7 @@ async function _submitPwdReset() {
             pwd: result.newPassword
         };
 
+        resultFrom = 'pwdreset';
         document.getElementById('res-title').textContent = "Passwort erfolgreich zurückgesetzt!";
         document.getElementById('res-sam').textContent = lastCreatedUser.sam;
         document.getElementById('res-upn').textContent = lastCreatedUser.upn;
@@ -2858,9 +2883,10 @@ async function simulateDeletion(userDn) {
         deleteBox = `<div class="p-4 rounded-xl border border-rose-500/40 bg-rose-500/5 text-xs space-y-3">
             <div class="text-rose-300 font-semibold"><i class="fa-solid fa-triangle-exclamation mr-1"></i> Endgültig löschen</div>
             <p class="text-slate-300">Das AD-Konto <strong>${nt(a.sam)}</strong> und alle oben als „Vorhanden“ oder „Besitz nötig“ gezeigten Ordner werden <strong>unwiderruflich</strong> gelöscht. ${skipped ? 'Übersprungene Ordner bleiben bestehen. ' : ''}Vor dem Löschen wird der Zustand erneut geprüft; hat sich etwas geändert, passiert nichts.</p>
-            <div class="flex gap-2 items-center">
-                <input type="text" id="del-confirm-sam" data-on-input="onDelConfirmInput()" autocomplete="off" placeholder="Benutzernamen zur Bestätigung eintippen: ${esc(a.sam)}" class="flex-1 bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-slate-100 text-xs font-mono focus:border-rose-500 focus:outline-none">
-                <input type="password" id="del-confirm-pw" data-on-input="onDelConfirmInput()" autocomplete="current-password" placeholder="Ihr Passwort" class="w-44 bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-slate-100 text-xs font-mono focus:border-rose-500 focus:outline-none">
+            <label for="del-confirm-sam" class="block text-slate-300">Zur Bestätigung den Benutzernamen <strong translate="no" class="font-mono text-slate-100">${esc(a.sam)}</strong> und Ihr Passwort eingeben:</label>
+            <div class="flex flex-wrap gap-2 items-center">
+                <input type="text" id="del-confirm-sam" data-on-input="onDelConfirmInput()" autocomplete="off" placeholder="Benutzernamen zur Bestätigung eintippen: ${esc(a.sam)}" class="flex-1 min-w-[12rem] bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-slate-100 text-xs font-mono focus:border-rose-500 focus:outline-none">
+                <input type="password" id="del-confirm-pw" data-on-input="onDelConfirmInput()" autocomplete="current-password" aria-label="Ihr Passwort" placeholder="Ihr Passwort" class="flex-1 sm:flex-none min-w-[10rem] sm:w-44 bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-slate-100 text-xs font-mono focus:border-rose-500 focus:outline-none">
                 <button id="del-exec-btn" data-on-click="executeDeletion()" disabled class="px-4 py-2.5 bg-rose-600 hover:bg-rose-500 disabled:opacity-40 disabled:cursor-not-allowed text-white rounded-xl font-semibold shadow"><i class="fa-solid fa-trash-can mr-1"></i> Endgültig löschen</button>
             </div>
             <div class="text-[11px] text-slate-500">Der Plan ist nur kurz gültig${until ? ' (bis ' + esc(until) + ')' : ''}.</div>
@@ -2881,7 +2907,7 @@ async function simulateDeletion(userDn) {
                 <div class="text-slate-400">Gruppenmitgliedschaften: ${a.groups.length}${a.groups.length ? ' (' + esc(a.groups.join(', ')) + ')' : ''}</div>
             </div>
         </div>
-        <div class="card overflow-hidden">
+        <div class="card overflow-x-auto">
             <table class="w-full text-left text-xs font-mono">
                 <thead class="table-head"><tr><th class="p-3">Ort</th><th class="p-3">Pfad</th><th class="p-3">Status</th><th class="p-3">Inhalt</th></tr></thead>
                 <tbody class="divide-y divide-slate-800/60">${rows || '<tr><td colspan="4" class="p-4 text-slate-500 italic font-sans">Keine Speicherorte aktiviert.</td></tr>'}</tbody>
@@ -2892,7 +2918,7 @@ async function simulateDeletion(userDn) {
             ${sum.takeovers ? `<div class="text-amber-300/90">Bei ${sum.takeovers} Ordner(n) ohne Zugriff würde vor dem Löschen der Besitz übernommen (Administratoren erhalten Vollzugriff).</div>` : ''}
             ${sum.links ? `<div class="text-slate-400">${sum.links} Verknüpfung(en): Es wird nur die Verknüpfung entfernt, nie der Inhalt des Ziels.</div>` : ''}
             ${warn ? `<ul class="list-disc pl-5 text-amber-300/90">${warn}</ul>` : ''}
-            <div class="text-slate-500">Stand: ${esc(data.simulatedAt)}</div>
+            <div class="text-slate-500">Stand: ${esc(fmtDateTime(data.simulatedAt, true))}</div>
         </div>${deleteBox}`;
     const confirmInput = document.getElementById('del-confirm-sam');
     if(confirmInput) confirmInput.focus();
@@ -3267,6 +3293,7 @@ function adTreeRender(t) {
         if (n.children.length) {
             const btn = adEl('button', 'w-4 h-4 shrink-0 text-slate-500 hover:text-cyan-400 leading-none', open ? '\u25BE' : '\u25B8');
             btn.type = 'button';
+            btn.setAttribute('translate', 'yes');  // tooltip in our language inside the list of AD names
             btn.title = open ? 'Zuklappen' : 'Aufklappen';
             btn.addEventListener('click', () => {
                 if (t.expanded.has(n.key)) t.expanded.delete(n.key); else t.expanded.add(n.key);
@@ -3302,6 +3329,7 @@ function adTreeRender(t) {
 
         if (t.subtree && n.item && !t.selected.has(n.key) && hasSelectedAncestor(n)) {
             const badge = adEl('span', 'ml-auto text-[9px] text-cyan-500/70 shrink-0', 'enthalten');
+            badge.setAttribute('translate', 'yes');  // our word inside the list of AD names (translate="no")
             badge.title = 'Durch eine übergeordnete OU bereits abgedeckt';
             row.appendChild(badge);
         }
@@ -3331,7 +3359,9 @@ function adTreeRender(t) {
         });
     }
     if (!t.tree.roots.length && !orphans.length) {
-        t.list.appendChild(adEl('div', 'p-3 text-center text-slate-500', 'Keine Einträge geladen'));
+        const empty = adEl('div', 'p-3 text-center text-slate-500', 'Keine Einträge geladen');
+        empty.setAttribute('translate', 'yes');
+        t.list.appendChild(empty);
     }
     t.count.textContent = t.selected.size + ' ausgewählt';
     t.list.scrollTop = scrollTop;
@@ -3486,6 +3516,12 @@ async function loadTemplates() {
         templates.sort((a, b) => (a.name || '').localeCompare(b.name || '', undefined, {sensitivity: 'base'}));
         
         document.getElementById('hire-template').innerHTML = templates.map(tpl => `<option value="${esc(tpl.id)}">${nt(tpl.name)}</option>`).join('');
+        // no template: say so and do not offer a button that can only fail
+        const none = templates.length === 0;
+        const noneHint = document.getElementById('hire-no-templates');
+        if(noneHint) noneHint.classList.toggle('hidden', !none);
+        const submitBtn = document.getElementById('btn-submit-onboard');
+        if(submitBtn) submitBtn.disabled = none;
         applyMailMode();
         
         let tplHtml = "";
@@ -3498,7 +3534,7 @@ async function loadTemplates() {
                     <button data-on-click="deleteTemplate(${Number(tpl.id)})" class="px-3 py-1.5 bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 rounded-lg text-xs font-medium transition-all">Löschen</button>
                 `;
             } else {
-                adminButtons = `<span class="text-xs text-slate-500 italic">Read-only</span>`;
+                adminButtons = `<span class="text-xs text-slate-500 italic">Nur lesen</span>`;
             }
 
             const mail = TPL_MAIL_LABELS[tpl.mailMode] || TPL_MAIL_LABELS.required;
@@ -3518,7 +3554,7 @@ async function loadTemplates() {
                 </div>
             `;
         });
-        document.getElementById('template-list').innerHTML = tplHtml;
+        document.getElementById('template-list').innerHTML = tplHtml || `<div class="card p-6 text-center text-sm text-slate-400 italic">${currentUserRole === "Administrator" ? 'Noch keine Templates angelegt. Mit „Neues Template“ das erste anlegen.' : 'Noch keine Templates angelegt. Templates legen Administratoren an.'}</div>`;
         previewTemplateInfo();
     }
 }
@@ -3542,7 +3578,7 @@ function previewTemplateInfo() {
     
     const groupDns = tpl.groups || [];
     if(groupDns.length === 0) {
-        document.getElementById('prev-groups').textContent = 'Keine Gruppen zugewiesen';
+        document.getElementById('prev-groups').textContent = tr('Keine Gruppen zugewiesen');  // the element is translate="no"
     } else {
         const groupNames = groupDns.map(dn => {
             const found = adData.groups.find(g => g.dn.toLowerCase() === dn.toLowerCase());
@@ -3725,19 +3761,21 @@ async function saveTemplateFromModal() {
         const res = await fetch('/api/templates', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(data) });
         if(res.ok) {
             closeTemplateModal();
+            alert(`Template „${data.name}“ gespeichert.`);
             await refreshAllLdapData();
         } else {
-            const err = await res.json();
-            alert("Fehler beim Speichern: " + (err.detail || "Unknown error"));
+            const err = await res.json().catch(() => ({}));
+            alert("Fehler beim Speichern: " + (detailText(err.detail) || "Unbekannter Fehler"));
         }
     } catch(e) {
-        alert("Form processing error: " + e.message);
+        alert("Fehler im Formular: " + e.message);
     }
 }
 
 async function duplicateTemplate(id) {
     const res = await fetch('/api/templates/' + id + '/duplicate', { method: 'POST' });
     if(res.ok) {
+        alert("Template kopiert.");
         await refreshAllLdapData();
     } else {
         const err = await res.json();
@@ -3746,14 +3784,23 @@ async function duplicateTemplate(id) {
 }
 
 async function deleteTemplate(id) {
-    if(!confirm("Template wirklich löschen?")) return;
+    const tpl = templates.find(item => item.id == id);
+    if(!confirm(tpl ? `Template „${tpl.name}“ wirklich löschen?` : "Template wirklich löschen?")) return;
     const res = await fetch('/api/templates/' + id, { method: 'DELETE' });
     if(res.ok) {
+        alert("Template gelöscht.");
         await refreshAllLdapData();
     } else {
         const err = await res.json();
         alert(err.detail || "Fehler beim Löschen.");
     }
+}
+
+// Error text of a response: FastAPI sends a list of objects for invalid input (was shown as "[object Object]")
+function detailText(detail) {
+    if(Array.isArray(detail)) return detail.map(d => (d && d.msg) ? String(d.msg) : String(d)).join('; ');
+    if(detail && typeof detail === 'object') return detail.msg ? String(detail.msg) : '';
+    return detail ? String(detail) : '';
 }
 
 function submitOnboard() { return guarded('onboard', _submitOnboard); }
@@ -3776,7 +3823,7 @@ async function _submitOnboard() {
     };
 
     const res = await fetch('/api/onboard', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(data) });
-    const result = await res.json();
+    const result = await res.json().catch(() => ({}));
     if(res.ok) {
         lastCreatedUser = {
             sam: result.samAccountName,
@@ -3784,6 +3831,7 @@ async function _submitOnboard() {
             mail: result.mail,
             pwd: result.generatedPassword
         };
+        resultFrom = 'onboard';
         document.getElementById('res-title').textContent = "Mitarbeiter erfolgreich angelegt!";
         document.getElementById('res-sam').textContent = result.samAccountName;
         document.getElementById('res-upn').textContent = result.upn;
@@ -3794,8 +3842,17 @@ async function _submitOnboard() {
 
         await refreshAllLdapData();
     } else {
-        alert("Onboarding error: " + (result.detail || "Unknown error"));
+        alert("Fehler beim Anlegen: " + (detailText(result.detail) || "Unbekannter Fehler"));
     }
+}
+
+// The result window serves onboarding and password reset: closing it after a password reset must not empty a
+// half-filled onboarding form (code audit 2026-11b)
+let resultFrom = '';
+function closeResultModal() {
+    hideElement('result-modal');
+    if(resultFrom === 'onboard') resetOnboardingForm();
+    resultFrom = '';
 }
 
 function copyToClipboard() {

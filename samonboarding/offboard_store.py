@@ -38,6 +38,8 @@ CREATE TABLE IF NOT EXISTS offboarded (
 );
 CREATE INDEX IF NOT EXISTS offboarded_sam ON offboarded (sam);
 """
+# Columns added later (ALTER TABLE ... ADD COLUMN, compatible with older program versions, which ignore them)
+LATER_COLUMNS = {"folders_deleted": "TEXT NOT NULL DEFAULT ''"}
 
 
 @contextmanager
@@ -50,6 +52,10 @@ def _db():
             conn.row_factory = sqlite3.Row
             conn.execute("PRAGMA secure_delete=ON")  # deleted entries are overwritten (like reports.db)
             conn.executescript(SCHEMA)
+            have = {r[1] for r in conn.execute("PRAGMA table_info(offboarded)")}
+            for column, spec in LATER_COLUMNS.items():
+                if column not in have:
+                    conn.execute(f"ALTER TABLE offboarded ADD COLUMN {column} {spec}")
             yield conn
             conn.commit()
         except Exception:
@@ -76,12 +82,29 @@ def _row(r):
     except ValueError:
         out["groups"] = []
     out["was_enabled"] = bool(out["was_enabled"])
+    try:
+        out["folders_deleted"] = json.loads(out.get("folders_deleted") or "null")
+    except ValueError:
+        out["folders_deleted"] = None
     return out
 
 
 def record(*, user_guid, sam, name, original_dn, original_ou, was_enabled, groups, actor):
-    """Create an entry (before offboarding). An open entry for the same account is replaced."""
+    """Create an entry (before offboarding). An open entry for the same account is replaced - unless the account
+    still sits where that entry left it: then it is being offboarded a second time (e.g. from the OU of offboarded
+    accounts) and the entry with the real previous OU and groups is kept (code audit 2026-11b)."""
     with _db() as conn:
+        if user_guid:
+            same = conn.execute(
+                "SELECT id, current_dn FROM offboarded WHERE user_guid = ? AND state = 'open'", (user_guid,)
+            )
+        else:
+            same = conn.execute(
+                "SELECT id, current_dn FROM offboarded WHERE lower(sam) = lower(?) AND state = 'open'", (sam,)
+            )
+        for row in same.fetchall():
+            if str(row["current_dn"]).lower() == str(original_dn).lower():
+                return row["id"]
         if user_guid:
             conn.execute("DELETE FROM offboarded WHERE user_guid = ? AND state = 'open'", (user_guid,))
         conn.execute("DELETE FROM offboarded WHERE lower(sam) = lower(?) AND state = 'open'", (sam,))
@@ -102,6 +125,22 @@ def record(*, user_guid, sam, name, original_dn, original_ou, was_enabled, group
             ),
         )
         return cur.lastrowid
+
+
+def mark_folders_deleted(*, sam, dn, paths):
+    """A deletion removed folders but not the account (code audit 2026-11b): the open entry remembers it, so that a
+    later restore says that the account comes back without them. Returns the count of marked entries."""
+    note = json.dumps({"at": _now(), "paths": list(paths)[:20]}, ensure_ascii=False)
+    with _db() as conn:
+        n = conn.execute(
+            "UPDATE offboarded SET folders_deleted = ? WHERE state = 'open' AND lower(current_dn) = lower(?)",
+            (note, dn),
+        ).rowcount
+        if not n and sam:
+            n = conn.execute(
+                "UPDATE offboarded SET folders_deleted = ? WHERE state = 'open' AND lower(sam) = lower(?)", (note, sam)
+            ).rowcount
+        return n
 
 
 def update_current_dn(record_id, dn):

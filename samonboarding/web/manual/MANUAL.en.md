@@ -43,9 +43,10 @@ SAMONBOARDING is a web interface for the life cycle of user accounts in Active D
 | **AD structure** | Overview of OUs and groups |
 | **Reports** | Who did what and when, program messages (administrators only) |
 | **Certificate** | Upload the HTTPS certificate (administrators only) |
+| **Diagnostics** | Anonymous diagnostic package for troubleshooting (administrators only) |
 | **News** | What changed in the installed versions. A small dot marks a new version, an orange dot a security update |
 
-The menu is grouped into **Tasks** (Home to Delete accounts) and **Settings** (Templates to Certificate). Numbers next to a menu item show how many accounts are waiting there.
+The menu is grouped into **Tasks** (Home to Delete accounts) and **Settings** (Templates to Diagnostics). Numbers next to a menu item show how many accounts are waiting there.
 
 **Quick search (Ctrl + K, on a Mac ⌘ + K):** opens a search field for people and pages. Search by name, logon name or e-mail, choose with the arrow keys and open with Enter. A person opens in user management, already filtered. If the account is not released there, leaving or password reset opens instead. From two characters the DC searches directly in AD (at most 10 hits), only in the OUs released for user management, leaving and password reset, with your own AD account. The search text is never stored or logged. Esc closes the search.
 
@@ -77,7 +78,7 @@ After several wrong passwords the application blocks further attempts for a few 
 
 ## 3. Roles: who may do what?
 
-The role comes from your group membership in AD. It is recognised by the fixed identifier (SID) of the group, not by its name.
+The role comes from your group membership in AD. It is recognised by the fixed identifier (SID) of the group, not by its name. The administrator role is checked again in AD every 5 minutes during a session: anyone removed from the administrator groups is signed out.
 
 | | Operator | Administrator |
 |---|---|---|
@@ -91,14 +92,14 @@ The role comes from your group membership in AD. It is recognised by the fixed i
 
 New group memberships apply after the next sign-in.
 
-**Protected accounts** are members (also nested) of Domain, Schema and Enterprise Admins, Administrators and the operator groups, plus the built-in Administrator account and `krbtgt`. They appear in the lists with a **lock**.
+**Protected accounts** are members (also nested) of Domain, Schema and Enterprise Admins, Administrators, the operator groups (including your own, `CUSTOM_OPERATOR_GROUP`), Cert Publishers, Group Policy Creator Owners and (Enterprise) Key Admins, plus the built-in Administrator account and `krbtgt`. They appear in the lists with a **lock**.
 
 ---
 
 ## 4. Onboarding: creating a new user
 
-1. Open **Onboarding**.
-2. Choose a **template**. On the right you see what the template does: target OU, how the user name is built, groups.
+1. Open **New employee**.
+2. Choose a **template**. Below the form you see what the template does: target OU, how the user name is built, groups.
 3. Enter **first name** and **last name**. Depending on the template also the **e-mail address** (required, optional or not asked).
 4. Click **Create employee in Active Directory**.
 
@@ -139,7 +140,7 @@ The table shows all accounts from the released OUs with their groups, sorted alp
 
 Offboarding **disables** an account, **removes it from all groups** and moves it to the **target OU** for former employees. The password is not changed.
 
-1. Open **Offboarding**, find the account, click **Offboarding** next to it and confirm.
+1. Open **Leaving**, find the account, click **Offboarding** next to it and confirm.
 2. **Several at once:** tick up to 25 accounts (the box at the top selects all visible ones) and click **Offboard selection**. A confirmation with number and names appears first. An error with one account does not stop the others; at the end you see what worked.
 
 Not possible: your own account and protected accounts (with a lock).
@@ -156,7 +157,7 @@ Before every offboarding the application remembers the OU, the groups and whethe
 2. If the old OU no longer exists, choose another one.
 3. Confirm **Restore**: the account returns to its OU and its groups and is enabled again (if it was disabled before, it stays disabled). The old password still applies.
 
-A group deleted in the meantime is skipped and reported. Administrators can also **discard** an entry. Entries are deleted automatically after a period (default 180 days; the page shows the period).
+A group deleted in the meantime is skipped and reported. Operators only see accounts from the current offboarding source OUs; groups outside the approved group OUs (user management) are only put back by an administrator. If a deletion attempt already removed folders of the account, the preview says so – these folders do not come back. Offboarding the same account again does not overwrite the entry. Administrators can also **discard** an entry. Entries are deleted automatically after a period (default 180 days; the page shows the period).
 
 ---
 
@@ -193,7 +194,7 @@ Here **disabled** accounts are deleted **permanently**: the AD account and, if s
 The settings are in a box **(admin only)** on the respective pages. You choose OUs and groups in a **tree with check boxes**; expand and collapse with the arrows, filter with the search field.
 
 1. Open **AD structure** and check that OUs and groups appear. If the list is empty, the connection to the DC is not working.
-2. **Offboarding:** set the source OUs (accounts may be offboarded from these) and the target OU for disabled accounts.
+2. **Offboarding:** set the source OUs (accounts may be offboarded from these) and the target OU for disabled accounts. The target OU must not lie inside a source OU.
 3. **Reset password:** set the source OUs.
 4. **User management:** source OUs (which accounts appear), allowed target OUs (where accounts may be moved) and group OUs (which groups can be chosen).
 5. **Templates:** create at least one template (see [Templates](#11-templates)).
@@ -232,7 +233,7 @@ A template defines what a new account looks like. Open **Templates**: **+ New te
 | Field | Meaning |
 |---|---|
 | Template name | Name shown in the onboarding selection |
-| Username macro | How the user name is built, e.g. `%LASTNAME%%FIRSTNAME%[3]` |
+| Username macro | How the user name is built, e.g. `%LASTNAME%%FIRSTNAME%[3]`; must contain `%FIRSTNAME%` or `%LASTNAME%` |
 | Target OU | OU in which the account is created |
 | E-mail address / mailbox | Required, optional, on-premises Exchange or Microsoft 365 |
 | Password mode | Random password or fixed default password |
@@ -276,7 +277,7 @@ Mails go to the **signed-in person**, optionally also to CC recipients. Onboardi
 
 Notes:
 
-- *Auto* uses STARTTLS. If the server offers no encryption, nothing is sent. Choose *Without encryption* only for an internal relay; an SMTP password is then never sent.
+- *Auto* uses STARTTLS. If the server offers no encryption, nothing is sent. Choose *Without encryption* only for an internal relay without sign-in: if a user name and password are entered, no mail at all is sent in this mode (the password would otherwise cross the network in clear text).
 - If the server or user name changes, the password must be entered again.
 - If the test fails, check the server name and port and that the network or firewall allows the connection to the mail server.
 
@@ -340,7 +341,7 @@ Or with the helper script `sudo sh update.sh`: it remembers the running version,
 
 **Backup before a version change:** when a new program version starts, the program first backs up the data folder itself to `data/backups/vor-<version>-<date>.tar.gz` (the last 10 are kept). If an older version starts on data of a newer one, it stops with a message that names the matching backup.
 
-**Fixing a version and going back:** `.env` contains `SAMONBOARDING_VERSION`. Empty = always the newest version, `2.0` = the newest 2.0.x including security updates, `2.0.1` = exactly this version. Back to an older version whose data state is older: `sudo sh update.sh --restore data/backups/vor-<newer version>-<date>.tar.gz --version <older version>`.
+**Fixing a version and going back:** `.env` contains `SAMONBOARDING_VERSION`. Empty = always the newest version, `2.0` = the newest 2.0.x (security updates only while 2.0 is the newest line), `2.0.1` = exactly this version. Back to an older version whose data state is older: `sudo sh update.sh --restore data/backups/vor-<newer version>-<date>.tar.gz --version <older version>`.
 
 **New version available:** once a day the server checks on GitHub whether there is a newer version. If so, administrators see a note at the top of every page with the version, a *What's new?* link and the commands to update. Security updates (`-s1`, `-s2` …) are marked as such. If `.env` sets a fixed version, the note follows it. Nothing is sent along. To switch it off: `UPDATE_CHECK=false` in `.env`.
 

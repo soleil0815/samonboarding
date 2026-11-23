@@ -41,9 +41,10 @@ SAMONBOARDING ist eine Weboberfläche für den Lebenszyklus von Benutzerkonten i
 | **AD-Struktur** | Übersicht über OUs und Gruppen |
 | **Berichte** | Wer hat wann was getan, Programm-Meldungen (nur Administratoren) |
 | **Zertifikat** | HTTPS-Zertifikat hochladen (nur Administratoren) |
+| **Diagnose** | Anonymes Diagnosepaket für die Fehlersuche (nur Administratoren) |
 | **Neuigkeiten** | Was sich in den installierten Versionen geändert hat. Ein kleiner Punkt zeigt eine neue Version an, ein oranger Punkt ein Sicherheitsupdate |
 
-Die Menüpunkte sind in **Aufgaben** (Start bis Konten löschen) und **Einstellungen** (Templates bis Zertifikat) gruppiert. Zahlen neben einem Menüpunkt zeigen, wie viele Konten dort warten.
+Die Menüpunkte sind in **Aufgaben** (Start bis Konten löschen) und **Einstellungen** (Templates bis Diagnose) gruppiert. Zahlen neben einem Menüpunkt zeigen, wie viele Konten dort warten.
 
 **Schnellsuche (Strg + K, am Mac ⌘ + K):** Öffnet ein Suchfeld für Personen und Seiten. Nach Name, Anmeldename oder E-Mail suchen, mit den Pfeiltasten wählen und mit Enter öffnen. Eine Person öffnet sich in der Benutzerverwaltung, schon nach ihr gefiltert. Ist sie dort nicht freigegeben, öffnet sich Austritt oder Passwort zurücksetzen. Ab zwei Zeichen sucht der DC direkt im AD (höchstens 10 Treffer), und zwar nur in den OUs, die für Benutzerverwaltung, Austritt und Passwort zurücksetzen freigegeben sind, mit deinem eigenen AD-Konto. Der Suchtext wird nirgends gespeichert oder protokolliert. Esc schließt die Suche.
 
@@ -75,7 +76,7 @@ Nach mehreren falschen Passwörtern sperrt die Anwendung weitere Versuche für e
 
 ## 3. Rollen: Was darf wer?
 
-Die Rolle ergibt sich aus der Gruppenmitgliedschaft im AD. Erkannt wird sie an der festen Kennung (SID) der Gruppe, nicht am Namen.
+Die Rolle ergibt sich aus der Gruppenmitgliedschaft im AD. Erkannt wird sie an der festen Kennung (SID) der Gruppe, nicht am Namen. Die Administratorrolle wird während der Sitzung alle 5 Minuten im AD nachgeprüft: Wer aus den Administratorgruppen entfernt wurde, wird abgemeldet.
 
 | | Operator | Administrator |
 |---|---|---|
@@ -89,14 +90,14 @@ Die Rolle ergibt sich aus der Gruppenmitgliedschaft im AD. Erkannt wird sie an d
 
 Neue Gruppenmitgliedschaften gelten nach der nächsten Anmeldung.
 
-**Geschützte Konten** sind Mitglieder (auch verschachtelt) von Domänen-, Schema- und Organisations-Admins, Administratoren und den Operator-Gruppen sowie das integrierte Administratorkonto und `krbtgt`. Sie erscheinen in den Listen mit einem **Schloss**.
+**Geschützte Konten** sind Mitglieder (auch verschachtelt) von Domänen-, Schema- und Organisations-Admins, Administratoren, den Operator-Gruppen (auch der eigenen, `CUSTOM_OPERATOR_GROUP`), Zertifikatherausgebern, Richtlinien-Ersteller-Besitzern und den (Organisations-)Schlüsseladministratoren sowie das integrierte Administratorkonto und `krbtgt`. Sie erscheinen in den Listen mit einem **Schloss**.
 
 ---
 
 ## 4. Onboarding: neuen Benutzer anlegen
 
-1. Menü **Onboarding** öffnen.
-2. **Template** wählen. Rechts siehst du, was das Template tut: Ziel-OU, Aufbau des Benutzernamens, Gruppen.
+1. Menü **Neuer Mitarbeiter** öffnen.
+2. **Template** wählen. Unter dem Formular siehst du, was das Template tut: Ziel-OU, Aufbau des Benutzernamens, Gruppen.
 3. **Vorname** und **Nachname** eingeben. Je nach Template auch die **E-Mail-Adresse** (Pflicht, optional oder gar nicht abgefragt).
 4. Auf **Mitarbeiter im Active Directory anlegen** klicken.
 
@@ -137,7 +138,7 @@ Die Tabelle zeigt alle Konten aus den freigegebenen OUs mit ihren Gruppen, alpha
 
 Beim Offboarding wird ein Konto **deaktiviert**, aus **allen Gruppen entfernt** und in die **Ziel-OU** für ausgeschiedene Mitarbeiter verschoben. Das Passwort bleibt unverändert.
 
-1. Menü **Offboarding**, Konto suchen, beim Konto auf **Offboarding** klicken und bestätigen.
+1. Menü **Austritt**, Konto suchen, beim Konto auf **Offboarding** klicken und bestätigen.
 2. **Mehrere auf einmal:** Haken bei bis zu 25 Konten setzen (das Kästchen oben wählt alle sichtbaren) und **Auswahl offboarden** klicken. Vor dem Start erscheint eine Bestätigung mit Anzahl und Namen. Ein Fehler bei einem Konto stoppt die anderen nicht; am Ende steht, was geklappt hat.
 
 Nicht möglich: das eigene Konto und geschützte Konten (mit Schloss).
@@ -154,7 +155,7 @@ Vor jedem Offboarding merkt sich die Anwendung OU, Gruppen und ob das Konto akti
 2. Gibt es die alte OU nicht mehr, wählst du eine andere.
 3. **Wiederherstellen** bestätigen: Das Konto kommt in die OU zurück, in seine Gruppen und wird wieder aktiv (war es vorher schon deaktiviert, bleibt es das). Das alte Passwort gilt weiter.
 
-Eine inzwischen gelöschte Gruppe wird übersprungen und gemeldet. Administratoren können einen Eintrag auch **verwerfen**. Die Einträge werden nach einer Frist automatisch gelöscht (Standard 180 Tage, die Seite zeigt die Frist an).
+Eine inzwischen gelöschte Gruppe wird übersprungen und gemeldet. Operatoren sehen nur Konten aus den aktuellen Quell-OUs des Offboardings; Gruppen außerhalb der freigegebenen Gruppen-OUs (Benutzerverwaltung) weist nur ein Administrator wieder zu. Hat ein Löschversuch schon Ordner des Kontos gelöscht, sagt die Vorschau das – diese Ordner kommen nicht zurück. Ein erneutes Offboarding desselben Kontos überschreibt den Eintrag nicht. Administratoren können einen Eintrag auch **verwerfen**. Die Einträge werden nach einer Frist automatisch gelöscht (Standard 180 Tage, die Seite zeigt die Frist an).
 
 ---
 
@@ -191,7 +192,7 @@ Hier werden **deaktivierte** Konten **endgültig** gelöscht: das AD-Konto und, 
 Die Einstellungen stehen in den jeweiligen Menüpunkten in einem Kasten **(Nur Admin)**. OUs und Gruppen wählst du in einem **Baum mit Haken**; mit den Pfeilen auf- und zuklappen, mit dem Suchfeld filtern.
 
 1. **AD-Struktur** öffnen und prüfen, ob OUs und Gruppen erscheinen. Ist die Liste leer, stimmt die Verbindung zum DC nicht.
-2. **Offboarding:** Quell-OUs (aus diesen darf offgeboardet werden) und die Ziel-OU für deaktivierte Konten festlegen.
+2. **Offboarding:** Quell-OUs (aus diesen darf offgeboardet werden) und die Ziel-OU für deaktivierte Konten festlegen. Die Ziel-OU darf nicht in einer Quell-OU liegen.
 3. **Passwort zurücksetzen:** Quell-OUs festlegen.
 4. **Benutzerverwaltung:** Quell-OUs (welche Konten erscheinen), erlaubte Ziel-OUs (wohin verschoben werden darf) und Gruppen-OUs (welche Gruppen zur Auswahl stehen).
 5. **Templates:** mindestens ein Template anlegen (siehe [Templates](#11-templates)).
@@ -230,7 +231,7 @@ Ein Template legt fest, wie ein neues Konto aussieht. Menü **Templates**: **+ N
 | Feld | Bedeutung |
 |---|---|
 | Template Name | Name in der Auswahl beim Onboarding |
-| Username Makro | Aufbau des Benutzernamens, z. B. `%LASTNAME%%FIRSTNAME%[3]` |
+| Username Makro | Aufbau des Benutzernamens, z. B. `%LASTNAME%%FIRSTNAME%[3]`; muss `%FIRSTNAME%` oder `%LASTNAME%` enthalten |
 | Ziel OU | OU, in der das Konto entsteht |
 | E-Mail-Adresse / Postfach | Pflicht, optional, Exchange im eigenen Haus oder Microsoft 365 |
 | Passwort-Modus | Zufallspasswort oder festes Standardpasswort |
@@ -274,7 +275,7 @@ Die Mails gehen an die **angemeldete Person**, optional zusätzlich an CC-Empfä
 
 Hinweise:
 
-- *Auto* nutzt STARTTLS. Bietet der Server keine Verschlüsselung an, wird nichts gesendet. *Ohne Verschlüsselung* nur für ein internes Relay wählen; ein SMTP-Passwort wird dann nie gesendet.
+- *Auto* nutzt STARTTLS. Bietet der Server keine Verschlüsselung an, wird nichts gesendet. *Ohne Verschlüsselung* nur für ein internes Relay ohne Anmeldung wählen: Sind Benutzername und Passwort eingetragen, wird in diesem Modus gar keine Mail gesendet (das Passwort ginge sonst im Klartext über das Netz).
 - Ändert sich Server oder Benutzername, muss das Passwort neu eingegeben werden.
 - Schlägt der Test fehl, Servername und Port prüfen und ob Netzwerk bzw. Firewall die Verbindung zum Mailserver erlauben.
 
@@ -338,7 +339,7 @@ Oder mit dem Hilfsskript `sudo sh update.sh`: Es merkt sich die laufende Version
 
 **Sicherung vor einem Versionswechsel:** Startet eine neue Programmversion, sichert das Programm zuerst selbst den Datenordner nach `data/backups/vor-<Version>-<Datum>.tar.gz` (die letzten 10 bleiben). Startet eine ältere Version auf Daten einer neueren, bricht sie mit einer Meldung ab, die die passende Sicherung nennt.
 
-**Version festlegen und zurückgehen:** In der `.env` steht `SAMONBOARDING_VERSION`. Leer = immer die neueste Version, `2.0` = die neueste 2.0.x samt Sicherheitsupdates, `2.0.1` = genau diese Version. Zurück auf eine ältere Version, deren Datenstand älter ist: `sudo sh update.sh --restore data/backups/vor-<neuere Version>-<Datum>.tar.gz --version <ältere Version>`.
+**Version festlegen und zurückgehen:** In der `.env` steht `SAMONBOARDING_VERSION`. Leer = immer die neueste Version, `2.0` = die neueste 2.0.x (Sicherheitsupdates nur, solange 2.0 die neueste Reihe ist), `2.0.1` = genau diese Version. Zurück auf eine ältere Version, deren Datenstand älter ist: `sudo sh update.sh --restore data/backups/vor-<neuere Version>-<Datum>.tar.gz --version <ältere Version>`.
 
 **Neue Version verfügbar:** Einmal am Tag sieht der Server bei GitHub nach, ob es eine neuere Version gibt. Wenn ja, sehen Administratoren oben auf jeder Seite einen Hinweis mit der Version, einem Link *Was ist neu?* und den Befehlen zum Aktualisieren. Sicherheitsupdates (`-s1`, `-s2` …) sind als solche gekennzeichnet. Ist in der `.env` eine feste Version eingetragen, richtet sich der Hinweis danach. Mitgeschickt wird nichts. Ausschalten: `UPDATE_CHECK=false` in der `.env`.
 

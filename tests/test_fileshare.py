@@ -208,6 +208,24 @@ class DeleteTests(unittest.TestCase):
         self.assertEqual(result.links, 1)
         self.assertNotIn(("listdir", sub), share.calls)
 
+    def test_root_that_is_a_link_is_never_followed(self):
+        """Audit 2026-11b: after a takeover the root itself may turn out to be a junction - delete nothing."""
+        target = ROOT + "\\Docs\\a.txt"
+        share = sample(denied=[ROOT])
+
+        class LinkRoot(type(share)):
+            def stat(self, path):
+                self.calls.append(("stat", path))
+                self._check(path)
+                return fs.FsStat(is_dir=True, size=0, reparse=path.lower() == ROOT.lower())
+
+        share.__class__ = LinkRoot
+        result = fs.delete_tree(share, ROOT, takeover=True)
+        self.assertEqual(result.files + result.dirs + result.links, 0)
+        self.assertTrue(any("Verknüpfung" in e for e in result.errors))
+        self.assertIn(target.lower(), share.tree)
+        self.assertNotIn(("listdir", ROOT), share.calls)
+
     def test_no_takeover_without_permission(self):
         share = sample(locked=[ROOT + "\\readme.txt"])
         result = fs.delete_tree(share, ROOT)

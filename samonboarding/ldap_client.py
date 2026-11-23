@@ -115,7 +115,8 @@ def _certificate_rejected(error):
     if isinstance(error, ssl.SSLCertVerificationError):
         return True
     text = str(error).casefold()
-    return "certificate_verify_failed" in text or "certificate verify failed" in text
+    # ldap3 checks the host name itself and reports a mismatch as "... doesn't match any name in ..."
+    return any(k in text for k in ("certificate_verify_failed", "certificate verify failed", "doesn't match"))
 
 
 def _tls_config():
@@ -133,7 +134,9 @@ def ldap_connection(dc_ip, bind_user, password):
     """
     conn = None
     attempts = [(636, True)]
-    if LDAP_ALLOW_PLAIN:
+    # Code audit 2026-11b: with a CA file the certificate is verified - then never fall back to clear text, otherwise
+    # an attacker on the network path only has to reset the connection on 636 to get the password on 389
+    if LDAP_ALLOW_PLAIN and not LDAP_CA_FILE:
         attempts.append((389, False))
     try:
         for port, use_ssl in attempts:

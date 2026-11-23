@@ -93,8 +93,8 @@ class WorkflowSecurityTests(unittest.TestCase):
             block = flow[step_index(flow, step) :][:400]
             self.assertIn("if: env.PUBLISH == 'true'", block, step)
         self.assertTrue(
-            "group: ${{ github.event_name == 'pull_request' && format('image-pr-{0}', github.ref) || 'image-release' }}"
-            in image,
+            "group: ${{ github.event_name == 'pull_request' && format('image-pr-{0}', github.ref) || "
+            "github.event_name == 'push' && format('image-push-{0}', github.sha) || 'image-release' }}" in image,
             "Releases nie gleichzeitig",
         )
         self.assertIn("cancel-in-progress: false", image)

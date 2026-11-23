@@ -305,6 +305,19 @@ def _others_using(conn, search_base, attr, target_path, own_dn, kind):
     return sorted(others)
 
 
+def _inside_other_account_folder(conn, search_base, target_path, own_dn):
+    """Accounts whose user name is an intermediate folder of the path (\\\\fs\\home$\\chef\\anna -> 'chef').
+
+    Code audit 2026-11b: the other-account check above only sees AD attributes; an account that uses its folder
+    in the base path without homeDirectory/profilePath would not be noticed, so its folder name is checked too."""
+    names = [p for p in parse_unc(target_path)[2][:-1] if p]
+    if not names:
+        return []
+    clauses = "".join(f"(sAMAccountName={ldap_escape(n)})" for n in names)
+    rows = ldap_search(conn, search_base, f"(&{USER_FILTER}(|{clauses}))", ["sAMAccountName"])
+    return sorted(r.text("sAMAccountName") for r in rows if r.dn.lower() != own_dn.lower())
+
+
 def plan_targets(conn, cfg, entry, sam, search_base):
     """All possible folders of the account; folders that also belong to other accounts are excluded."""
     targets, shared = [], {}
@@ -312,8 +325,17 @@ def plan_targets(conn, cfg, entry, sam, search_base):
         attr = ATTR_OF_KIND.get(kind)
         raw = entry.text(attr) if attr else ""
         for target in build_targets(kind, cfg[kind], sam, raw):
-            if attr and target["path"] and not target["skip"]:
-                others = _others_using(conn, search_base, attr, target["path"], entry.dn, kind)
+            if target["path"] and not target["skip"]:
+                # Code audit 2026-11b: compare every folder (also folder redirection, which has no AD attribute of
+                # its own) with BOTH attributes of all other accounts - a profile can lie in a home share and vice versa
+                others = sorted(
+                    {
+                        name
+                        for other_attr, other_kind in (("homeDirectory", "home"), ("profilePath", "profile"))
+                        for name in _others_using(conn, search_base, other_attr, target["path"], entry.dn, other_kind)
+                    }
+                )
+                others = sorted({*others, *_inside_other_account_folder(conn, search_base, target["path"], entry.dn)})
                 if others:
                     shown = ", ".join(others[:5]) + (" …" if len(others) > 5 else "")
                     target["skip"] = f"Wird auch von anderen Konten verwendet ({shown}) - würde deren Daten löschen."
@@ -425,7 +447,7 @@ def inspect_target(backend, target, server_errors, takeover=False):
 def _missing_warnings(cfg, results, sam):
     out = []
     for kind in KINDS:
-        if cfg[kind]["enabled"] and not any(r["kind"] == kind and r["status"] == "found" for r in results):
+        if cfg[kind]["enabled"] and not any(r["kind"] == kind and r["status"] in FOUND for r in results):
             expected = f"{sam}." + "/".join(cfg[kind].get("suffixes", [])) if kind == "profile" else sam
             out.append(f"{LOCATION_LABELS[kind]}: kein Ordner gefunden (erwartet: {expected}).")
     return out
@@ -556,12 +578,13 @@ def verify_admin_password(user, password, action="deletion"):
                 status_code=429,
                 detail="Zu viele falsche Passwörter. Diese Aktion ist für diese Sitzung kurz gesperrt (ca. 5 Minuten).",
             )
-    if not password:
-        raise HTTPException(status_code=400, detail="Bitte das Passwort zur Bestätigung eingeben.")
+        if not password:
+            raise HTTPException(status_code=400, detail="Bitte das Passwort zur Bestätigung eingeben.")
+        # Code audit 2026-11b: count the attempt before comparing (like the login throttle), so that parallel
+        # guesses cannot all pass the check above and then overwrite each other's failures
+        _pw_failures[sid] = recent + [now]
     expected = str(user.get("password") or "").encode("utf-8")
     if not expected or not hmac.compare_digest(str(password).encode("utf-8"), expected):
-        with _pw_lock:
-            _pw_failures[sid] = recent + [now]
         audit(actor_name(user), f"{action}-password-fail")
         raise HTTPException(status_code=403, detail="Das Passwort ist falsch.")
     with _pw_lock:
@@ -851,6 +874,17 @@ def _forget_offboarding(sam, dn):
         log.warning("Offboarding-Eintrag fuer %s nicht entfernt: %s", sam, e)
 
 
+def _remember_deleted_folders(sam, dn, results):
+    """Folders are gone but the account stays: a later restore must say so (code audit 2026-11b)."""
+    paths = [r["path"] for r in results if r["status"] == "deleted" or r.get("files") or r.get("dirs")]
+    if not paths:
+        return
+    try:
+        offboard_store.mark_folders_deleted(sam=sam, dn=dn, paths=paths)
+    except Exception as e:
+        log.warning("Offboarding-Eintrag fuer %s nicht markiert: %s", dn, e)
+
+
 TREE_DELETE_OID = "1.2.840.113556.1.4.805"
 
 
@@ -942,6 +976,7 @@ def run_deletion(user, cfg, plan, mail=None, on_locked=None):
         ]
         if failed:
             details["error"] = f"{len(failed)} Ordner nicht vollständig gelöscht - AD-Konto bleibt bestehen"
+            _remember_deleted_folders(sam, entry.dn, results)
             if mail:
                 mail(name, sam, results, False, None)
             return {
@@ -964,6 +999,7 @@ def run_deletion(user, cfg, plan, mail=None, on_locked=None):
                 ensure(conn, deleted, "AD-Konto löschen")
             except HTTPException as e:
                 details["error"] = f"Ordner gelöscht, aber AD-Konto nicht: {e.detail}"
+                _remember_deleted_folders(sam, entry.dn, results)
                 if mail:
                     mail(name, sam, results, False, e.detail)
                 raise AdError(f"Die Ordner wurden gelöscht, das AD-Konto aber nicht: {e.detail}") from e
@@ -977,7 +1013,8 @@ def run_deletion(user, cfg, plan, mail=None, on_locked=None):
             "name": name,
             "sam": sam,
             "results": results,
-            "message": f"Konto {sam} und {len(results)} Ordner wurden gelöscht."
+            # only folders that really were deleted (a folder that vanished since the simulation is "missing")
+            "message": f"Konto {sam} und {sum(1 for r in results if r['status'] == 'deleted')} Ordner wurden gelöscht."
             if results
             else f"Konto {sam} wurde gelöscht.",
         }

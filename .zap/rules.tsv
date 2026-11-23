@@ -1,3 +1,10 @@
 # Known false positives for the ZAP scan (zap-scan.sh): one line per rule, TAB separated:
 # <rule id>	IGNORE	<why it is not a problem here>
 # Only the code audit adds lines here, each with a reason – never to silence a real finding.
+10055	IGNORE	style-src allows 'unsafe-inline' on purpose: the page's own <style> block, style attributes and the print window's <style> need it; script-src is 'self' only (no inline scripts, tested in tests/test_csp.py), CSS cannot run code
+90004	IGNORE	Cross-Origin-Resource-Policy and -Opener-Policy are set (tests/test_audit_2026_11b.py); Cross-Origin-Embedder-Policy is left out on purpose: the program needs no cross-origin isolation and the print window (about:blank) must keep working in every browser
+10035	IGNORE	HSTS is sent only with a trusted (non self-signed) certificate, which the scan does not use; covered by tests/test_https_reports.py
+10027	IGNORE	matches are ordinary words in explanatory comments (user, from, query, or-later in the SPDX header); no credentials, hosts or debug notes
+10015	IGNORE	the page is no-cache on purpose (revalidated on every load after updates) and holds no user data; all data comes from /api/*, which is no-store
+10049	IGNORE	static assets are cacheable on purpose (versioned URLs); the page is no-cache and the API is no-store
+10104	IGNORE	responses do not depend on the User-Agent; /static is a file mount without directory listing

@@ -40,10 +40,21 @@ def filetime(seconds):
     return int((seconds + FILETIME_EPOCH_OFFSET) * 10_000_000)
 
 
+def generalized_time(seconds):
+    """Unix time -> LDAP GeneralizedTime (whenCreated), e.g. 20261123120000.0Z."""
+    return time.strftime("%Y%m%d%H%M%S.0Z", time.gmtime(seconds))
+
+
 def inactive_filter(now):
-    """Enabled accounts that have never logged on or not for INACTIVE_DAYS (lastLogonTimestamp, approximate)."""
-    limit = filetime(now - INACTIVE_DAYS * 86400)
-    return f"(&{USER_FILTER}(!{DISABLED})(|(!(lastLogonTimestamp=*))(lastLogonTimestamp<={limit})))"
+    """Enabled accounts that have never logged on or not for INACTIVE_DAYS (lastLogonTimestamp, approximate).
+    Accounts created within these days do not count (code audit 2026-11b): a new account that has not logged on
+    yet is not inactive."""
+    cutoff = now - INACTIVE_DAYS * 86400
+    limit = filetime(cutoff)
+    return (
+        f"(&{USER_FILTER}(!{DISABLED})(whenCreated<={generalized_time(cutoff)})"
+        f"(|(!(lastLogonTimestamp=*))(lastLogonTimestamp<={limit})))"
+    )
 
 
 LOCKED_FILTER = f"(&{USER_FILTER}(lockoutTime>=1))"
