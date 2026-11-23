@@ -3,9 +3,10 @@ const src = require('./load_script.js');
 const els = {};
 const el = id => els[id] || (els[id] = {id, innerHTML:'', textContent:'', value:'', checked:false, disabled:false, focus(){}, classList:{add(){},remove(){},toggle(){}}, style:{}});
 const doc = {getElementById: el, querySelectorAll: () => [], addEventListener(){}};
-let calls = [], jobsList = [], jobStates = [];
+let calls = [], jobsList = [], jobStates = [], hold = null;
 const fetchStub = async (u, o) => {
   calls.push([u, o && o.method]);
+  if(hold && hold.url === u) await hold.promise;
   if(u === '/api/deletion/jobs') return {ok:true, json: async () => ({jobs: jobsList})};
   if(u.startsWith('/api/deletion/job/') && u.endsWith('/dismiss')) return {ok:true, json: async () => ({status:'success'})};
   if(u.startsWith('/api/deletion/job/')) { const j = jobStates.shift(); return {ok:true, json: async () => j}; }
@@ -13,7 +14,7 @@ const fetchStub = async (u, o) => {
   return {ok:true, json: async () => ({})};
 };
 const f = new Function('document','window','navigator','alert','fetch','confirm', src.replace(/document\.addEventListener\("DOMContentLoaded"[\s\S]*?\}\);\s*\n/, '') + `
-return {resumeDeletionJob, dismissDeletionJob, setRole:r=>{currentUserRole=r}, setPlan:p=>{delPlan=p}};`);
+return {resumeDeletionJob, dismissDeletionJob, pollDeletionJob, bump:()=>{delView++}, view:()=>delView, setRole:r=>{currentUserRole=r}, setPlan:p=>{delPlan=p}};`);
 (async () => {
   const api = f(doc, {}, {language:'de'}, () => {}, fetchStub, () => true);
   const st0 = global.setTimeout; const ticks = [];
@@ -39,6 +40,23 @@ return {resumeDeletionJob, dismissDeletionJob, setRole:r=>{currentUserRole=r}, s
   els['del-sim-result'].innerHTML = '<div>Simulation</div>'; calls.length = 0; jobsList = [job(true)];
   await api.resumeDeletionJob();
   console.assert(calls.length === 0 && els['del-sim-result'].innerHTML === '<div>Simulation</div>', 'Simulation bleibt stehen');
+  // a simulation started while the list of jobs is still on its way is never overwritten
+  els['del-sim-result'].innerHTML = ''; jobsList = [job(false)]; jobStates = [job(false)];
+  let release; hold = {url:'/api/deletion/jobs', promise: new Promise(r => { release = r; })};
+  const pending = api.resumeDeletionJob();
+  await new Promise(r => st0(r, 5));
+  api.setPlan({sam:'bbeta'}); api.bump(); els['del-sim-result'].innerHTML = '<div>Simulation B</div>';
+  release(); await pending; await new Promise(r => st0(r, 20)); hold = null;
+  console.assert(els['del-sim-result'].innerHTML === '<div>Simulation B</div>' && !calls.some(c => c[0] === '/api/deletion/job/J9'), 'Simulation während der Abfrage bleibt stehen');
+  api.setPlan(null);
+  // a poll whose answer arrives after a new simulation does not overwrite it (and does not keep polling)
+  ticks.length = 0; jobStates = [job(false)];
+  hold = {url:'/api/deletion/job/J9', promise: new Promise(r => { release = r; })};
+  const poll = api.pollDeletionJob('J9', 0, api.view());
+  await new Promise(r => st0(r, 5));
+  api.bump(); els['del-sim-result'].innerHTML = '<div>Simulation C</div>';
+  release(); await poll; hold = null;
+  console.assert(els['del-sim-result'].innerHTML === '<div>Simulation C</div>' && ticks.length === 0, 'späte Fortschrittsantwort überschreibt nichts');
   // operators never ask
   els['del-sim-result'].innerHTML = ''; api.setRole('Account Operator'); calls.length = 0;
   await api.resumeDeletionJob();

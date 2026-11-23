@@ -9,7 +9,7 @@ Entries starting with "Security:" or "Fixed:" are marked accordingly in the inte
 
 ## 2.11.0 – 2026-11-23
 - Changed: deleting a single account now also runs as a job on the server, like the batch deletion. Closing the page, reloading it or a proxy timeout no longer matters: the deletion continues, and the result mail is sent in any case.
-  - Running deletions are found again: when an administrator opens **Delete accounts** again (also after reloading or signing in again), the page shows the running or just-finished deletion with its progress and result – for single and batch deletions. **Hide result** removes it from the page (it stays in the reports).
+  - Running deletions are found again: when an administrator opens **Delete accounts** again (also after reloading or signing in again), the page shows the running or just-finished deletion with its progress and result – for single and batch deletions. **Hide result** removes it from the page and from memory (it stays in the reports).
   - Instead of the warning "do not close the page" the page now says: "Deletion running on the server. You may leave the page; the result appears here and by email (if set up)."
   - A deletion belongs to the administrator who started it; other administrators do not see it. Finished deletions are kept in memory for one hour (account name and result), never on disk.
 - Fixed: in the English interface the result of a single deletion (message, number of files and folders, ownership taken) was partly shown in German.

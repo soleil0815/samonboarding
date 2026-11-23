@@ -9,7 +9,7 @@ Einträge, die mit „Sicherheit:“ oder „Behoben:“ beginnen, werden in der
 
 ## 2.11.0 – 2026-11-23
 - Geändert: Das Löschen eines einzelnen Kontos läuft jetzt wie die Sammellöschung als Auftrag auf dem Server. Seite schließen, neu laden oder ein Zeitlimit des Proxys spielen keine Rolle mehr: Die Löschung läuft weiter, und die Ergebnis-Mail kommt in jedem Fall.
-  - Laufende Löschungen werden wiedergefunden: Öffnet ein Administrator **Konten löschen** erneut (auch nach Neuladen oder neuer Anmeldung), zeigt die Seite die laufende oder gerade beendete Löschung mit Fortschritt und Ergebnis – bei Einzel- und Sammellöschung. **Ergebnis ausblenden** nimmt sie von der Seite (in den Berichten bleibt sie).
+  - Laufende Löschungen werden wiedergefunden: Öffnet ein Administrator **Konten löschen** erneut (auch nach Neuladen oder neuer Anmeldung), zeigt die Seite die laufende oder gerade beendete Löschung mit Fortschritt und Ergebnis – bei Einzel- und Sammellöschung. **Ergebnis ausblenden** nimmt sie von der Seite und aus dem Arbeitsspeicher (in den Berichten bleibt sie).
   - Statt der Warnung „Seite nicht schließen“ steht jetzt: „Löschvorgang läuft auf dem Server. Sie können die Seite verlassen; das Ergebnis erscheint hier und per E-Mail (falls eingerichtet).“
   - Eine Löschung gehört dem Administrator, der sie gestartet hat; andere Administratoren sehen sie nicht. Beendete Löschungen bleiben eine Stunde im Arbeitsspeicher (Kontoname und Ergebnis), nie auf der Festplatte.
 - Behoben: In der englischen Oberfläche erschien das Ergebnis einer Einzellöschung (Meldung, Anzahl Dateien und Ordner, Besitz übernommen) teils auf Deutsch.

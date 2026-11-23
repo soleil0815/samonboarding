@@ -2792,6 +2792,7 @@ const DEL_BATCH_MAX = 25;
 const delSelected = new Set();
 let delBatchPlan = null;
 let delJobTimer = null;
+let delView = 0;  // changes whenever the page shows something else: a reply still on its way must not overwrite it
 
 function updateDeletionSelection() {
     const n = delSelected.size;
@@ -2869,6 +2870,7 @@ function delSimRows(targets) {
 }
 
 async function simulateDeletion(userDn) {
+    delView++;
     if(delJobTimer) { clearTimeout(delJobTimer); delJobTimer = null; }  // do not let it overwrite the display of a batch run
     const box = document.getElementById('del-sim-result');
     box.innerHTML = '<div class="text-xs text-slate-400">Simulation läuft (kann bei großen Profilen etwas dauern)...</div>';
@@ -2947,6 +2949,7 @@ function delErr(msg) { return `<div class="p-4 rounded-xl border border-rose-500
 
 async function simulateBatch() {
     if(currentUserRole !== "Administrator" || delSelected.size === 0) return;
+    delView++;
     if(delJobTimer) { clearTimeout(delJobTimer); delJobTimer = null; }
     delPlan = null; delBatchPlan = null;
     const box = delBox();
@@ -3032,7 +3035,8 @@ async function _executeBatch() {
     if(!res.ok) { box.innerHTML = delErr(data.detail || 'Löschen konnte nicht gestartet werden.'); return; }
     delSelected.clear();
     updateDeletionSelection();
-    pollDeletionJob(data.jobId, 0);
+    delView++;
+    pollDeletionJob(data.jobId, 0, delView);
 }
 
 const DEL_JOB_STATUS = {
@@ -3043,21 +3047,24 @@ const DEL_JOB_STATUS = {
     error: ['Nicht gelöscht', 'text-rose-400']
 };
 
-async function pollDeletionJob(jobId, failures) {
+async function pollDeletionJob(jobId, failures, view) {
     const box = delBox();
     let job;
     try {
         const res = await fetch('/api/deletion/job/' + encodeURIComponent(jobId));
+        if(view !== delView) return;  // meanwhile a simulation (or something else) is shown: leave it alone
         if(!res.ok) throw new Error('HTTP ' + res.status);
         job = await res.json();
     } catch(e) {
+        if(view !== delView) return;
         if(failures >= 5) { box.innerHTML = delErr('Der Fortschritt kann nicht mehr abgefragt werden (' + e.message + '). Der Löschauftrag läuft auf dem Server weiter – Ergebnis unter „Berichte“ prüfen.'); return; }
-        delJobTimer = setTimeout(() => pollDeletionJob(jobId, failures + 1), 2000);
+        delJobTimer = setTimeout(() => pollDeletionJob(jobId, failures + 1, view), 2000);
         return;
     }
+    if(view !== delView) return;
     renderDeletionJob(job);
     if(job.finished) { delJobTimer = null; await loadDeletionUsers(); return; }
-    delJobTimer = setTimeout(() => pollDeletionJob(jobId, 0), 1500);
+    delJobTimer = setTimeout(() => pollDeletionJob(jobId, 0, view), 1500);
 }
 
 const DEL_RUNNING_NOTE = 'Sie können die Seite verlassen; das Ergebnis erscheint hier und per E-Mail (falls eingerichtet).';
@@ -3067,6 +3074,7 @@ function dismissButton(job) {
 }
 
 async function dismissDeletionJob(jobId) {
+    delView++;
     try { await fetch('/api/deletion/job/' + encodeURIComponent(jobId) + '/dismiss', { method: 'POST' }); } catch(e) { /* only hides it */ }
     const box = delBox();
     if(box) box.innerHTML = '';
@@ -3106,14 +3114,17 @@ async function resumeDeletionJob() {
     if(currentUserRole !== "Administrator" || delJobTimer || delPlan || delBatchPlan) return;
     const box = delBox();
     if(!box || box.innerHTML.trim()) return;  // something is shown already (e.g. a simulation)
+    const view = delView;
     let data;
     try {
         const res = await fetch('/api/deletion/jobs');
         if(!res.ok) return;
         data = await res.json();
     } catch(e) { return; }
+    // the answer may come late (the account list is loaded first): check again that nothing else is shown now
+    if(view !== delView || delJobTimer || delPlan || delBatchPlan || box.innerHTML.trim()) return;
     const job = (data.jobs || [])[0];
-    if(job) pollDeletionJob(job.id, 0);
+    if(job) pollDeletionJob(job.id, 0, view);
 }
 
 function isPasswordError(res, data) {
@@ -3157,7 +3168,8 @@ async function executeDeletion() {
         return;
     }
     // runs on the server as a job (like the batch deletion): the page can be closed, it finds the job again
-    pollDeletionJob(data.jobId, 0);
+    delView++;
+    pollDeletionJob(data.jobId, 0, delView);
 }
 
 // Result of a single deletion (job of kind "single")

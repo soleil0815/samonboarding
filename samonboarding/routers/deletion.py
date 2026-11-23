@@ -1065,8 +1065,10 @@ def run_single_job(job_id, user, cfg, plan, plan_id):
     entry["status"] = "running"
     job["current"] = plan["sam"]
 
+    mails = []  # sent only when the job is finished: a slow mail server must not keep it (and the account) running
+
     def mail(name, sam, results, account_deleted, ad_error):
-        _queue_mail(_SendNow, user, name, sam, results, account_deleted, ad_error)
+        mails.append((name, sam, results, account_deleted, ad_error))
 
     try:
         result = run_deletion(user, cfg, plan, mail, on_locked=lambda: drop_plan(plan_id))
@@ -1087,6 +1089,11 @@ def run_single_job(job_id, user, cfg, plan, plan_id):
         job["current"] = ""
         job["finished"] = True
         job["finishedAt"] = time.time()
+    for args in mails:
+        try:
+            _queue_mail(_SendNow, user, *args)
+        except Exception:
+            log.exception("Loeschauftrag: Mail zu %s nicht gesendet", plan["sam"])
 
 
 # ---------------------------------------------------------------------------
@@ -1185,7 +1192,6 @@ def _new_job(user, kind, items):
         "done": 0,
         "current": "",
         "finished": False,
-        "dismissed": False,
         "startedAt": now,
         "finishedAt": None,
         "items": [
@@ -1201,10 +1207,16 @@ def _new_job(user, kind, items):
         ],  # fmt: skip
     }
     with _jobs_lock:
-        for key in [k for k, v in _jobs.items() if v["finished"] and now - (v["finishedAt"] or now) > JOB_KEEP_SECONDS]:
-            del _jobs[key]
+        _prune_jobs(now)
         _jobs[job["id"]] = job
     return job
+
+
+def _prune_jobs(now=None):
+    """Remove jobs finished more than JOB_KEEP_SECONDS ago (call with _jobs_lock held). Running jobs stay."""
+    now = time.time() if now is None else now
+    for key in [k for k, v in _jobs.items() if v["finished"] and now - (v["finishedAt"] or now) > JOB_KEEP_SECONDS]:
+        del _jobs[key]
 
 
 def _start_job(target, *args):
@@ -1220,6 +1232,7 @@ def _public(job):
 
 def _own_job(job_id, user):
     with _jobs_lock:
+        _prune_jobs()
         job = _jobs.get(job_id)
     if not job or job["owner"] != _owner(user):
         raise HTTPException(status_code=404, detail="Auftrag nicht gefunden.")
@@ -1237,17 +1250,25 @@ def list_deletion_jobs(user: dict = Depends(get_current_user)):
     """The administrator's running and recently finished deletions (newest first) - for the page after reloading."""
     require_admin(user, ADMIN_MSG)
     with _jobs_lock:
-        jobs = [j for j in _jobs.values() if j["owner"] == _owner(user) and not j["dismissed"]]
+        _prune_jobs()
+        jobs = [j for j in _jobs.values() if j["owner"] == _owner(user)]
     jobs.sort(key=lambda j: j["startedAt"], reverse=True)
     return {"status": "success", "jobs": [_public(j) for j in jobs]}
 
 
 @router.post("/api/deletion/job/{job_id}/dismiss")
 def dismiss_deletion_job(job_id: str, user: dict = Depends(get_current_user)):
-    """Hide a finished job's result (it stays in the reports)."""
+    """Hide a finished job's result: it is removed from memory together with the administrator's older finished
+    jobs, so that hiding the newest does not bring back the one before (every deletion stays in the reports)."""
     require_admin(user, ADMIN_MSG)
     job = _own_job(job_id, user)
     if not job["finished"]:
         raise HTTPException(status_code=409, detail="Der Löschauftrag läuft noch.")
-    job["dismissed"] = True
+    with _jobs_lock:
+        for key in [
+            k
+            for k, v in _jobs.items()
+            if v["owner"] == job["owner"] and v["finished"] and v["startedAt"] <= job["startedAt"]
+        ]:
+            del _jobs[key]
     return {"status": "success"}

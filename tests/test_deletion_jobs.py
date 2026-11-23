@@ -50,9 +50,13 @@ class JobThreadTests(unittest.TestCase):
             mail(plan["name"], plan["sam"], [], True, None)
             return result
 
+        def queue(bg, *a):
+            self.assertTrue(job["finished"])  # a slow mail server does not keep the job (and the account) running
+            bg.add_task(sent.append, a)
+
         with (
             mock.patch.object(deletion, "run_deletion", fake_run),
-            mock.patch.object(deletion, "_queue_mail", lambda bg, *a: bg.add_task(sent.append, a)),
+            mock.patch.object(deletion, "_queue_mail", queue),
             mock.patch.object(deletion, "drop_plan") as drop,
         ):
             deletion.run_single_job(job["id"], ADMIN, {}, PLAN, "P1")
@@ -82,6 +86,31 @@ class JobThreadTests(unittest.TestCase):
             deletion._own_job(job["id"], {"username": "admin2"})
         self.assertEqual(e.exception.status_code, 404)
         self.assertNotIn("owner", deletion._public(job))
+
+    def test_old_finished_jobs_expire_without_a_new_deletion(self):
+        job = deletion._new_job(ADMIN, "single", [PLAN])
+        job.update(finished=True, finishedAt=1.0)
+        self.assertEqual(deletion.list_deletion_jobs(user=ADMIN)["jobs"], [])
+        with self.assertRaises(HTTPException) as e:
+            deletion.get_deletion_job(job["id"], user=ADMIN)
+        self.assertEqual(e.exception.status_code, 404)
+
+    def test_running_jobs_never_expire(self):
+        job = deletion._new_job(ADMIN, "single", [PLAN])
+        job["startedAt"] = 1.0
+        self.assertEqual(len(deletion.list_deletion_jobs(user=ADMIN)["jobs"]), 1)
+
+    def test_hiding_removes_the_job_and_older_finished_ones_from_memory(self):
+        old, new, running = (deletion._new_job(ADMIN, "single", [PLAN]) for _ in range(3))
+        other = deletion._new_job({"username": "admin2"}, "single", [PLAN])
+        for n, j in enumerate((old, new, other)):
+            j.update(finished=True, finishedAt=9e9, startedAt=10.0 + n)
+        running["startedAt"] = 5.0  # older but still running: stays
+        deletion.dismiss_deletion_job(new["id"], user=ADMIN)
+        self.assertEqual(set(deletion._jobs), {running["id"], other["id"]})
+        with self.assertRaises(HTTPException) as e:
+            deletion.dismiss_deletion_job(running["id"], user=ADMIN)
+        self.assertEqual(e.exception.status_code, 409)
 
     def test_old_finished_jobs_are_removed(self):
         old = deletion._new_job(ADMIN, "single", [PLAN])
