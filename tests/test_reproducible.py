@@ -106,7 +106,8 @@ class ContainerTests(unittest.TestCase):
     def test_container_without_root(self):
         docker = (ROOT / "Dockerfile").read_text(encoding="utf-8")
         self.assertIn("USER ${APP_UID}:${APP_UID}", docker)
-        self.assertLess(docker.index("pip install"), docker.index("USER "))  # install first, then drop privileges
+        final = docker[docker.rindex("FROM ${PYTHON_IMAGE}") :]  # the last stage = the image
+        self.assertLess(final.index("pip install"), final.index("USER "))  # install first, then drop privileges
         self.assertIn("ARG APP_UID=10001", docker)
         compose = (ROOT / "docker-compose.yml").read_text(encoding="utf-8")
         self.assertIn("no-new-privileges:true", compose)

@@ -159,6 +159,21 @@ def _connection_attempts():
     return attempts
 
 
+def _kerberos_for(dc_ip, bind_user):
+    """Kerberos target and principal, or None (no libraries, LDAP_KERBEROS=false, or AD_DC_IP is an IP address -
+    the ticket's target name must come from the configuration)."""
+    from . import kerberos
+
+    if not kerberos.available() or not kerberos.is_dns_name(dc_ip):
+        return None
+    domain = load_json(CONFIG_FILE, default_config)["domain"]
+    principal = kerberos.principal(bind_user, domain)
+    if not principal.endswith("@" + kerberos.realm_of(domain)):
+        return None  # a UPN with another suffix: Kerberos is not possible for it here - NTLM, not a downgrade
+    kerberos.ensure_config(domain, dc_ip)
+    return {"principal": principal, "target": dc_ip}
+
+
 def _open(dc_ip, bind_user, password, kind):
     port, use_ssl = (636, True) if kind == "ldaps" else (389, False)
     server = ldap3.Server(dc_ip, port=port, use_ssl=use_ssl, tls=_tls_config(), get_info=ldap3.NONE, connect_timeout=5)
@@ -168,7 +183,7 @@ def _open(dc_ip, bind_user, password, kind):
         conn = ldap3.Connection(server, authentication=ldap3.ANONYMOUS, receive_timeout=30, auto_referrals=False)
         try:
             conn.open()
-            return sealed_bind(conn, bind_user, password, dc_ip)
+            return sealed_bind(conn, bind_user, password, dc_ip, _kerberos_for(dc_ip, bind_user))
         except Exception:
             with suppress(Exception):
                 conn.unbind()

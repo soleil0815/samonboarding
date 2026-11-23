@@ -7,6 +7,14 @@ Update on the server: `sudo sh update.sh` or `docker compose pull && docker comp
 
 Entries starting with "Security:" or "Fixed:" are marked accordingly in the interface.
 
+## 2.10.0 – 2026-11-23
+- New: Kerberos for the encrypted connection without a certificate. If the DC has no LDAPS, the application now first signs in with Kerberos on port 389 and encrypts with it (AES); the DC proves its identity, and it also works in domains in which NTLM is switched off. NTLM remains the fallback.
+  - Needs: `AD_DC_IP` as the DNS name of the DC (e.g. `dc01.firma.local`, not an IP address – the ticket is issued for exactly this name), port 88 (TCP) from the server to the DC, and a clock that differs by less than 5 minutes. Nothing else to set up: the program writes its Kerberos configuration itself from `AD_DOMAIN` and `AD_DC_IP` (AES only, no DNS lookups). The ticket of a sign-in is held in memory only while the connection is set up and then destroyed.
+  - A wrong password is never tried with NTLM as well (it would count twice towards the account lockout). Once Kerberos has worked for a DC, the application never falls back to NTLM for it (until the next restart).
+  - File servers (SMB) and Exchange keep NTLM as before (Exchange "Automatic" = NTLM; Kerberos only when chosen explicitly), so a wrong password never counts twice there either.
+  - `LDAP_KERBEROS=false` switches it off (NTLM only). The diagnostic package shows `ldap-sealed-kerberos` or `ldap-sealed-ntlm`.
+  - The image now contains the MIT Kerberos libraries and the Python packages gssapi and krb5 (compiled in their own build stage). Debian packages from the snapshot of 23.11.2026 (Kerberos libraries with the current security fixes).
+
 ## 2.9.0 – 2026-11-23
 - New: works with domain controllers without LDAPS. Many Windows domains have no certificate on their DCs. If LDAPS (port 636) is not available, the application now connects on port 389 and encrypts the connection with NTLM ("sign and seal", as Windows tools such as RSAT do). Sign-in, all changes and setting passwords (onboarding, password reset) work this way – also when the DC requires LDAP signing. Before, only the clear-text fallback `LDAP_ALLOW_PLAIN` was left, which can never set passwords.
   - Nothing to set up: `LDAP_SASL_ENCRYPTION=true` is the default; `false` = LDAPS only. With `LDAP_CA_FILE` there is still never a fallback.

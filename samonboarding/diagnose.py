@@ -147,6 +147,8 @@ ENV_RULES = {
     "LDAP_CA_FILE": "set",
     "LDAP_ALLOW_PLAIN": "show",
     "LDAP_SASL_ENCRYPTION": "show",
+    "LDAP_KERBEROS": "show",
+    "KRB5_CONFIG": "show",  # set by the program itself (kerberos.py): path of the generated krb5.conf
     "SESSION_IDLE_MINUTES": "show",
     "SESSION_MAX_HOURS": "show",
     "HTTPS_PORT": "show",
@@ -775,6 +777,11 @@ def hints(data):
             + ("Kerberos" if c["transport"].endswith("kerberos") else "NTLM")
             + ". Sicherer ist ein Zertifikat auf dem DC (LDAPS)."
         )
+        if c["transport"].endswith("ntlm"):
+            out.append(
+                "Kerberos wurde nicht genutzt: dafür AD_DC_IP als DNS-Name des DC eintragen (keine IP), Port 88 zum DC "
+                "freigeben und die Uhrzeit prüfen (LDAP_KERBEROS=true)."
+            )
     if c.get("transport") == "ldap-plain":
         out.append("Die Verbindung zum DC ist UNVERSCHLÜSSELT (Port 389, LDAP_ALLOW_PLAIN).")
     if c.get("fehler"):

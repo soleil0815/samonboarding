@@ -128,7 +128,9 @@ def _open_session(cfg, user):
             port=cfg["port"],
             ssl=cfg["ssl"],
             path="/PowerShell",
-            auth=cfg["auth"],
+            # "negotiate" stays NTLM as before 2.10.0 (pyspnego would now try Kerberos and then NTLM in one call -
+            # a wrong password would count twice); Kerberos only when chosen explicitly
+            auth="ntlm" if cfg["auth"] == "negotiate" else cfg["auth"],
             username=user["bind_user"],
             password=user["password"],
             cert_validation=cfg["verifyCert"],

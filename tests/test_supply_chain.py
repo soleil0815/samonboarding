@@ -272,17 +272,26 @@ class OrderTests(unittest.TestCase):
 class ImageContentTests(unittest.TestCase):
     def test_unneeded_parts_removed(self):
         docker = (ROOT / "Dockerfile").read_text(encoding="utf-8")
-        final = docker[docker.index("FROM ${PYTHON_IMAGE}") :]
+        final = docker[docker.rindex("FROM ${PYTHON_IMAGE}") :]  # the last stage = the image
         self.assertIn("python -m pip uninstall -y pip", final)  # package manager pip not in the final image
         self.assertIn("pip uninstall -y setuptools wheel", final)
         self.assertIn("ensurepip/_bundled", final)
         self.assertNotIn("npm", final.replace("COPY --from=assets", ""))  # Node/npm only in the build stage
         self.assertIn("scripts/", (ROOT / ".dockerignore").read_text(encoding="utf-8").split())
+        # Kerberos (2.10.0): compiler and headers only in their own build stage, only the two wheels come over -
+        # mounted for the install, not copied into a layer
+        build = docker[docker.index("FROM ${PYTHON_IMAGE} AS kerberos") : docker.rindex("FROM ${PYTHON_IMAGE}")]
+        self.assertIn("libkrb5-dev", build)
+        for tool in ("gcc", "libc6-dev", "libkrb5-dev", "Cython", "requirements-build"):
+            self.assertNotIn(tool, final, tool)
+        self.assertIn("--mount=type=bind,from=kerberos,source=/wheels,target=/tmp/wheels", final)
+        self.assertNotIn("COPY --from=kerberos", final)
+        self.assertIn("libgssapi-krb5-2 libkrb5-3", final)
 
     def test_package_manager_perl_and_setuid_removed(self):
         """apt, Perl and the setuid bits are removed after the build; dpkg stays so Trivy can check the packages."""
         docker = (ROOT / "Dockerfile").read_text(encoding="utf-8")
-        final = docker[docker.index("FROM ${PYTHON_IMAGE}") :]
+        final = docker[docker.rindex("FROM ${PYTHON_IMAGE}") :]  # the last stage = the image
         block = final[final.index("purge() {") : final.index("USER ${APP_UID}")]
         self.assertLess(final.index("apt-get $apt_opts full-upgrade"), final.index("purge() {"))  # used first
         self.assertLess(final.index("useradd"), final.index("purge() {"))

@@ -1,0 +1,4 @@
+# Build tools for the Kerberos packages gssapi and krb5 (Dockerfile, stage "kerberos" only - not in the final image).
+# Exact versions; renewed by hand when a new gssapi/krb5 needs it.
+Cython==3.3.1
+setuptools==84.2.1

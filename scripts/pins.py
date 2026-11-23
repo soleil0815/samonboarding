@@ -385,6 +385,9 @@ def resolve_python(py_image, req_in, constraints):
             "sh",
             py_image,
             "-ec",
+            # gssapi and krb5 have no Linux wheels: compiler and Kerberos headers only for this resolution
+            "apt-get update -qq >&2 && DEBIAN_FRONTEND=noninteractive apt-get install -qq -y --no-install-recommends "
+            "gcc libc6-dev libkrb5-dev >&2; "
             "python -m venv /tmp/v >/dev/null; "
             "/tmp/v/bin/pip install --quiet --no-cache-dir -r /w/requirements.in -c /w/constraints.txt >&2; "
             "/tmp/v/bin/pip check >&2; /tmp/v/bin/pip freeze --all --exclude pip --exclude setuptools --exclude wheel",
