@@ -235,6 +235,7 @@ os.chdir(tmp)
 os.environ["AD_DOMAIN"] = "test.local"
 os.environ["LOGIN_MAX_ATTEMPTS"] = "3"
 os.environ["LDAP_ALLOW_PLAIN"] = "true"  # the fallback logic is deliberately tested too
+os.environ["LDAP_SASL_ENCRYPTION"] = "false"  # the simulated DC speaks simple binds only (sealing: test_ldap_seal.py)
 os.environ["DATA_DIR"] = tmp + "/data"
 
 sys.path.insert(0, ROOT)

@@ -379,7 +379,8 @@ docker compose logs -f
 | *LDAP-Anmeldung fehlgeschlagen* | Benutzername oder Passwort falsch, Konto gesperrt oder deaktiviert |
 | *Zu viele fehlgeschlagene Anmeldungen* | Einige Minuten warten |
 | *Domain Controller … nicht erreichbar* | DC aus, Netzwerk oder Firewall. Administrator informieren |
-| *Passwort setzen fehlgeschlagen* | Passwort entspricht nicht der Richtlinie, oder dir fehlen Rechte auf der OU |
+| *Passwort setzen fehlgeschlagen* | Passwort entspricht nicht der Richtlinie, oder dir fehlen Rechte auf der OU. Selten: die Verbindung zum DC ist unverschlüsselt (`LDAP_ALLOW_PLAIN`) – das Diagnosepaket zeigt die Verbindungsart |
+| Diagnosepaket: *kein LDAPS, verschlüsselt mit NTLM* | Der DC hat kein Zertifikat. Alles funktioniert, auch Passwörter setzen. Sicherer wird es mit einem Zertifikat auf dem DC (README, Abschnitt 5) |
 | *insufficientAccessRights* | Dir fehlen im AD Rechte auf dieser OU (Delegierung) |
 | *Dieses Konto ist geschützt* | Mitglied einer privilegierten Gruppe. Gewollter Schutz |
 | *Sie wurden abgemeldet, weil 30 Minuten lang nichts passiert ist* | Gewollt. Neu anmelden. Nach einem Neustart der Anwendung (z. B. Update) ist ebenfalls eine neue Anmeldung nötig |

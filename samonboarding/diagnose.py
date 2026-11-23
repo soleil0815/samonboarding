@@ -146,6 +146,7 @@ ENV_RULES = {
     "DATA_DIR": "set",
     "LDAP_CA_FILE": "set",
     "LDAP_ALLOW_PLAIN": "show",
+    "LDAP_SASL_ENCRYPTION": "show",
     "SESSION_IDLE_MINUTES": "show",
     "SESSION_MAX_HOURS": "show",
     "HTTPS_PORT": "show",
@@ -530,6 +531,7 @@ def section_verzeichnis(anon, ctx):
         "dc": anon.host(info.get("host")) if info.get("host") else None,
         "ldapsZertifikatGeprueft": bool(config.LDAP_CA_FILE),
         "unverschluesseltErlaubt": config.LDAP_ALLOW_PLAIN,
+        "verschluesseltOhneZertifikat": config.LDAP_SASL_ENCRYPTION and not config.LDAP_CA_FILE,
         "hinweis": None if info.get("type") != "unknown" else "noch nicht erkannt (erst nach einer Anmeldung)",
     }
 
@@ -574,8 +576,10 @@ def section_verbindung(anon, ctx):
     try:
         with ldap_connection(cfg["dc_ip"], user["bind_user"], user["password"]) as conn:
             out["verbindenMs"] = round((time.perf_counter() - began) * 1000)
-            out["verschluesselt"] = bool(getattr(conn.server, "ssl", False))
+            out["verschluesselt"] = getattr(conn, "sob_transport", "") not in ("", "ldap-plain")
             out["port"] = getattr(conn.server, "port", None)
+            # ldaps, ldap-sealed-ntlm, ldap-sealed-kerberos or ldap-plain: how the connection is protected
+            out["transport"] = getattr(conn, "sob_transport", None)
             t = time.perf_counter()
             detect_directory(conn)
             out["rootDseMs"] = round((time.perf_counter() - t) * 1000)
@@ -765,6 +769,14 @@ def hints(data):
     if v.get("unverschluesseltErlaubt"):
         out.append("Unverschlüsseltes LDAP ist erlaubt (LDAP_ALLOW_PLAIN).")
     c = data.get("verbindung", {})
+    if str(c.get("transport") or "").startswith("ldap-sealed"):
+        out.append(
+            "Der DC bietet kein LDAPS (kein Zertifikat): verbunden über Port 389, verschlüsselt mit "
+            + ("Kerberos" if c["transport"].endswith("kerberos") else "NTLM")
+            + ". Sicherer ist ein Zertifikat auf dem DC (LDAPS)."
+        )
+    if c.get("transport") == "ldap-plain":
+        out.append("Die Verbindung zum DC ist UNVERSCHLÜSSELT (Port 389, LDAP_ALLOW_PLAIN).")
     if c.get("fehler"):
         out.append("Verbindungstest zum DC fehlgeschlagen: " + str(c["fehler"]))
     if c.get("fehlend"):

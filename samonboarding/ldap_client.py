@@ -4,6 +4,7 @@
 
 import logging
 import ssl
+import time
 import unicodedata
 from contextlib import contextmanager, suppress
 from datetime import UTC, datetime
@@ -14,7 +15,7 @@ from fastapi import HTTPException
 from ldap3.core.exceptions import LDAPBindError, LDAPCommunicationError, LDAPException, LDAPOperationResult
 
 from . import timing
-from .config import CONFIG_FILE, LDAP_ALLOW_PLAIN, LDAP_CA_FILE, USER_FILTER, default_config
+from .config import CONFIG_FILE, LDAP_ALLOW_PLAIN, LDAP_CA_FILE, LDAP_SASL_ENCRYPTION, USER_FILTER, default_config
 from .errors import AdError, DcUnreachable
 from .sessions import drop_session
 from .storage import load_json
@@ -125,43 +126,114 @@ def _tls_config():
     return ldap3.Tls(validate=ssl.CERT_NONE, version=ssl.PROTOCOL_TLSv1_2)
 
 
+# How the last connection was made (diagnostic package): ldaps, ldap-sealed-ntlm, ldap-sealed-kerberos, ldap-plain
+last_transport = {"kind": "", "dc": ""}
+
+
+# DCs whose LDAPS just failed (dc -> monotonic time until which 636 is skipped). Without a certificate every request
+# would otherwise first wait for the failed TLS handshake and write a warning.
+LDAPS_RETRY_SECONDS = 600
+_ldaps_missing: dict = {}
+# DCs whose LDAPS has worked in this process: a later failure on 636 is an outage (or someone on the network path
+# resetting the connection) - then never fall back to 389, where an NTLM exchange could be recorded or relayed
+_ldaps_seen: set = set()
+
+
+def transport_of(conn):
+    """ldaps, ldap-sealed-ntlm, ldap-sealed-kerberos or ldap-plain (empty for foreign connection objects)."""
+    return str(getattr(conn, "sob_transport", "") or "")
+
+
+def _connection_attempts():
+    """Order of the connection attempts: LDAPS first; without a certificate check (LDAP_CA_FILE) then port 389
+    encrypted with NTLM/Kerberos (LDAP_SASL_ENCRYPTION, default on); clear text only with LDAP_ALLOW_PLAIN.
+
+    Code audit 2026-11b: with a CA file the certificate is verified - then there is never any fallback, otherwise an
+    attacker on the network path only has to reset the connection on 636 to get a weaker connection on 389."""
+    attempts = ["ldaps"]
+    if not LDAP_CA_FILE:
+        if LDAP_SASL_ENCRYPTION:
+            attempts.append("ldap-sealed")
+        if LDAP_ALLOW_PLAIN:
+            attempts.append("ldap-plain")
+    return attempts
+
+
+def _open(dc_ip, bind_user, password, kind):
+    port, use_ssl = (636, True) if kind == "ldaps" else (389, False)
+    server = ldap3.Server(dc_ip, port=port, use_ssl=use_ssl, tls=_tls_config(), get_info=ldap3.NONE, connect_timeout=5)
+    if kind == "ldap-sealed":
+        from .ldap_seal import sealed_bind
+
+        conn = ldap3.Connection(server, authentication=ldap3.ANONYMOUS, receive_timeout=30, auto_referrals=False)
+        try:
+            conn.open()
+            return sealed_bind(conn, bind_user, password, dc_ip)
+        except Exception:
+            with suppress(Exception):
+                conn.unbind()
+            raise
+    conn = ldap3.Connection(
+        server,
+        user=bind_user,
+        password=password,
+        authentication=ldap3.SIMPLE,
+        auto_bind=True,
+        receive_timeout=30,  # a hanging DC must not block a worker thread forever
+        auto_referrals=False,  # never send requests (or the password) on to another server named in a referral
+    )
+    setattr(conn, "sob_transport", kind)  # noqa: B010 - own marker on the ldap3 object
+    return conn
+
+
 @contextmanager
 def ldap_connection(dc_ip, bind_user, password):
-    """Connects via LDAPS (optional fallback to LDAP) and always cleans up the connection.
+    """Connects via LDAPS, otherwise encrypted LDAP on 389 (see _connection_attempts) and always cleans up.
 
-    The fallback to port 389 happens only on connection errors - never on a wrong password,
-    so that a typo does not count twice towards the account lockout.
+    The fallback happens only on connection errors - never on a wrong password, so that a typo does not count twice
+    towards the account lockout.
     """
     conn = None
-    attempts = [(636, True)]
-    # Code audit 2026-11b: with a CA file the certificate is verified - then never fall back to clear text, otherwise
-    # an attacker on the network path only has to reset the connection on 636 to get the password on 389
-    if LDAP_ALLOW_PLAIN and not LDAP_CA_FILE:
-        attempts.append((389, False))
+    attempts = _connection_attempts()
+    if dc_ip in _ldaps_seen:
+        attempts = attempts[:1]
+    now = time.monotonic()
+    if _ldaps_missing.get(dc_ip, 0) > now and len(attempts) > 1:
+        # LDAPS of this DC failed a moment ago (no certificate): do not wait for it on every request - try again later
+        attempts = attempts[1:]
+    ldaps_failed = False
     try:
-        for port, use_ssl in attempts:
+        for kind in attempts:
             try:
-                server = ldap3.Server(
-                    dc_ip, port=port, use_ssl=use_ssl, tls=_tls_config(), get_info=ldap3.NONE, connect_timeout=5
-                )
                 with timing.timed("connect"):
-                    conn = ldap3.Connection(
-                        server,
-                        user=bind_user,
-                        password=password,
-                        authentication=ldap3.SIMPLE,
-                        auto_bind=True,
-                        receive_timeout=30,  # a hanging DC must not block a worker thread forever
-                    )
-                if not use_ssl:
-                    log.warning("Unverschluesselte LDAP-Verbindung zu %s (Port 389) - LDAPS nicht erreichbar", dc_ip)
+                    conn = _open(dc_ip, bind_user, password, kind)
+                transport = transport_of(conn)
+                if last_transport.get("kind") != transport or last_transport.get("dc") != dc_ip:  # log changes only
+                    if kind == "ldap-sealed":
+                        log.info("LDAPS zu %s nicht verfuegbar - Port 389 verschluesselt (%s)", dc_ip, transport)
+                    elif kind == "ldap-plain":
+                        log.warning(
+                            "Unverschluesselte LDAP-Verbindung zu %s (Port 389) - LDAPS nicht erreichbar", dc_ip
+                        )
+                last_transport.update(kind=transport, dc=dc_ip)
+                if kind == "ldaps":
+                    _ldaps_missing.pop(dc_ip, None)
+                    _ldaps_seen.add(dc_ip)
+                elif ldaps_failed and kind == "ldap-sealed":
+                    # the DC answers, only LDAPS is missing (no certificate) - not a DC that was down for a moment
+                    _ldaps_missing[dc_ip] = now + LDAPS_RETRY_SECONDS
                 break
             except (LDAPCommunicationError, OSError) as e:
                 conn = None
-                log.warning("LDAP-Verbindung zu %s:%s fehlgeschlagen: %s", dc_ip, port, e)
-                if use_ssl and _certificate_rejected(e):
-                    log.error("Zertifikat des DC %s abgelehnt - kein Rueckfall auf unverschluesseltes LDAP", dc_ip)
+                if kind == "ldaps" and _certificate_rejected(e):
+                    log.error("Zertifikat des DC %s abgelehnt - kein Rueckfall auf Port 389: %s", dc_ip, e)
                     break
+                if kind == "ldaps" and len(attempts) > 1:
+                    ldaps_failed = True
+                    if last_transport.get("dc") != dc_ip or last_transport.get("kind") == "ldaps":
+                        log.warning("LDAPS zu %s nicht verfuegbar: %s", dc_ip, e)
+                else:
+                    log.warning("LDAP-Verbindung zu %s (%s) fehlgeschlagen: %s", dc_ip, kind, e)
         if conn is None:
             # details (socket errors) are logged above, not in the message to the browser
             raise DcUnreachable(f"Domain Controller {dc_ip} nicht erreichbar. Details stehen im Protokoll.")
