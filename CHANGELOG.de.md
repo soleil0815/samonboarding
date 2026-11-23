@@ -10,7 +10,7 @@ Einträge, die mit „Sicherheit:“ oder „Behoben:“ beginnen, werden in der
 ## 2.7.1 – 2026-11-23
 Code-Audit 2026-11 (voller Audit wie am 3. jedes Monats).
 - Sicherheit: Wer im AD die Rolle Domänen-Admin verliert, verliert die Administrator-Seiten jetzt nach spätestens 5 Minuten und wird abgemeldet – vorher behielt eine offene Sitzung sie bis zu 12 Stunden auf Seiten, die das AD nie fragen (SMTP-Server, Zertifikat, Einstellungen).
-- Sicherheit: Mit `LDAP_CA_FILE` fällt die Verbindung nie auf unverschlüsseltes LDAP (389) zurück – auch nicht nach einem Verbindungsabbruch. Ein Zertifikat, dessen Name nicht zum DC passt, gilt jetzt als abgelehnt.
+- Sicherheit: Mit `LDAP_CA_FILE` fällt die Verbindung nie auf unverschlüsseltes LDAP (389) zurück – auch nicht nach einem Verbindungsabbruch.
 - Sicherheit: Konten-Operatoren können kein Konto mehr über ein Template anlegen, das eine privilegierte Gruppe (z. B. Domänen-Admins) enthält; die Benutzerverwaltung lehnte dieselbe Gruppe schon ab.
 - Sicherheit: Mitglieder der eigenen Operatorgruppe (`CUSTOM_OPERATOR_GROUP`) sind wie Konten-Operatoren geschützt, und nur Administratoren dürfen jemanden in diese Gruppe aufnehmen.
 - Sicherheit: Exchange mit der Anmeldeart „basic“ ist nur noch mit geprüftem Zertifikat erlaubt – sonst könnte ein fremder Server das Passwort des Administrators mitlesen. Eine ältere Einstellungsdatei mit dieser Kombination wird vor dem Verbinden abgelehnt.

@@ -10,7 +10,7 @@ Entries starting with "Security:" or "Fixed:" are marked accordingly in the inte
 ## 2.7.1 – 2026-11-23
 Code audit 2026-11 (full audit, as on the 3rd of every month).
 - Security: an administrator who loses the Domain Admins role in the AD now loses the admin pages within 5 minutes and is signed out – before, an open session kept them for up to 12 hours on pages that never ask the AD (SMTP server, certificate, settings).
-- Security: with `LDAP_CA_FILE` set, the connection never falls back to unencrypted LDAP (389) – not even after a connection reset. A certificate whose name does not match the DC now counts as rejected.
+- Security: with `LDAP_CA_FILE` set, the connection never falls back to unencrypted LDAP (389) – not even after a connection reset.
 - Security: an Account Operator can no longer create an account through a template that contains a privileged group (e.g. Domain Admins); user management already refused the same group.
 - Security: members of the own operator group (`CUSTOM_OPERATOR_GROUP`) are protected like Account Operators, and only administrators may add anyone to that group.
 - Security: Exchange with sign-in method "basic" is only allowed with a verified certificate – otherwise another server could read the administrator's password. An older settings file with this combination is refused before connecting.

@@ -16,6 +16,7 @@ from contextlib import contextmanager
 from datetime import datetime, timezone
 
 from . import config
+from .dn import dn_norm
 from .storage import restrict
 
 log = logging.getLogger(__name__)
@@ -89,9 +90,14 @@ def _row(r):
     return out
 
 
-def record(*, user_guid, sam, name, original_dn, original_ou, was_enabled, groups, actor):
-    """Create an entry (before offboarding). An open entry for the same account is replaced - unless the account
-    still sits where that entry left it: then it is being offboarded a second time (e.g. from the OU of offboarded
+def record(**fields):
+    """Create an entry (see record_entry); returns its id."""
+    return record_entry(**fields)[0]
+
+
+def record_entry(*, user_guid, sam, name, original_dn, original_ou, was_enabled, groups, actor):
+    """Returns (id, created). Create an entry (before offboarding). An open entry for the same account is
+    replaced - unless the account still sits where that entry left it: then it is being offboarded a second time (e.g. from the OU of offboarded
     accounts) and the entry with the real previous OU and groups is kept (code audit 2026-11b)."""
     with _db() as conn:
         if user_guid:
@@ -103,8 +109,8 @@ def record(*, user_guid, sam, name, original_dn, original_ou, was_enabled, group
                 "SELECT id, current_dn FROM offboarded WHERE lower(sam) = lower(?) AND state = 'open'", (sam,)
             )
         for row in same.fetchall():
-            if str(row["current_dn"]).lower() == str(original_dn).lower():
-                return row["id"]
+            if dn_norm(str(row["current_dn"])) == dn_norm(str(original_dn)):
+                return row["id"], False
         if user_guid:
             conn.execute("DELETE FROM offboarded WHERE user_guid = ? AND state = 'open'", (user_guid,))
         conn.execute("DELETE FROM offboarded WHERE lower(sam) = lower(?) AND state = 'open'", (sam,))
@@ -124,7 +130,7 @@ def record(*, user_guid, sam, name, original_dn, original_ou, was_enabled, group
                 actor or "",
             ),
         )
-        return cur.lastrowid
+        return cur.lastrowid, True
 
 
 def mark_folders_deleted(*, sam, dn, paths):

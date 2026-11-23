@@ -350,12 +350,17 @@ def learn_known_values(anon, user=None):
     # actors and targets of the reports: user names, DNs and object names that occur in the log
     try:
         with _read_db(config.REPORTS_DB_FILE) as conn:
-            sql = "SELECT actor, target, details FROM audit ORDER BY id DESC LIMIT 5000"
-            rows = conn.execute(sql).fetchall() if conn else []
+            rows = conn.execute("SELECT DISTINCT actor, target FROM audit LIMIT 5000").fetchall() if conn else []
+            # account names that only the details name (e.g. the accounts of a batch deletion)
+            sql = (
+                "SELECT DISTINCT details FROM audit WHERE details LIKE ? OR details LIKE ? OR details LIKE ? LIMIT 5000"
+            )
+            details = conn.execute(sql, ('%"sam"%', '%"accounts"%', '%"name"%')).fetchall() if conn else []
         for r in rows:
             anon.learn("user", r["actor"])
             target = str(r["target"] or "")
             anon.learn("dn" if "=" in target else "user", target)
+        for r in details:
             _learn_details(anon, r["details"])
     except Exception:  # noqa: S110 - the package is built without them; the patterns still apply
         pass

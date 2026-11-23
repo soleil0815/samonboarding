@@ -3778,8 +3778,8 @@ async function duplicateTemplate(id) {
         alert("Template kopiert.");
         await refreshAllLdapData();
     } else {
-        const err = await res.json();
-        alert(err.detail || "Fehler beim Duplizieren.");
+        const err = await res.json().catch(() => ({}));
+        alert(detailText(err.detail) || "Fehler beim Duplizieren.");
     }
 }
 
@@ -3791,8 +3791,8 @@ async function deleteTemplate(id) {
         alert("Template gelöscht.");
         await refreshAllLdapData();
     } else {
-        const err = await res.json();
-        alert(err.detail || "Fehler beim Löschen.");
+        const err = await res.json().catch(() => ({}));
+        alert(detailText(err.detail) || "Fehler beim Löschen.");
     }
 }
 

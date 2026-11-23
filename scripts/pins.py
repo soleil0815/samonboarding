@@ -804,7 +804,8 @@ def plan(mode, changed, published, root=ROOT):
     """What does this run do? -> {action: publish | skip | nothing, tag, latest, commit, reason}.
     release:          the program version, unless it is already published (never overwritten)
     security-update:  changed -> next <version>-s<counter>; unchanged -> nothing, unless the current state is
-                      missing in the registry (e.g. the previous push failed) - then it is published now"""
+                      missing in the registry (e.g. the previous push failed) - then it is published now.
+                      A program version that is not released yet -> nothing (the release by hand comes first)"""
     result = _plan(mode, changed, published, root)
     tag = result["tag"]
     minor = ".".join(tag.split("-s")[0].split(".")[:2])

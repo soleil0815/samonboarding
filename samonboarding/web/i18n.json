@@ -1831,6 +1831,10 @@
   [
    "Fehler beim Anlegen: {0}",
    "Error while creating: {0}"
+  ],
+  [
+   "{0}: ist kein normaler Ordner (Verknüpfung?) – nichts gelöscht",
+   "{0}: is not a normal folder (link?) – nothing deleted"
   ]
  ]
 }

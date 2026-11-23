@@ -76,13 +76,14 @@ MAX_BATCH = 25
 
 
 def remember_state(conn, user, entry, sam, name):
-    """Save OU, groups and account status before offboarding. Errors do not prevent the offboarding."""
+    """Save OU, groups and account status before offboarding. Errors do not prevent the offboarding.
+    Returns (record id or None, created now?) - an entry kept from an earlier offboarding is never removed here."""
     try:
         groups = [
             {"dn": g, "guid": read_guid(conn, g, "(objectClass=group)"), "name": rdn_label(g)}
             for g in entry.list("memberOf")
         ]
-        return offboard_store.record(
+        return offboard_store.record_entry(
             user_guid=read_guid(conn, entry.dn, "(objectClass=user)"),
             sam=sam,
             name=name,
@@ -94,7 +95,7 @@ def remember_state(conn, user, entry, sam, name):
         )
     except Exception as e:
         log.error("Offboarding-Zustand fuer %s nicht gespeichert (Wiederherstellung nicht moeglich): %s", entry.dn, e)
-        return None
+        return None, False
 
 
 def forget_record(record_id):
@@ -155,7 +156,7 @@ def offboard_account(user, off_cfg, user_dn):
                 )
 
             # Record beforehand where the account was - for a later restore
-            record_id = remember_state(conn, user, entry, target_sam, target_name)
+            record_id, record_new = remember_state(conn, user, entry, target_sam, target_name)
             info["restorable"] = bool(record_id)
 
             new_uac = row_uac(entry) | 2
@@ -166,8 +167,8 @@ def offboard_account(user, off_cfg, user_dn):
                     "Konto deaktivieren",
                 )
             except Exception:
-                if record_id:
-                    forget_record(record_id)  # nothing was changed
+                if record_id and record_new:
+                    forget_record(record_id)  # nothing was changed (a kept earlier entry stays)
                 raise
 
             for group_dn in entry.list("memberOf"):

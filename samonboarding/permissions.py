@@ -11,6 +11,7 @@ from fastapi import HTTPException
 from . import acl, protection, timing
 from .config import CUSTOM_OPERATOR_GROUP, USER_FILTER
 from .dn import dn_in_any, ldap_escape
+from .errors import DcUnreachable
 from .ldap_client import ldap_search
 
 log = logging.getLogger(__name__)
@@ -45,6 +46,12 @@ def _recheck_admin_role(user):
     try:
         with ad_session(user) as conn:  # raises 401 (and ends the session) if the password is no longer valid
             role = check_user_role(conn, search_base, user.get("username", ""), user.get("bind_user", ""), True)[0]
+    except DcUnreachable:
+        # The DC cannot be reached at all (no sign of a changed role): pages that do not need the DC (diagnostics,
+        # reports, certificate) stay usable for troubleshooting - try again in a minute, not on every request
+        log.warning("Rollenpruefung fuer %s nicht moeglich: DC nicht erreichbar", user.get("username"))
+        user["roleChecked"] = now - ROLE_RECHECK_SECONDS + 60
+        return
     except RoleCheckError:
         raise HTTPException(
             status_code=503,

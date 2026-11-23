@@ -167,6 +167,34 @@ class AdminRoleRecheckTests(unittest.TestCase):
         _, user = self._session(age=10)
         self.assertEqual(self._check(user, "Account Operator"), [])
 
+    def test_unreachable_dc_keeps_pages_without_dc_usable(self):
+        token, user = self._session(age=permissions.ROLE_RECHECK_SECONDS + 5)
+
+        @contextlib.contextmanager
+        def down(u):
+            raise ldap_client.DcUnreachable("Domain Controller nicht erreichbar.")
+            yield  # pragma: no cover
+
+        with mock.patch.object(ldap_client, "ad_session", down):
+            permissions.require_admin(user, "nur Admins")  # no error, no waiting on every request
+        self.assertIn(token, sessions.active_sessions)
+        self.assertLess(time.time() - user["roleChecked"], permissions.ROLE_RECHECK_SECONDS)
+
+    def test_role_check_error_is_refused(self):
+        _, user = self._session(age=permissions.ROLE_RECHECK_SECONDS + 5)
+
+        @contextlib.contextmanager
+        def ad_session(u):
+            yield object()
+
+        with (
+            mock.patch.object(ldap_client, "ad_session", ad_session),
+            mock.patch.object(permissions, "check_user_role", side_effect=permissions.RoleCheckError("x")),
+            self.assertRaises(HTTPException) as ctx,
+        ):
+            permissions.require_admin(user, "nur Admins")
+        self.assertEqual(ctx.exception.status_code, 503)
+
     def test_still_admin_is_rechecked_only_after_the_interval(self):
         _, user = self._session(age=permissions.ROLE_RECHECK_SECONDS + 5)
         self.assertEqual(self._check(user, "Administrator"), ["admin"])
@@ -287,7 +315,11 @@ class OffboardRecordTests(unittest.TestCase):
 
         first = self._record("CN=Anna,OU=Staff,DC=f", "OU=Staff,DC=f", [{"dn": "CN=VPN,DC=f"}])
         offboard_store.update_current_dn(first, "CN=Anna,OU=Disabled,OU=Staff,DC=f")
-        again = self._record("CN=Anna,OU=Disabled,OU=Staff,DC=f", "OU=Disabled,OU=Staff,DC=f", [])
+        again, created = offboard_store.record_entry(
+            user_guid="g-1", sam="anna", name="Anna", original_dn="CN=Anna, OU=Disabled,OU=Staff,DC=f",
+            original_ou="OU=Disabled,OU=Staff,DC=f", was_enabled=False, groups=[], actor="admin",
+        )  # fmt: skip
+        self.assertFalse(created)  # a failed offboarding must not remove the kept entry
         rec = offboard_store.get(again)
         self.assertEqual((again, rec["original_ou"], len(rec["groups"])), (first, "OU=Staff,DC=f", 1))
 

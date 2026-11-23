@@ -72,6 +72,10 @@ try:
     check("eigene Operatorgruppe gilt als privilegiert",
           "helpdesk" in M["privileged_group"](conn, "CN=Helpdesk,OU=Groups," + B))
     check("normale Gruppe bleibt frei", M["privileged_group"](conn, "CN=VPN,OU=Groups," + B) == "")
+    D[B]["objectSid"] = ["S-1-5-21-1-2-3"]
+    pmap = M["privileged_map"](conn, B)
+    check("Listen: Mitglied der eigenen Operatorgruppe mit Schloss",
+          "helpdesk" in pmap.get(("CN=Mustermann\\, Max,OU=Staff," + B).lower(), ""), pmap)
 finally:
     C.CUSTOM_OPERATOR_GROUP = P.CUSTOM_OPERATOR_GROUP = ""
 

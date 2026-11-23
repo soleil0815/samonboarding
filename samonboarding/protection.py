@@ -320,6 +320,10 @@ def privileged_map(conn, base):
     wanted = dict(BUILTIN_GROUPS)
     if dom_sid:
         wanted.update({f"{dom_sid}-{rid}": name for rid, name in DOMAIN_GROUP_RIDS.items()})
+    custom = custom_operator_sids(conn, base)
+    if custom is None:
+        raise LookupError("eigene Operatorgruppe nicht lesbar")  # then each account is checked individually
+    wanted.update({sid: f"{config.CUSTOM_OPERATOR_GROUP} (Operatorgruppe)" for sid in custom})
     # One search per SID: this way the SID comes from the request, not from the result (without a schema, ldap3
     # returns binary values as text if they happen to be valid UTF-8 - e.g. all S-1-5-32-... of the built-in groups)
     found = {}
