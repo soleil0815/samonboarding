@@ -7,6 +7,13 @@ Update auf dem Server: `sudo sh update.sh` oder `docker compose pull && docker c
 
 Einträge, die mit „Sicherheit:“ oder „Behoben:“ beginnen, werden in der Oberfläche entsprechend markiert.
 
+## 2.9.0 – 2026-11-23
+- Neu: funktioniert mit Domänencontrollern ohne LDAPS. Viele Windows-Domänen haben kein Zertifikat auf ihren DCs. Ist LDAPS (Port 636) nicht verfügbar, verbindet sich die Anwendung jetzt über Port 389 und verschlüsselt die Verbindung mit NTLM („Sign & Seal“, wie Windows-Werkzeuge, etwa RSAT). Anmeldung, alle Änderungen und das Setzen von Passwörtern (Onboarding, Passwort zurücksetzen) funktionieren so – auch wenn der DC LDAP-Signierung verlangt. Vorher blieb nur der Klartext-Rückfall `LDAP_ALLOW_PLAIN`, mit dem sich nie Passwörter setzen ließen.
+  - Nichts einzustellen: `LDAP_SASL_ENCRYPTION=true` ist Standard; `false` = nur LDAPS. Mit `LDAP_CA_FILE` gibt es weiterhin nie einen Rückfall.
+  - Das Diagnosepaket zeigt die Verbindungsart (LDAPS, verschlüsselt über 389, unverschlüsselt) und empfiehlt ein Zertifikat auf dem DC: TLS bleibt stärker als die NTLM-Verschlüsselung.
+  - `LDAP_ALLOW_PLAIN` ist nicht mehr nötig und nur noch letzter Ausweg nach der verschlüsselten Verbindung.
+  - Kerberos statt NTLM (für Domänen, in denen NTLM abgeschaltet ist) folgt in einer späteren Version.
+
 ## 2.8.0 – 2026-11-23
 - Geändert: Die Struktur der Domäne sehen nur noch Administratoren. Operatoren (Konten-Operatoren und die eigene Operatorgruppe) sehen den Menüpunkt **AD-Struktur** nicht mehr, die Schnellsuche bietet ihn nicht mehr an, und der Server lehnt die Seite für sie ab wie die anderen Administrator-Seiten. Auch die Auswahllisten ihrer Seiten kommen nicht mehr aus der ganzen Domäne: Sie bekommen nur die freigegebenen Ziel-OUs fürs Verschieben und die Gruppen aus den Templates (für die Vorschau beim Onboarding) – nie die Liste aller OUs, Gruppen oder Benutzer.
 

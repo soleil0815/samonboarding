@@ -8,6 +8,7 @@ Optional environment variables (all have defaults, none is required):
   DATA_DIR            Data directory (default: <project folder>/data)
   LDAP_CA_FILE        Path to a CA PEM file. If set, the DC's certificate is verified
                       (then give AD_DC_IP as a hostname that matches the certificate).
+  LDAP_SASL_ENCRYPTION true/false (default true): without LDAPS use port 389 encrypted via NTLM/Kerberos
   LDAP_ALLOW_PLAIN    true/false (default false): fall back to unencrypted LDAP (389). Passwords in clear text!
   SESSION_IDLE_MINUTES  Log out after this many minutes without activity (default 30).
   SESSION_MAX_HOURS   Maximum session lifetime, even with activity (default 12).
@@ -76,6 +77,7 @@ CUSTOM_OPERATOR_GROUP = os.environ.get("CUSTOM_OPERATOR_GROUP", "").strip().lowe
 LDAP_CA_FILE = os.environ.get("LDAP_CA_FILE", "").strip()
 
 LDAP_ALLOW_PLAIN = _env_bool("LDAP_ALLOW_PLAIN", False)
+LDAP_SASL_ENCRYPTION = _env_bool("LDAP_SASL_ENCRYPTION", True)
 
 # Sessions end on logout, after this time without activity, or on restart (they are kept in memory only)
 SESSION_IDLE_SECONDS = max(1, _env_int("SESSION_IDLE_MINUTES", 30)) * 60
@@ -94,7 +96,7 @@ LOGIN_MAX_ATTEMPTS = max(1, _env_int("LOGIN_MAX_ATTEMPTS", 5))
 
 LOGIN_LOCK_SECONDS = max(1, _env_int("LOGIN_LOCK_MINUTES", 5)) * 60
 
-VERSION = "2.8.0"
+VERSION = "2.9.0"
 
 default_config = {
     "domain": os.environ.get("AD_DOMAIN", "").strip() or "firma.local",

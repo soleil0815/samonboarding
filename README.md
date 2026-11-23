@@ -47,7 +47,7 @@ The application runs as a Docker container (FastAPI + ldap3). The web interface 
 ## 1. How it works
 
 ```
- Browser  ──HTTPS──▶  SAMONBOARDING (Docker, port 9500)  ──LDAPS 636──▶  Domain controller
+ Browser  ──HTTPS──▶  SAMONBOARDING (Docker, port 9500)  ──LDAPS 636 (or 389 encrypted)──▶  Domain controller
                                    │
                                    └──SMTP (optional)──▶  Mail server
 ```
@@ -55,7 +55,7 @@ The application runs as a Docker container (FastAPI + ldap3). The web interface 
 These five points explain the whole concept:
 
 1. **There is no service account.** Everyone signs in with their *own* AD account, and every action runs as that user. Whatever AD does not allow them, they cannot do here either. Permissions are granted in AD (delegation), not in the application.
-2. **The connection to the DC is encrypted (LDAPS, port 636).** This is required because AD only allows setting passwords over an encrypted connection.
+2. **The connection to the DC is always encrypted.** Preferably via LDAPS (port 636). If the DC has no certificate – common in Windows domains – the application connects on port 389 and encrypts the connection with NTLM ("sign and seal", as Windows tools do). Encryption is required because AD only allows setting passwords over an encrypted connection.
 3. **Two roles**, based on the groups of the signed-in user (nested memberships count):
 
    | Role | Requirement | Allowed to |
@@ -82,8 +82,8 @@ After signing in, the **home page** shows what needs doing: active accounts with
 ## 2. Requirements
 
 - A Linux server, a VM or a NAS (e.g. **Synology** with *Container Manager*) with **Docker** and **Docker Compose** (`docker compose` or `docker-compose`)
-- The server reaches the domain controller on **TCP 636** (LDAPS) and can resolve its name
-- A **domain controller** with LDAPS enabled (see [section 5](#5-preparing-active-directory))
+- The server reaches the domain controller on **TCP 636** (LDAPS) or **TCP 389** (encrypted LDAP, without a certificate on the DC) and can resolve its name
+- A **domain controller** (Samba AD or Windows Server), preferably with LDAPS (see [section 5](#5-preparing-active-directory))
 - Optional: an SMTP server for notifications
 
 The program is completely in the image. Only three things live on the server:
@@ -205,7 +205,8 @@ All settings are in the file **`.env`** (template: `env.example` in the release 
 | `AD_DC_IP` | `10.0.10.5` | IP address or name of the domain controller |
 | `CUSTOM_OPERATOR_GROUP` | empty | sAMAccountName of an additional group whose members are operators. The built-in *Account Operators* group always applies, recognised by its SID |
 | `LDAP_CA_FILE` | empty | Path (inside the container) to a CA file in PEM format. If set, the DC certificate is verified |
-| `LDAP_ALLOW_PLAIN` | `false` | `true` = fall back to unencrypted LDAP (port 389) if 636 is unreachable. Passwords then travel in plain text – emergencies only. Has no effect when `LDAP_CA_FILE` is set (then the connection is never downgraded) |
+| `LDAP_SASL_ENCRYPTION` | `true` | If LDAPS (636) is not available (no certificate on the DC): connect on port 389 and encrypt with NTLM (sign and seal). Setting passwords works this way too. `false` = LDAPS only. Has no effect when `LDAP_CA_FILE` is set |
+| `LDAP_ALLOW_PLAIN` | `false` | `true` = last resort: unencrypted LDAP (port 389) if neither LDAPS nor the encrypted connection works. Passwords then travel in plain text, setting passwords does not work, and DCs that require LDAP signing refuse it – no longer needed since 2.9.0. Has no effect when `LDAP_CA_FILE` is set (then the connection is never downgraded) |
 | `SESSION_IDLE_MINUTES` | `30` | Sign-out after this many minutes of inactivity |
 | `SESSION_MAX_HOURS` | `12` | Maximum session length, even with continuous activity. Then sign in again (the role is determined again) |
 | `HTTPS_PORT` | `9500` | HTTPS port in the container. There is no HTTP port |
@@ -241,7 +242,7 @@ Notes:
 
 Preparation always consists of the same three things:
 
-1. **LDAPS** on the domain controller (port 636)
+1. **LDAPS** on the domain controller (port 636) – recommended; without it the application uses encrypted LDAP on port 389
 2. Optional: an **operator group** (`CUSTOM_OPERATOR_GROUP`)
 3. **Permissions** for the operators on the affected OUs
 
@@ -286,6 +287,8 @@ samba-tool domain passwordsettings show
 3. `openssl x509 -in cert.pem -noout -subject -ext subjectAltName` shows which name the certificate contains
 
 ### 5.2 Windows Server AD
+
+**Without LDAPS:** many Windows domains have no certificate on their DCs. The application then connects on port 389 and encrypts the connection with NTLM sign and seal – sign-in, all changes and setting passwords work, also when the DC requires LDAP signing. Nothing needs to be set up for this (`LDAP_SASL_ENCRYPTION=true` is the default). NTLM must be allowed for the DC (it is by default). The diagnostic package shows which kind of connection is used. LDAPS is still the better choice: TLS is stronger than NTLM encryption, and with `LDAP_CA_FILE` the DC proves its identity.
 
 **LDAPS:** The domain controller needs a certificate with the purpose *Server Authentication* that contains the DC's DNS name. The easiest way is an **Active Directory Certificate Services (AD CS)** enterprise CA: domain controllers then receive a suitable certificate automatically, and LDAPS is available on port 636. Without a CA you can issue a certificate manually and install it in the DC's computer certificate store (Personal).
 
@@ -803,7 +806,7 @@ sudo docker compose exec samonboarding python -m samonboarding.diagnose
 | *Zugriff verweigert: Sie müssen Mitglied der Gruppe …* (access denied) | The user is neither administrator nor operator. Check group membership. For `CUSTOM_OPERATOR_GROUP` the **sAMAccountName** counts. New memberships apply after signing in again |
 | *SMTP-Server … nicht erreichbar* (not reachable) / mails are not sent | Check the server name and port in the SMTP settings and that the network or firewall allows the connection from the Docker host to the mail server. Then check with *Send test email* |
 | *Zu viele fehlgeschlagene Anmeldungen* (too many failed sign-ins) | Temporary lock of the application (HTTP 429). Wait about 5 minutes |
-| *Passwort setzen fehlgeschlagen* (setting the password failed) | The password does not meet the policy, the connection is not encrypted via LDAPS (check port 636, `LDAP_ALLOW_PLAIN=false`) or the user lacks rights on the OU |
+| *Passwort setzen fehlgeschlagen* (setting the password failed) | The password does not meet the policy, the connection is not encrypted (LDAPS on 636 or encrypted 389 – see the diagnostic package; `LDAP_ALLOW_PLAIN` connections can never set passwords) or the user lacks rights on the OU |
 | Lists are empty | No source OUs chosen for the module yet ([section 6](#6-first-time-setup-in-the-interface)) or the account is not in these OUs |
 | *Das Konto liegt nicht in einer … freigegebenen Quell-OU* | The target is outside the configured OUs. As administrator, extend the OUs |
 | Action fails with *insufficientAccessRights* | The signed-in user lacks AD rights on the OU (delegation, [section 5](#5-preparing-active-directory)) |

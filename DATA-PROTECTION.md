@@ -79,7 +79,7 @@ This document describes the personal data SAMONBOARDING processes: where it is k
 - The session cookie uses `HttpOnly`, `SameSite=Strict` and `Secure`, and ends when the browser closes. Sessions are held in memory only and end after 30 minutes of inactivity (server and interface).
 
 **Transmission**
-- LDAPS to the DC. With `LDAP_CA_FILE` the certificate is verified, and unencrypted LDAP is forbidden by default (`LDAP_ALLOW_PLAIN=false`).
+- LDAPS to the DC. With `LDAP_CA_FILE` the certificate is verified. If the DC has no certificate, port 389 is used, encrypted with NTLM (sign and seal; weaker than TLS, but never clear text). Unencrypted LDAP is forbidden by default (`LDAP_ALLOW_PLAIN=false`).
 - SMB to the file server is signed. It is encrypted when the file server requires it, which you can enable on the share (`Set-SmbShare -EncryptData $true` or `smb encrypt = required`).
 - SMTP with STARTTLS or TLS. In *Auto* mode STARTTLS is used; if the server does not offer it, **nothing** is sent (also when an attacker suppresses STARTTLS). Unencrypted sending is only possible with the explicitly chosen mode *Without encryption* for an internal relay – and then never with an SMTP password.
 - **HTTPS only** (TLS 1.2/1.3, modern ciphers). There is no HTTP port. Your own certificate (upload in the interface under *Certificate*, or files in `data/tls/`), otherwise self-signed; with your own certificate HSTS is sent as well.

@@ -90,6 +90,11 @@ class SimulationTests(unittest.TestCase):
 class LdapFallbackTests(unittest.TestCase):
     """With LDAP_CA_FILE the connection must never fall back to clear text (389)."""
 
+    def setUp(self):
+        # module state of ldap_client (LDAPS just failed / last connection) must not leak between tests
+        ldap_client._ldaps_missing.clear()
+        ldap_client.last_transport.update(kind="", dc="")
+
     def _ports(self, error_text, ca_file):
         from ldap3.core.exceptions import LDAPSocketOpenError
 
@@ -106,6 +111,7 @@ class LdapFallbackTests(unittest.TestCase):
 
         with (
             mock.patch.object(ldap_client, "LDAP_ALLOW_PLAIN", True),
+            mock.patch.object(ldap_client, "LDAP_SASL_ENCRYPTION", False),  # tested in test_ldap_seal.py
             mock.patch.object(ldap_client, "LDAP_CA_FILE", ca_file),
             mock.patch.object(ldap_client.ldap3, "Tls"),
             mock.patch.object(ldap_client.ldap3, "Server", side_effect=server),

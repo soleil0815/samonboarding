@@ -47,7 +47,7 @@ Die Anwendung läuft als Docker-Container (FastAPI + ldap3), die Oberfläche ist
 ## 1. So funktioniert es
 
 ```
- Browser  ──HTTPS──▶  SAMONBOARDING (Docker, Port 9500)  ──LDAPS 636──▶  Domain Controller
+ Browser  ──HTTPS──▶  SAMONBOARDING (Docker, Port 9500)  ──LDAPS 636 (oder 389 verschlüsselt)──▶  Domain Controller
                                    │
                                    └──SMTP (optional)──▶  Mailserver
 ```
@@ -55,7 +55,7 @@ Die Anwendung läuft als Docker-Container (FastAPI + ldap3), die Oberfläche ist
 Diese fünf Punkte erklären das ganze Konzept:
 
 1. **Es gibt kein Dienstkonto.** Jeder meldet sich mit seinem *eigenen* AD-Konto an. Alle Aktionen laufen im Namen dieses Benutzers. Was das AD ihm nicht erlaubt, kann er auch hier nicht tun. Die Rechte werden also im AD vergeben (Delegierung), nicht in der Anwendung.
-2. **Die Verbindung zum DC ist verschlüsselt (LDAPS, Port 636).** Das ist nötig, weil AD das Setzen von Passwörtern nur über eine verschlüsselte Verbindung erlaubt.
+2. **Die Verbindung zum DC ist immer verschlüsselt.** Am liebsten per LDAPS (Port 636). Hat der DC kein Zertifikat – in Windows-Domänen häufig –, verbindet sich die Anwendung über Port 389 und verschlüsselt die Verbindung mit NTLM („Sign & Seal“, wie Windows-Werkzeuge). Die Verschlüsselung ist nötig, weil AD das Setzen von Passwörtern nur über eine verschlüsselte Verbindung erlaubt.
 3. **Zwei Rollen**, abhängig von den Gruppen des angemeldeten Benutzers (verschachtelte Mitgliedschaften zählen mit):
 
    | Rolle | Voraussetzung | Darf |
@@ -82,8 +82,8 @@ Nach der Anmeldung zeigt die **Startseite**, was ansteht: aktive Konten ohne Anm
 ## 2. Voraussetzungen
 
 - Ein Linux-Server, eine VM oder ein NAS (z. B. **Synology** mit *Container Manager*) mit **Docker** und **Docker Compose** (`docker compose` oder `docker-compose`)
-- Der Server erreicht den Domain Controller über **TCP 636** (LDAPS) und kann dessen Namen auflösen
-- Ein **Domain Controller** mit aktiviertem LDAPS (siehe [Abschnitt 5](#5-active-directory-vorbereiten))
+- Der Server erreicht den Domain Controller über **TCP 636** (LDAPS) oder **TCP 389** (verschlüsseltes LDAP, ohne Zertifikat auf dem DC) und kann dessen Namen auflösen
+- Ein **Domain Controller** (Samba AD oder Windows Server), am besten mit LDAPS (siehe [Abschnitt 5](#5-active-directory-vorbereiten))
 - Optional: ein SMTP-Server für Benachrichtigungen
 
 Das Programm steckt komplett im Image. Auf dem Server liegen nur drei Dinge:
@@ -205,7 +205,8 @@ Alle Einstellungen stehen in der Datei **`.env`** (Vorlage: `env.example` am Rel
 | `AD_DC_IP` | `10.0.10.5` | IP-Adresse oder Name des Domain Controllers |
 | `CUSTOM_OPERATOR_GROUP` | leer | sAMAccountName einer zusätzlichen Gruppe, deren Mitglieder Operatoren sind. Die eingebaute Gruppe *Konten-Operatoren* (Account Operators) gilt immer, erkannt an ihrer SID |
 | `LDAP_CA_FILE` | leer | Pfad (im Container) zu einer CA-Datei im PEM-Format. Gesetzt: Das Zertifikat des DC wird geprüft |
-| `LDAP_ALLOW_PLAIN` | `false` | `true` = Fallback auf unverschlüsseltes LDAP (Port 389), falls 636 nicht erreichbar ist. Passwörter gehen dann im Klartext übers Netz – nur im Notfall. Ohne Wirkung, wenn `LDAP_CA_FILE` gesetzt ist (dann wird nie auf Klartext gewechselt) |
+| `LDAP_SASL_ENCRYPTION` | `true` | Ist LDAPS (636) nicht verfügbar (kein Zertifikat auf dem DC): über Port 389 verbinden und mit NTLM verschlüsseln (Sign & Seal). Auch Passwörter setzen funktioniert so. `false` = nur LDAPS. Ohne Wirkung, wenn `LDAP_CA_FILE` gesetzt ist |
+| `LDAP_ALLOW_PLAIN` | `false` | `true` = letzter Ausweg: unverschlüsseltes LDAP (Port 389), wenn weder LDAPS noch die verschlüsselte Verbindung klappt. Passwörter gehen dann im Klartext übers Netz, Passwörter setzen geht nicht, und DCs mit LDAP-Signierung lehnen ab – seit 2.9.0 nicht mehr nötig. Ohne Wirkung, wenn `LDAP_CA_FILE` gesetzt ist (dann wird nie auf Klartext gewechselt) |
 | `SESSION_IDLE_MINUTES` | `30` | Abmeldung nach so vielen Minuten ohne Aktivität |
 | `SESSION_MAX_HOURS` | `12` | Höchstdauer einer Sitzung, auch bei durchgehender Aktivität. Danach neu anmelden (die Rolle wird dabei neu bestimmt) |
 | `HTTPS_PORT` | `9500` | Port für HTTPS im Container. Einen HTTP-Port gibt es nicht |
@@ -241,7 +242,7 @@ Hinweise:
 
 Die Vorbereitung besteht immer aus denselben drei Dingen:
 
-1. **LDAPS** auf dem Domain Controller (Port 636)
+1. **LDAPS** auf dem Domain Controller (Port 636) – empfohlen; ohne nutzt die Anwendung verschlüsseltes LDAP auf Port 389
 2. Optional: eine **Operator-Gruppe** (`CUSTOM_OPERATOR_GROUP`)
 3. **Rechte** für die Operatoren auf den betroffenen OUs
 
@@ -286,6 +287,8 @@ samba-tool domain passwordsettings show
 3. Welcher Name im Zertifikat steht, zeigt `openssl x509 -in cert.pem -noout -subject -ext subjectAltName`
 
 ### 5.2 Windows Server AD
+
+**Ohne LDAPS:** Viele Windows-Domänen haben kein Zertifikat auf ihren DCs. Die Anwendung verbindet sich dann über Port 389 und verschlüsselt die Verbindung mit NTLM (Sign & Seal) – Anmeldung, alle Änderungen und das Setzen von Passwörtern funktionieren, auch wenn der DC LDAP-Signierung verlangt. Einzustellen ist dafür nichts (`LDAP_SASL_ENCRYPTION=true` ist Standard). NTLM muss für den DC erlaubt sein (Standard). Das Diagnosepaket zeigt, welche Verbindungsart genutzt wird. LDAPS bleibt die bessere Wahl: TLS ist stärker als die NTLM-Verschlüsselung, und mit `LDAP_CA_FILE` weist sich der DC aus.
 
 **LDAPS:** Der Domain Controller braucht ein Zertifikat mit dem Verwendungszweck *Serverauthentifizierung*, in dem der DNS-Name des DC steht. Am einfachsten geht das mit einer **Active Directory-Zertifikatdienste (AD CS)**-Unternehmens-CA. Domain Controller bekommen dann automatisch ein passendes Zertifikat, und LDAPS ist auf Port 636 verfügbar. Ohne CA kannst du ein Zertifikat auch manuell ausstellen und im Computerzertifikatspeicher des DC (Eigene Zertifikate) installieren.
 
@@ -803,7 +806,7 @@ sudo docker compose exec samonboarding python -m samonboarding.diagnose
 | *Zugriff verweigert: Sie müssen Mitglied der Gruppe …* | Der Benutzer ist weder Administrator noch Operator. Gruppenmitgliedschaft prüfen. Bei `CUSTOM_OPERATOR_GROUP` zählt der **sAMAccountName**. Neue Mitgliedschaften gelten nach einer neuen Anmeldung |
 | *SMTP-Server … nicht erreichbar* / Mails gehen nicht raus | Servername und Port in den SMTP-Einstellungen prüfen und ob Netzwerk bzw. Firewall die Verbindung vom Docker-Host zum Mailserver erlauben. Danach mit *Test-Mail senden* prüfen |
 | *Zu viele fehlgeschlagene Anmeldungen* | Temporäre Sperre der Anwendung (HTTP 429). Etwa 5 Minuten warten |
-| *Passwort setzen fehlgeschlagen* | Das Passwort erfüllt die Richtlinie nicht, die Verbindung ist nicht per LDAPS verschlüsselt (Port 636 prüfen, `LDAP_ALLOW_PLAIN=false`) oder dem Benutzer fehlen Rechte auf der OU |
+| *Passwort setzen fehlgeschlagen* | Das Passwort erfüllt die Richtlinie nicht, die Verbindung ist nicht verschlüsselt (LDAPS auf 636 oder verschlüsselt auf 389 – siehe Diagnosepaket; über `LDAP_ALLOW_PLAIN` lassen sich nie Passwörter setzen) oder dem Benutzer fehlen Rechte auf der OU |
 | Listen sind leer | Für das Modul sind noch keine Quell-OUs gewählt ([Abschnitt 6](#6-ersteinrichtung-in-der-oberfläche)) oder das Konto liegt nicht in diesen OUs |
 | *Das Konto liegt nicht in einer … freigegebenen Quell-OU* | Das Ziel liegt außerhalb der konfigurierten OUs. Als Administrator die OUs erweitern |
 | Aktion schlägt mit *insufficientAccessRights* fehl | Dem angemeldeten Benutzer fehlen Rechte im AD auf der OU (Delegierung, [Abschnitt 5](#5-active-directory-vorbereiten)) |

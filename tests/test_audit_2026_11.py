@@ -25,6 +25,11 @@ from samonboarding import datastate, fileshare, i18n, ldap_client, privacy  # no
 class LdapsCertificateTests(unittest.TestCase):
     """A rejected certificate on 636 must never lead to a plaintext fallback to 389."""
 
+    def setUp(self):
+        # module state of ldap_client (LDAPS just failed / last connection) must not leak between tests
+        ldap_client._ldaps_missing.clear()
+        ldap_client.last_transport.update(kind="", dc="")
+
     def test_no_fallback_on_rejected_certificate(self):
         from ldap3.core.exceptions import LDAPSocketOpenError
 
@@ -44,6 +49,7 @@ class LdapsCertificateTests(unittest.TestCase):
 
         with (
             mock.patch.object(ldap_client, "LDAP_ALLOW_PLAIN", True),
+            mock.patch.object(ldap_client, "LDAP_SASL_ENCRYPTION", False),  # this test is about the plain fallback
             mock.patch.object(ldap_client.ldap3, "Server", side_effect=server),
             mock.patch.object(ldap_client.ldap3, "Connection", side_effect=connection),
             self.assertLogs("samonboarding", level="WARNING"),
@@ -69,6 +75,7 @@ class LdapsCertificateTests(unittest.TestCase):
 
         with (
             mock.patch.object(ldap_client, "LDAP_ALLOW_PLAIN", True),
+            mock.patch.object(ldap_client, "LDAP_SASL_ENCRYPTION", False),  # this test is about the plain fallback
             mock.patch.object(ldap_client.ldap3, "Server", side_effect=server),
             mock.patch.object(ldap_client.ldap3, "Connection", side_effect=connection),
             self.assertLogs("samonboarding", level="WARNING"),

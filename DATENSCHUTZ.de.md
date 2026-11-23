@@ -79,7 +79,7 @@ Dieses Dokument beschreibt, welche personenbezogenen Daten SAMONBOARDING verarbe
 - Sitzungs-Cookie mit `HttpOnly`, `SameSite=Strict` und `Secure`; es endet mit dem Browser. Sitzungen liegen nur im Arbeitsspeicher und enden nach 30 Minuten ohne Aktivität (Server und Oberfläche).
 
 **Übertragung**
-- LDAPS zum DC; mit `LDAP_CA_FILE` wird das Zertifikat geprüft. Unverschlüsseltes LDAP ist standardmäßig verboten (`LDAP_ALLOW_PLAIN=false`).
+- LDAPS zum DC; mit `LDAP_CA_FILE` wird das Zertifikat geprüft. Hat der DC kein Zertifikat, wird Port 389 genutzt, verschlüsselt mit NTLM (Sign & Seal; schwächer als TLS, aber nie Klartext). Unverschlüsseltes LDAP ist standardmäßig verboten (`LDAP_ALLOW_PLAIN=false`).
 - SMB zum Dateiserver mit Signierung. Verschlüsselt wird, wenn der Dateiserver es verlangt; das lässt sich auf der Freigabe einschalten (`Set-SmbShare -EncryptData $true` bzw. `smb encrypt = required`).
 - SMTP mit STARTTLS oder TLS. Im Modus *Auto* wird STARTTLS genutzt; bietet der Server es nicht an, wird **nichts** gesendet (auch nicht, wenn ein Angreifer STARTTLS unterdrückt). Unverschlüsselt geht es nur mit dem ausdrücklich gewählten Modus *Ohne Verschlüsselung* für ein internes Relay – und dann nie mit SMTP-Passwort.
 - **Nur HTTPS** (TLS 1.2/1.3, moderne Verfahren). Es gibt keinen HTTP-Port. Eigenes Zertifikat (Upload in der Oberfläche unter *Zertifikat* oder Dateien in `data/tls/`), sonst selbstsigniert; mit eigenem Zertifikat zusätzlich HSTS.
