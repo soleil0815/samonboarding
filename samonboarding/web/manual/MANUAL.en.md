@@ -40,7 +40,7 @@ SAMONBOARDING is a web interface for the life cycle of user accounts in Active D
 | **Delete accounts** | Permanently delete disabled accounts together with their profile and home folders (administrators only) |
 | **Templates** | Templates for onboarding |
 | **E-mail notification** | SMTP server and which mails are sent |
-| **AD structure** | Overview of OUs and groups |
+| **AD structure** | Overview of all OUs and groups of the domain (administrators only) |
 | **Reports** | Who did what and when, program messages (administrators only) |
 | **Certificate** | Upload the HTTPS certificate (administrators only) |
 | **Diagnostics** | Anonymous diagnostic package for troubleshooting (administrators only) |
@@ -86,7 +86,7 @@ The role comes from your group membership in AD. It is recognised by the fixed i
 | Onboarding, user management, password, offboarding, restore | yes, in the released OUs | yes |
 | Module settings, templates | view only | yes |
 | SMTP and Exchange settings | no | yes |
-| Delete accounts, reports, certificate | no | yes |
+| Delete accounts, reports, certificate, AD structure, diagnostics | no | yes |
 | Change protected accounts (e.g. Domain Admins) | no | yes (offboarding and deleting: nobody) |
 | Add to privileged groups | no | yes |
 

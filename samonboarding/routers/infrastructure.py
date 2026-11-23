@@ -1,6 +1,10 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 # Copyright (C) 2026 Die SAMONBOARDING-Autoren
-"""AD infrastructure (OUs, groups, users, countries) for the UI selection lists."""
+"""AD infrastructure (OUs, groups, users, countries) for the UI selection lists.
+
+Only administrators get the whole structure of the domain (page "AD-Struktur", settings, templates). Operators get only
+what their pages need: the target OUs released for moving and the groups named in the templates (preview during
+onboarding) - never the list of all OUs, groups or users."""
 
 import logging
 
@@ -8,9 +12,17 @@ from fastapi import APIRouter, Depends, HTTPException
 from ldap3.core.exceptions import LDAPException
 
 from .. import listcache
-from ..config import CONFIG_FILE, USER_FILTER, default_config
-from ..dn import base_dn
+from ..config import (
+    CONFIG_FILE,
+    TEMPLATES_FILE,
+    USER_FILTER,
+    USERMGMT_CONFIG_FILE,
+    default_config,
+    default_usermgmt_config,
+)
+from ..dn import base_dn, rdn_label
 from ..ldap_client import ad_session, ldap_search, name_sort_key, row_display_name
+from ..permissions import is_admin, require_admin
 from ..sessions import get_current_user
 from ..storage import load_json
 
@@ -20,15 +32,40 @@ router = APIRouter()
 
 @router.get("/api/ad/infrastructure")
 def get_ad_infrastructure(
-    user: dict = Depends(get_current_user), frisch: bool = False, gruppen: bool = True, benutzer: bool = True
+    user: dict = Depends(get_current_user),
+    frisch: bool = False,
+    gruppen: bool = True,
+    benutzer: bool = True,
+    struktur: bool = False,
 ):
     """List briefly cached (listcache); frisch=1 always re-reads from the DC.
 
     The OUs are small and always included. All groups (gruppen) and all users of the domain (benutzer: manager
     selection and countries in the templates) are the large part - the UI asks for them only on the pages
-    that show them; without them the keys are missing from the answer."""
+    that show them; without them the keys are missing from the answer. struktur=1 is the page "AD-Struktur":
+    administrators only. Operators get the reduced answer of operator_infrastructure()."""
+    if struktur:
+        require_admin(user, "Nur Administratoren dürfen die AD-Struktur sehen.")
+    if not is_admin(user):
+        return operator_infrastructure()
     key = f"infrastructure:{int(gruppen)}{int(benutzer)}"
     return listcache.cached(user, key, lambda: _get_ad_infrastructure(user, gruppen, benutzer), frisch)
+
+
+def operator_infrastructure():
+    """What an operator's pages need, from the settings only (no search in the AD): the target OUs released for
+    moving (user management) and the groups of the templates (names for the onboarding preview)."""
+    mgmt_cfg = load_json(USERMGMT_CONFIG_FILE, default_usermgmt_config)
+    ous = [{"name": rdn_label(dn), "dn": dn} for dn in dict.fromkeys(o for o in mgmt_cfg.get("targetOus", []) if o)]
+    templates = load_json(TEMPLATES_FILE, [])
+    group_dns = dict.fromkeys(
+        g
+        for t in (templates if isinstance(templates, list) else [])
+        if isinstance(t, dict)
+        for g in t.get("groups", []) or []
+        if g
+    )
+    return {"status": "success", "ous": ous, "groups": [{"name": rdn_label(dn), "dn": dn} for dn in group_dns]}
 
 
 def _get_ad_infrastructure(user, with_groups=True, with_users=True):

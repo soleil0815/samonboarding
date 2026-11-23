@@ -994,6 +994,8 @@
   "enthalten": "included",
   "Zuklappen": "Collapse",
   "Aufklappen": "Expand"
+,
+  "Nur Administratoren dürfen die AD-Struktur sehen.": "Only administrators may see the AD structure."
  },
  "patterns": [
   [
