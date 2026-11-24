@@ -177,6 +177,15 @@ Hier werden **deaktivierte** Konten **endgültig** gelöscht: das AD-Konto und, 
 3. Zur Bestätigung die **Anzahl** der bereiten Konten und dein **Passwort** eingeben, dann **Endgültig löschen**.
 4. Gelöscht wird im Hintergrund mit Fortschrittsanzeige. Am Ende zeigt eine Tabelle das Ergebnis je Konto.
 
+### Während gelöscht wird
+
+Jede Löschung – ob ein Konto oder mehrere – läuft als Auftrag **auf dem Server**. Du kannst die Seite verlassen, neu laden oder den Browser schließen: Die Löschung läuft weiter, und die Ergebnis-Mail kommt trotzdem (falls eingerichtet).
+
+- Öffnest du **Konten löschen** wieder, zeigt die Seite die laufende oder gerade beendete Löschung mit Fortschritt und Ergebnis – auch nach einer neuen Anmeldung.
+- **Ergebnis ausblenden** nimmt das Ergebnis von der Seite. In den **Berichten** bleibt jede Löschung stehen.
+- Eine Löschung sieht nur der Administrator, der sie gestartet hat. Beendete Löschungen zeigt die Seite eine Stunde lang.
+- Wird der Container während einer Löschung neu gestartet, endet sie dort. Was schon gelöscht ist, steht in den Berichten; den Rest neu simulieren.
+
 ### Schutzmechanismen
 
 - Nur deaktivierte Konten, nie das eigene, nie geschützte.

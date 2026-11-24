@@ -16,7 +16,7 @@ import time
 from datetime import datetime, timezone
 from typing import Any
 
-from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 
 from .. import listcache, offboard_store
 from ..audit import actor_name, audit, audited
@@ -1031,7 +1031,7 @@ def run_deletion(user, cfg, plan, mail=None, on_locked=None):
 
 
 @router.post("/api/deletion/execute")
-def execute_deletion(data: DeletionExecuteModel, background: BackgroundTasks, user: dict = Depends(get_current_user)):
+def execute_deletion(data: DeletionExecuteModel, user: dict = Depends(get_current_user)):
     require_admin(user, ADMIN_MSG)
     cfg = load_deletion_config()
     _require_enabled(cfg)
@@ -1040,12 +1040,60 @@ def execute_deletion(data: DeletionExecuteModel, background: BackgroundTasks, us
         raise HTTPException(status_code=400, detail="Die Bestätigung stimmt nicht mit dem Benutzernamen überein.")
     verify_admin_password(user, data.password)  # only after this is the single-use plan consumed
     consume_plan(data.planId)
+    with _running_lock:
+        if plan["dn"].lower() in _running:
+            raise HTTPException(status_code=409, detail="Für dieses Konto läuft bereits ein Löschvorgang.")
+    # Runs on the server as a job (like the batch deletion): closing the page or a proxy timeout does not matter,
+    # the page finds the job again (GET /api/deletion/jobs) and the mail is sent in any case
+    job = _new_job(user, "single", [plan])
+    _start_job(run_single_job, job["id"], user, cfg, plan, data.planId)
+    return {"status": "started", "jobId": job["id"], "kind": "single", "total": 1}
+
+
+class _SendNow:
+    """Stands in for BackgroundTasks in a job: the request is long over, so a mail is sent right away."""
+
+    @staticmethod
+    def add_task(func, *args, **kwargs):
+        func(*args, **kwargs)
+
+
+def run_single_job(job_id, user, cfg, plan, plan_id):
+    """One account in the background. The plan is single use - every outcome requires a new simulation."""
+    job = _jobs[job_id]
+    entry = job["items"][0]
+    entry["status"] = "running"
+    job["current"] = plan["sam"]
+
+    mails = []  # sent only when the job is finished: a slow mail server must not keep it (and the account) running
 
     def mail(name, sam, results, account_deleted, ad_error):
-        _queue_mail(background, user, name, sam, results, account_deleted, ad_error)
+        mails.append((name, sam, results, account_deleted, ad_error))
 
-    # The plan is single use - every outcome requires a new simulation
-    return run_deletion(user, cfg, plan, mail, on_locked=lambda: drop_plan(data.planId))
+    try:
+        result = run_deletion(user, cfg, plan, mail, on_locked=lambda: drop_plan(plan_id))
+        entry.update(
+            status=result["status"],
+            message=result["message"],
+            results=result["results"],
+            accountDeleted=result["accountDeleted"],
+        )
+    except HTTPException as e:  # also AdError (subclass): e.g. folders deleted, AD account not
+        entry.update(status="error", message=str(e.detail), code=e.status_code)
+    except Exception as e:
+        log.exception("Loeschauftrag: Fehler bei %s", plan["sam"])
+        entry.update(status="error", message=f"Unerwarteter Fehler: {e}")
+    finally:
+        drop_plan(plan_id)
+        job["done"] = 1
+        job["current"] = ""
+        job["finished"] = True
+        job["finishedAt"] = time.time()
+    for args in mails:
+        try:
+            _queue_mail(_SendNow, user, *args)
+        except Exception:
+            log.exception("Loeschauftrag: Mail zu %s nicht gesendet", plan["sam"])
 
 
 # ---------------------------------------------------------------------------
@@ -1110,9 +1158,7 @@ def run_batch_job(job_id, user, cfg, items):
 
 
 @router.post("/api/deletion/execute-batch")
-def execute_deletion_batch(
-    data: DeletionBatchExecuteModel, background: BackgroundTasks, user: dict = Depends(get_current_user)
-):
+def execute_deletion_batch(data: DeletionBatchExecuteModel, user: dict = Depends(get_current_user)):
     require_admin(user, ADMIN_MSG)
     cfg = load_deletion_config()
     _require_enabled(cfg)
@@ -1125,35 +1171,104 @@ def execute_deletion_batch(
     verify_admin_password(user, data.password)
     consume_plan(data.planId, _batch_plans)
 
-    job_id = secrets.token_urlsafe(16)
+    job = _new_job(user, "batch", plan["items"])
+    _start_job(run_batch_job, job["id"], user, cfg, plan["items"])
+    return {"status": "started", "jobId": job["id"], "kind": "batch", "total": job["total"]}
+
+
+def _owner(user):
+    """Jobs belong to the administrator (not to the browser session): after signing in again - e.g. the browser was
+    closed - the page finds the job again."""
+    return str((user or {}).get("username") or "").strip().lower()
+
+
+def _new_job(user, kind, items):
     now = time.time()
     job = {
-        "id": job_id,
-        "sid": user.get("sid"),
-        "total": len(plan["items"]),
+        "id": secrets.token_urlsafe(16),
+        "owner": _owner(user),
+        "kind": kind,
+        "total": len(items),
         "done": 0,
         "current": "",
         "finished": False,
         "startedAt": now,
         "finishedAt": None,
         "items": [
-            {"dn": i["dn"], "sam": i["sam"], "name": i["name"], "status": "pending", "message": "", "results": []}
-            for i in plan["items"]
-        ],
+            {
+                "dn": i["dn"],
+                "sam": i["sam"],
+                "name": i.get("name") or i["sam"],
+                "status": "pending",
+                "message": "",
+                "results": [],
+            }
+            for i in items
+        ],  # fmt: skip
     }
     with _jobs_lock:
-        for key in [k for k, v in _jobs.items() if v["finished"] and now - (v["finishedAt"] or now) > JOB_KEEP_SECONDS]:
-            del _jobs[key]
-        _jobs[job_id] = job
-    background.add_task(run_batch_job, job_id, user, cfg, plan["items"])
-    return {"status": "started", "jobId": job_id, "total": job["total"]}
+        _prune_jobs(now)
+        _jobs[job["id"]] = job
+    return job
+
+
+def _prune_jobs(now=None):
+    """Remove jobs finished more than JOB_KEEP_SECONDS ago (call with _jobs_lock held). Running jobs stay."""
+    now = time.time() if now is None else now
+    for key in [k for k, v in _jobs.items() if v["finished"] and now - (v["finishedAt"] or now) > JOB_KEEP_SECONDS]:
+        del _jobs[key]
+
+
+def _start_job(target, *args):
+    """Own thread, not a background task of the request: it must not depend on the browser or the connection.
+    The context (language of the mails) is taken along."""
+    ctx = contextvars.copy_context()
+    threading.Thread(target=ctx.run, args=(target, *args), daemon=True, name="samonboarding-delete").start()
+
+
+def _public(job):
+    return {k: v for k, v in job.items() if k != "owner"}
+
+
+def _own_job(job_id, user):
+    with _jobs_lock:
+        _prune_jobs()
+        job = _jobs.get(job_id)
+    if not job or job["owner"] != _owner(user):
+        raise HTTPException(status_code=404, detail="Auftrag nicht gefunden.")
+    return job
 
 
 @router.get("/api/deletion/job/{job_id}")
 def get_deletion_job(job_id: str, user: dict = Depends(get_current_user)):
     require_admin(user, ADMIN_MSG)
+    return _public(_own_job(job_id, user))
+
+
+@router.get("/api/deletion/jobs")
+def list_deletion_jobs(user: dict = Depends(get_current_user)):
+    """The administrator's running and recently finished deletions (newest first) - for the page after reloading."""
+    require_admin(user, ADMIN_MSG)
     with _jobs_lock:
-        job = _jobs.get(job_id)
-    if not job or job["sid"] != user.get("sid"):
-        raise HTTPException(status_code=404, detail="Auftrag nicht gefunden.")
-    return {k: v for k, v in job.items() if k != "sid"}
+        _prune_jobs()
+        jobs = [j for j in _jobs.values() if j["owner"] == _owner(user)]
+    jobs.sort(key=lambda j: j["startedAt"], reverse=True)
+    return {"status": "success", "jobs": [_public(j) for j in jobs]}
+
+
+@router.post("/api/deletion/job/{job_id}/dismiss")
+def dismiss_deletion_job(job_id: str, user: dict = Depends(get_current_user)):
+    """Hide a finished job's result: it is removed from memory together with the administrator's older finished
+    jobs, so that hiding the newest does not bring back the one before (every deletion stays in the reports)."""
+    require_admin(user, ADMIN_MSG)
+    job = _own_job(job_id, user)
+    if not job["finished"]:
+        raise HTTPException(status_code=409, detail="Der Löschauftrag läuft noch.")
+    with _jobs_lock:
+        for key in [
+            k
+            for k, v in _jobs.items()
+            if v["owner"] == job["owner"] and v["finished"] and v["startedAt"] <= job["startedAt"]
+        ]:
+            del _jobs[key]
+    return {"status": "success"}

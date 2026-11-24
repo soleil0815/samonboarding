@@ -487,7 +487,6 @@
   "Löschung": "Deletion",
   "Löschung simuliert": "Deletion simulated",
   "Löschung simuliert (mehrere)": "Deletion simulated (several)",
-  "Löschvorgang läuft – bitte warten und die Seite nicht schließen...": "Deletion running – please wait and do not close the page...",
   "Mehr laden": "Load more",
   "Meldung": "Message",
   "Meldung schließen": "Close message",
@@ -996,6 +995,12 @@
   "Aufklappen": "Expand"
 ,
   "Nur Administratoren dürfen die AD-Struktur sehen.": "Only administrators may see the AD structure."
+,
+  "Der Löschauftrag läuft noch.": "The deletion job is still running.",
+  "Löschvorgang wird gestartet …": "Starting deletion …",
+  "Löschvorgang läuft auf dem Server:": "Deletion running on the server:",
+  "Sie können die Seite verlassen; das Ergebnis erscheint hier und per E-Mail (falls eingerichtet).": "You may leave the page; the result appears here and by email (if set up).",
+  "Ergebnis ausblenden": "Hide result"
  },
  "patterns": [
   [
@@ -1105,14 +1110,6 @@
   [
    "{0} {1} von {2} Konten gelöscht. Bei den übrigen bleibt das AD-Konto bestehen – Ursachen beheben und neu simulieren.",
    "{0} {1} of {2} accounts deleted. For the others the AD account remains – fix the causes and simulate again."
-  ],
-  [
-   "Löschauftrag läuft: {0} von {1}. Die Seite kann offen bleiben; der Auftrag läuft auch auf dem Server weiter.",
-   "Deletion job running: {0} of {1}. You may keep the page open; the job also continues on the server."
-  ],
-  [
-   "Löschauftrag läuft: {0} von {1} – aktuell {2}. Die Seite kann offen bleiben; der Auftrag läuft auch auf dem Server weiter.",
-   "Deletion job running: {0} of {1} – currently {2}. You may keep the page open; the job also continues on the server."
   ],
   [
    "Simulation für {0} Konto/Konten läuft (kann bei großen Profilen etwas dauern)...",
@@ -1837,6 +1834,30 @@
   [
    "{0}: ist kein normaler Ordner (Verknüpfung?) – nichts gelöscht",
    "{0}: is not a normal folder (link?) – nothing deleted"
+  ],
+  [
+   "Löschauftrag läuft auf dem Server: {0} von {1}.",
+   "Deletion job running on the server: {0} of {1}."
+  ],
+  [
+   "Löschauftrag läuft auf dem Server: {0} von {1} – aktuell {2}.",
+   "Deletion job running on the server: {0} of {1} – currently {2}."
+  ],
+  [
+   "Verbindung unterbrochen: {0}. Läuft der Löschvorgang schon, erscheint er hier beim nächsten Öffnen der Seite; sonst unter „Berichte“ prüfen und die Simulation wiederholen.",
+   "Connection interrupted: {0}. If the deletion is already running, it appears here the next time the page is opened; otherwise check under “Reports” and repeat the simulation."
+  ],
+  [
+   "{0} Dateien, {1} Ordner",
+   "{0} files, {1} folders"
+  ],
+  [
+   "{0} Dateien, {1} Ordner, {2} Verknüpfung(en)",
+   "{0} files, {1} folders, {2} link(s)"
+  ],
+  [
+   "Besitz übernommen: {0}×",
+   "Ownership taken: {0}×"
   ]
  ]
 }

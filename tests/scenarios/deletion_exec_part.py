@@ -2,9 +2,31 @@
 import os
 DN_ALT = "CN=Alt\\, Anna,OU=Disabled," + B
 BG = {"last": None}
+# Deletions run as jobs in their own thread - here one after another, when the test says so
+JOBQ = []
+dele._start_job = lambda target, *a: JOBQ.append((target, a, {}))
+def run_jobs():
+    while JOBQ:
+        fn, args, kw = JOBQ.pop(0)
+        fn(*args, **kw)
 def X(data, user):
+    """Single deletion: start the job, run it, return the result like the old synchronous route (errors raise)."""
     BG["last"] = BackgroundTasks()
-    return dele.execute_deletion(data, BG["last"], user)
+    dele._SendNow = BG["last"]  # mails of the job are recorded instead of sent
+    started = dele.execute_deletion(data, user)
+    assert started["status"] == "started" and started["kind"] == "single", started
+    run_jobs()
+    item = dele.get_deletion_job(started["jobId"], user)["items"][0]
+    if item["status"] == "error":
+        raise HTTPException(status_code=item.get("code", 500), detail=item["message"])
+    return dict(status=item["status"], message=item["message"], results=item["results"],
+                accountDeleted=item.get("accountDeleted", False))
+def EXB(data, bg, user):
+    """Batch deletion: the started job waits in bg until run_tasks(bg)."""
+    started = dele.execute_deletion_batch(data, user)
+    bg.tasks.extend(JOBQ)
+    JOBQ.clear()
+    return started
 def exm(dn, plan, sam, password="Pass1"): return N(userDn=dn, planId=plan, confirmSam=sam, password=password)
 def writes(fsobj): return [c for c in fsobj.calls if c[0] in ("remove", "rmdir")]
 

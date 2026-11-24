@@ -533,7 +533,7 @@ Der Menüpunkt **Konten löschen** ist nur für Administratoren sichtbar. Accoun
 - Der angemeldete Administrator braucht auf dem Dateiserver das Windows-Recht *Eigentum an Dateien oder Objekten übernehmen* (Domänen-Admins und lokale Administratoren haben es standardmäßig). Fehlt es, bleibt der Ordner ein Hindernis und die Simulation meldet *Kein Zugriff*
 - Ohne die Option bleibt alles wie beschrieben: fehlender Zugriff verhindert das Löschen
 
-Gelöscht wird **endgültig, ohne Papierkorb**. Das AD-Konto lässt sich nur über den AD-Papierkorb wiederherstellen (falls aktiviert), die Dateien nur aus einer Sicherung oder den Schattenkopien des Dateiservers. Bei sehr großen Profilen kann das Löschen einige Minuten dauern, die Seite dabei nicht schließen.
+Gelöscht wird **endgültig, ohne Papierkorb**. Das AD-Konto lässt sich nur über den AD-Papierkorb wiederherstellen (falls aktiviert), die Dateien nur aus einer Sicherung oder den Schattenkopien des Dateiservers. Bei sehr großen Profilen kann das Löschen einige Minuten dauern. Es läuft als Auftrag auf dem Server (Einzel- und Sammellöschung): Die Seite darf verlassen oder neu geladen werden, die Löschung läuft weiter und die Ergebnis-Mail kommt trotzdem. Öffnet ein Administrator *Konten löschen* erneut, zeigt die Seite die laufende oder gerade beendete Löschung mit Fortschritt und Ergebnis (nur dem Administrator, der sie gestartet hat, beendete eine Stunde lang); *Ergebnis ausblenden* nimmt sie von der Seite.
 
 **Schutzmechanismen:**
 

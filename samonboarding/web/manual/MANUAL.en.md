@@ -179,6 +179,15 @@ Here **disabled** accounts are deleted **permanently**: the AD account and, if s
 3. To confirm, enter the **number** of ready accounts and your **password**, then **Delete permanently**.
 4. Deletion runs in the background with a progress display. At the end a table shows the result per account.
 
+### While deleting
+
+Every deletion – one account or several – runs as a job **on the server**. You may leave the page, reload it or close the browser: the deletion continues, and the result mail is sent anyway (if set up).
+
+- When you open **Delete accounts** again, the page shows the running or just-finished deletion with its progress and result – also after signing in again.
+- **Hide result** removes the result from the page. Every deletion stays in the **reports**.
+- Only the administrator who started a deletion sees it. The page shows finished deletions for one hour.
+- If the container is restarted during a deletion, it ends there. What has already been deleted is in the reports; simulate the rest again.
+
 ### Safeguards
 
 - Only disabled accounts, never your own, never protected ones.

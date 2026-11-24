@@ -545,7 +545,7 @@ const TAB_LISTS = {
     usermgmt: force => loadUserMgmtUsers(force),
     offboard: async force => { await loadOffboardingUsers(force); await loadOffboardRecords(); },
     pwdreset: force => loadPwdResetUsers(force),
-    delete: force => loadDeletionUsers(force),
+    delete: async force => { await loadDeletionUsers(force); await resumeDeletionJob(); },
 };
 function freshQuery(force) { return force === true ? '?frisch=1' : ''; }
 async function refreshAllLdapData(force) {
@@ -2792,6 +2792,7 @@ const DEL_BATCH_MAX = 25;
 const delSelected = new Set();
 let delBatchPlan = null;
 let delJobTimer = null;
+let delView = 0;  // changes whenever the page shows something else: a reply still on its way must not overwrite it
 
 function updateDeletionSelection() {
     const n = delSelected.size;
@@ -2869,6 +2870,7 @@ function delSimRows(targets) {
 }
 
 async function simulateDeletion(userDn) {
+    delView++;
     if(delJobTimer) { clearTimeout(delJobTimer); delJobTimer = null; }  // do not let it overwrite the display of a batch run
     const box = document.getElementById('del-sim-result');
     box.innerHTML = '<div class="text-xs text-slate-400">Simulation läuft (kann bei großen Profilen etwas dauern)...</div>';
@@ -2947,6 +2949,7 @@ function delErr(msg) { return `<div class="p-4 rounded-xl border border-rose-500
 
 async function simulateBatch() {
     if(currentUserRole !== "Administrator" || delSelected.size === 0) return;
+    delView++;
     if(delJobTimer) { clearTimeout(delJobTimer); delJobTimer = null; }
     delPlan = null; delBatchPlan = null;
     const box = delBox();
@@ -3032,7 +3035,8 @@ async function _executeBatch() {
     if(!res.ok) { box.innerHTML = delErr(data.detail || 'Löschen konnte nicht gestartet werden.'); return; }
     delSelected.clear();
     updateDeletionSelection();
-    pollDeletionJob(data.jobId, 0);
+    delView++;
+    pollDeletionJob(data.jobId, 0, delView);
 }
 
 const DEL_JOB_STATUS = {
@@ -3043,24 +3047,47 @@ const DEL_JOB_STATUS = {
     error: ['Nicht gelöscht', 'text-rose-400']
 };
 
-async function pollDeletionJob(jobId, failures) {
+async function pollDeletionJob(jobId, failures, view) {
     const box = delBox();
     let job;
     try {
         const res = await fetch('/api/deletion/job/' + encodeURIComponent(jobId));
+        if(view !== delView) return;  // meanwhile a simulation (or something else) is shown: leave it alone
         if(!res.ok) throw new Error('HTTP ' + res.status);
         job = await res.json();
     } catch(e) {
+        if(view !== delView) return;
         if(failures >= 5) { box.innerHTML = delErr('Der Fortschritt kann nicht mehr abgefragt werden (' + e.message + '). Der Löschauftrag läuft auf dem Server weiter – Ergebnis unter „Berichte“ prüfen.'); return; }
-        delJobTimer = setTimeout(() => pollDeletionJob(jobId, failures + 1), 2000);
+        delJobTimer = setTimeout(() => pollDeletionJob(jobId, failures + 1, view), 2000);
         return;
     }
+    if(view !== delView) return;
     renderDeletionJob(job);
     if(job.finished) { delJobTimer = null; await loadDeletionUsers(); return; }
-    delJobTimer = setTimeout(() => pollDeletionJob(jobId, 0), 1500);
+    delJobTimer = setTimeout(() => pollDeletionJob(jobId, 0, view), 1500);
+}
+
+const DEL_RUNNING_NOTE = 'Sie können die Seite verlassen; das Ergebnis erscheint hier und per E-Mail (falls eingerichtet).';
+
+function dismissButton(job) {
+    return `<div class="flex justify-end"><button type="button" data-job="${esc(job.id)}" data-on-click="dismissDeletionJob(this.dataset.job)" class="px-3 py-1.5 bg-slate-900 hover:bg-slate-800 border border-slate-800 rounded-lg text-xs text-slate-300">Ergebnis ausblenden</button></div>`;
+}
+
+async function dismissDeletionJob(jobId) {
+    delView++;
+    try { await fetch('/api/deletion/job/' + encodeURIComponent(jobId) + '/dismiss', { method: 'POST' }); } catch(e) { /* only hides it */ }
+    const box = delBox();
+    if(box) box.innerHTML = '';
 }
 
 function renderDeletionJob(job) {
+    if(job.kind === 'single') {
+        const item = (job.items || [])[0] || {};
+        delBox().innerHTML = job.finished
+            ? singleResultHtml(item) + dismissButton(job)
+            : `<div class="p-4 rounded-xl border border-amber-500/30 bg-amber-500/5 text-xs text-amber-200 space-y-1"><div><i class="fa-solid fa-spinner fa-spin mr-1"></i> <span>Löschvorgang läuft auf dem Server:</span> <strong translate="no">${esc(item.name || item.sam || '')}</strong> <span translate="no" class="font-mono">(${esc(item.sam || '')})</span>.</div><div>${esc(DEL_RUNNING_NOTE)}</div></div>`;
+        return;
+    }
     const pct = job.total ? Math.round(job.done * 100 / job.total) : 0;
     const rows = job.items.map(i => {
         const st = DEL_JOB_STATUS[i.status] || [i.status, 'text-slate-400'];
@@ -3072,14 +3099,32 @@ function renderDeletionJob(job) {
     const ok = job.items.filter(i => i.status === 'success').length;
     const head = job.finished
         ? `<div class="p-4 rounded-xl border ${ok === job.total ? 'border-emerald-500/30 bg-emerald-500/5 text-emerald-300' : 'border-amber-500/40 bg-amber-500/5 text-amber-200'} text-xs font-semibold">${ok === job.total ? '✔' : '⚠'} ${ok} von ${job.total} Konten gelöscht.${ok === job.total ? '' : ' Bei den übrigen bleibt das AD-Konto bestehen – Ursachen beheben und neu simulieren.'}</div>`
-        : `<div class="p-4 rounded-xl border border-amber-500/30 bg-amber-500/5 text-xs text-amber-200 space-y-2"><div><i class="fa-solid fa-spinner fa-spin mr-1"></i> Löschauftrag läuft: ${job.done} von ${job.total}${job.current ? ' – aktuell ' + esc(job.current) : ''}. Die Seite kann offen bleiben; der Auftrag läuft auch auf dem Server weiter.</div><div class="h-2 bg-slate-800 rounded"><div class="h-2 bg-amber-500 rounded" style="width:${pct}%"></div></div></div>`;
+        : `<div class="p-4 rounded-xl border border-amber-500/30 bg-amber-500/5 text-xs text-amber-200 space-y-2"><div><i class="fa-solid fa-spinner fa-spin mr-1"></i> Löschauftrag läuft auf dem Server: ${job.done} von ${job.total}${job.current ? ' – aktuell ' + esc(job.current) : ''}.</div><div>${esc(DEL_RUNNING_NOTE)}</div><div class="h-2 bg-slate-800 rounded"><div class="h-2 bg-amber-500 rounded" style="width:${pct}%"></div></div></div>`;
     delBox().innerHTML = `${head}
         <div class="card overflow-hidden">
             <table class="w-full text-left text-xs font-mono">
                 <thead class="table-head"><tr><th class="p-3">Konto</th><th class="p-3">Ergebnis</th><th class="p-3">Details</th></tr></thead>
                 <tbody class="divide-y divide-slate-800/60">${rows}</tbody>
             </table>
-        </div>`;
+        </div>${job.finished ? dismissButton(job) : ''}`;
+}
+
+// After reloading (or signing in again): show the running or recently finished deletion of this administrator
+async function resumeDeletionJob() {
+    if(currentUserRole !== "Administrator" || delJobTimer || delPlan || delBatchPlan) return;
+    const box = delBox();
+    if(!box || box.innerHTML.trim()) return;  // something is shown already (e.g. a simulation)
+    const view = delView;
+    let data;
+    try {
+        const res = await fetch('/api/deletion/jobs');
+        if(!res.ok) return;
+        data = await res.json();
+    } catch(e) { return; }
+    // the answer may come late (the account list is loaded first): check again that nothing else is shown now
+    if(view !== delView || delJobTimer || delPlan || delBatchPlan || box.innerHTML.trim()) return;
+    const job = (data.jobs || [])[0];
+    if(job) pollDeletionJob(job.id, 0, view);
 }
 
 function isPasswordError(res, data) {
@@ -3095,14 +3140,14 @@ async function executeDeletion() {
     const plan = delPlan;
     const box = document.getElementById('del-sim-result');
     const savedHtml = box.innerHTML;
-    box.innerHTML = '<div class="text-xs text-amber-300"><i class="fa-solid fa-spinner fa-spin mr-1"></i> Löschvorgang läuft – bitte warten und die Seite nicht schließen...</div>';
+    box.innerHTML = `<div class="text-xs text-amber-300"><i class="fa-solid fa-spinner fa-spin mr-1"></i> Löschvorgang wird gestartet …</div>`;
     let res, data;
     try {
         res = await fetch('/api/deletion/execute', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ userDn: plan.dn, planId: plan.planId, confirmSam: typed, password }) });
         data = await res.json();
     } catch(e) {
         delPlan = null;
-        box.innerHTML = `<div class="p-4 rounded-xl border border-rose-500/30 bg-rose-500/5 text-xs text-rose-300">Verbindung unterbrochen: ${esc(e.message)}. Bitte unter „Berichte“ prüfen, was erledigt wurde, und die Simulation wiederholen.</div>`;
+        box.innerHTML = `<div class="p-4 rounded-xl border border-rose-500/30 bg-rose-500/5 text-xs text-rose-300">Verbindung unterbrochen: ${esc(e.message)}. Läuft der Löschvorgang schon, erscheint er hier beim nächsten Öffnen der Seite; sonst unter „Berichte“ prüfen und die Simulation wiederholen.</div>`;
         return;
     }
     if(!res.ok && isPasswordError(res, data)) {
@@ -3118,26 +3163,35 @@ async function executeDeletion() {
     }
     delPlan = null;
     if(!res.ok) {
-        box.innerHTML = `<div class="p-4 rounded-xl border border-rose-500/30 bg-rose-500/5 text-xs text-rose-300 space-y-1"><div class="font-semibold">Es wurde nicht (vollständig) gelöscht.</div><div>${esc(data.detail || 'Fehler beim Löschen.')}</div></div>`;
+        box.innerHTML = `<div class="p-4 rounded-xl border border-rose-500/30 bg-rose-500/5 text-xs text-rose-300 space-y-1"><div class="font-semibold">Es wurde nicht (vollständig) gelöscht.</div><div>${esc(detailText(data.detail) || 'Fehler beim Löschen.')}</div></div>`;
         await loadDeletionUsers();
         return;
     }
-    const rows = data.results.map(r => {
+    // runs on the server as a job (like the batch deletion): the page can be closed, it finds the job again
+    delView++;
+    pollDeletionJob(data.jobId, 0, delView);
+}
+
+// Result of a single deletion (job of kind "single")
+function singleResultHtml(item) {
+    if(item.status === 'error') {
+        return `<div class="p-4 rounded-xl border border-rose-500/30 bg-rose-500/5 text-xs text-rose-300 space-y-1"><div class="font-semibold">Es wurde nicht (vollständig) gelöscht.</div><div>${esc(item.message || 'Fehler beim Löschen.')}</div></div>`;
+    }
+    const rows = (item.results || []).map(r => {
         const st = DEL_RESULT[r.status] || [r.status, 'text-slate-400'];
         const errs = (r.errors || []).map(e => `<div class="text-[11px] text-rose-300/90 font-sans break-all">${esc(e)}</div>`).join('');
         const more = r.errorCount > (r.errors || []).length ? `<div class="text-[11px] text-slate-500 font-sans">… und ${r.errorCount - r.errors.length} weitere Fehler</div>` : '';
-        return `<tr><td class="p-3 text-slate-200 font-sans">${esc(r.label)}</td><td class="p-3"><div class="text-slate-300 break-all">${nt(r.path)}</div>${errs}${more}</td><td class="p-3 ${st[1]}">${esc(st[0])}</td><td class="p-3 text-slate-300">${r.files} Dateien, ${r.dirs} Ordner${r.links ? ', ' + r.links + ' Verknüpfung(en)' : ''}${r.takeovers ? `<div class="text-[11px] text-amber-300/90 font-sans">Besitz übernommen: ${r.takeovers}×</div>` : ''}</td></tr>`;
+        return `<tr><td class="p-3 text-slate-200 font-sans">${esc(r.label)}</td><td class="p-3"><div class="text-slate-300 break-all">${nt(r.path)}</div>${errs}${more}</td><td class="p-3 ${st[1]}">${esc(st[0])}</td><td class="p-3 text-slate-300"><span>${r.files} Dateien, ${r.dirs} Ordner${r.links ? ', ' + r.links + ' Verknüpfung(en)' : ''}</span>${r.takeovers ? `<div class="text-[11px] text-amber-300/90 font-sans">Besitz übernommen: ${r.takeovers}×</div>` : ''}</td></tr>`;
     }).join('');
-    const ok = data.status === 'success';
-    box.innerHTML = `
-        <div class="p-4 rounded-xl border ${ok ? 'border-emerald-500/30 bg-emerald-500/5 text-emerald-300' : 'border-amber-500/40 bg-amber-500/5 text-amber-200'} text-xs font-semibold">${ok ? '✔' : '⚠'} ${esc(data.message)}</div>
-        <div class="card overflow-hidden">
+    const ok = item.status === 'success';
+    return `
+        <div class="p-4 rounded-xl border ${ok ? 'border-emerald-500/30 bg-emerald-500/5 text-emerald-300' : 'border-amber-500/40 bg-amber-500/5 text-amber-200'} text-xs font-semibold"><span aria-hidden="true">${ok ? '✔' : '⚠'}</span> <span>${esc(item.message)}</span></div>
+        <div class="card overflow-x-auto">
             <table class="w-full text-left text-xs font-mono">
                 <thead class="table-head"><tr><th class="p-3">Ort</th><th class="p-3">Pfad</th><th class="p-3">Ergebnis</th><th class="p-3">Menge</th></tr></thead>
                 <tbody class="divide-y divide-slate-800/60">${rows || '<tr><td colspan="4" class="p-4 text-slate-500 italic font-sans">Keine Ordner betroffen.</td></tr>'}</tbody>
             </table>
         </div>`;
-    await loadDeletionUsers();
 }
 
 // What each page needs from the AD structure: OUs always (small); all groups and all users of the domain
