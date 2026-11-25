@@ -28,7 +28,10 @@ Commands (the GitHub workflows use them, they can also be run by hand):
   registry-tags IMAGE    published tags of ghcr.io/<owner>/<name> (token: GITHUB_TOKEN)
   test-image IMAGE       run the automatic tests inside the image
   smoke IMAGE            start the server in the image and query it via HTTPS
-  scan IMAGE             vulnerability scan with trivy (from PATH), stops on HIGH/CRITICAL with a fix
+  scan IMAGE [--auto-out F | --inherited-from REV | --report-only]
+                         vulnerability scan with trivy (from PATH), stops on HIGH/CRITICAL with a fix - except
+                         for a valid temporary exception (see trivyignore-auto)
+  trivyignore-auto FILE...   update the automatic temporary exceptions in .trivyignore from scan --auto-out files
   plan --mode M --changed C --image I   decide: publish / skip / nothing, tag, :latest, commit
   bundle                 dry run: renewed pin files as notices on the run page
   release-notes TAG --image I [--out F]   text of the GitHub release (changelog entry DE/EN)
@@ -181,8 +184,8 @@ def node_series(tag):
 # ---------------------------------------------------------------------------------------------------------------------
 # Files
 # ---------------------------------------------------------------------------------------------------------------------
-def read_text(name, root=ROOT):
-    path = Path(root) / name
+def read_text(name, root=None):
+    path = Path(ROOT if root is None else root) / name
     return path.read_text(encoding="utf-8") if path.exists() else ""
 
 
@@ -742,9 +745,18 @@ def release_notes(tag, image, root=ROOT):
         if "-s" in tag
         else "New program version. / Neue Programmversion."
     )
+    active = active_auto_exceptions(read_text(TRIVYIGNORE, root))
+    exceptions = ""
+    if active:
+        exceptions = (
+            "Temporary exceptions (a fix is announced, but the fixed package was not installable yet; the daily "
+            "security update brings it as soon as it is available) / Befristete Ausnahmen (Korrektur angekündigt, "
+            "aber noch nicht installierbar; das tägliche Sicherheitsupdate holt sie, sobald sie da ist):\n\n"
+            + "\n".join(f"- {e['id']} – until/bis {e['exp'].isoformat()}" for e in active)
+            + "\n\n---\n\n"
+        )
     return (
-        f"{kind}\n\n{en}\n\n---\n\n**Deutsch**\n\n{de}\n\n---\n\n"
-        f"Image: `{image}:{tag}`\n\n"
+        f"{kind}\n\n{en}\n\n---\n\n**Deutsch**\n\n{de}\n\n---\n\n" + exceptions + f"Image: `{image}:{tag}`\n\n"
         "Update: container manager (Dockhand, Watchtower, …) or "
         "`docker compose pull && docker compose up -d` or `sudo sh update.sh`.\n"
         "Without internet: `samonboarding-<version>-<amd64|arm64>.tar.gz` → "
@@ -997,6 +1009,156 @@ def cmd_smoke(args):
 IGNORE_RE = re.compile(r"^(\S+)\s+exp:(\d{4}-\d{2}-\d{2})\s*$")
 
 
+# Automatic temporary exceptions: a fix is listed for a vulnerability, but the fixed package is not installable in the
+# build yet (e.g. not on the Debian mirror). A security update or release then does not stop: it enters the finding
+# here with an expiry date - counted from the first time, never extended. Before the expiry date every daily security
+# update tries again to get the fix; once it is in the build the entry is removed. After the expiry date the run is red
+# again and someone has to look at it. A CVE whose exception (automatic or by hand) has expired never gets a new one.
+AUTO_PREFIX = "# automatic "
+AUTO_HEADER = "# --- Automatic temporary exceptions (written by the security update and the release - do not edit) ---"
+AUTO_DAYS = {"CRITICAL": 7, "HIGH": 14}
+SEVERITY_RANK = {"HIGH": 1, "CRITICAL": 2}
+
+
+def trivyignore_entries(text):
+    """.trivyignore -> [{id, exp (date), auto, reason}] in file order."""
+    entries, previous = [], ""
+    for raw in text.splitlines():
+        line = raw.strip()
+        if not line:
+            previous = ""
+            continue
+        if line.startswith("#"):
+            previous = line
+            continue
+        match = IGNORE_RE.match(line)
+        if match:
+            entries.append(
+                {
+                    "id": match.group(1),
+                    "exp": dt.date.fromisoformat(match.group(2)),
+                    "auto": previous.startswith(AUTO_PREFIX),
+                    "reason": previous,
+                }
+            )
+        previous = ""
+    return entries
+
+
+def manual_trivyignore(text):
+    """.trivyignore without the automatic exceptions (for Trivy: those are evaluated by scan itself)."""
+    out, pending = [], []
+    for raw in text.splitlines():
+        line = raw.strip()
+        if line == AUTO_HEADER:
+            continue
+        if line.startswith(AUTO_PREFIX):
+            pending = [raw]
+            continue
+        if pending:
+            pending = []
+            if IGNORE_RE.match(line):
+                continue  # the entry belonging to the automatic reason
+        out.append(raw)
+    return "\n".join(out).rstrip("\n") + "\n"
+
+
+def classify_vulns(vulns, entries, today):
+    """Sort the findings (HIGH/CRITICAL with a fix, manual exceptions already applied by Trivy) by CVE:
+    kept     covered by a valid automatic exception
+    expired  an exception for this CVE (automatic or by hand) has expired - never a new one, someone has to look
+    new      no exception yet"""
+    out = {"kept": {}, "expired": {}, "new": {}}
+    for vuln in vulns:
+        own = [e for e in entries if e["id"] == vuln["id"]]
+        if any(e["exp"] >= today and e["auto"] for e in own):
+            kind = "kept"
+        elif any(e["exp"] >= today for e in own):
+            continue  # valid exception by hand (Trivy applies those itself)
+        elif own:
+            kind = "expired"
+        else:
+            kind = "new"
+        out[kind].setdefault(vuln["id"], []).append(vuln)
+    return out
+
+
+def auto_needed(groups):
+    """{CVE: {severity, packages}} for scan --auto-out: everything that still needs a temporary exception."""
+    needed = {}
+    for kind in ("kept", "new"):
+        for cve, vulns in groups[kind].items():
+            item = needed.setdefault(cve, {"severity": "HIGH", "packages": []})
+            for v in vulns:
+                if SEVERITY_RANK.get(v["severity"], 0) > SEVERITY_RANK[item["severity"]]:
+                    item["severity"] = v["severity"]
+                pkg = f"{v['pkg']} {v['installed']} (fix {v['fixed']})"
+                if pkg not in item["packages"]:
+                    item["packages"].append(pkg)
+    return needed
+
+
+def apply_auto_exceptions(text, needed, today):
+    """New .trivyignore: manual part unchanged; automatic part = exactly the CVEs in needed. An existing valid entry
+    keeps its date and reason (the time limit is never extended); a CVE with an expired exception gets none."""
+    entries = trivyignore_entries(text)
+    lines = []
+    for cve in sorted(needed):
+        own = [e for e in entries if e["id"] == cve]
+        if any(e["exp"] >= today and not e["auto"] for e in own):
+            continue  # covered by hand
+        valid = [e for e in own if e["auto"] and e["exp"] >= today]
+        if valid:
+            lines += [valid[0]["reason"], f"{cve} exp:{valid[0]['exp'].isoformat()}"]
+        elif own:
+            continue  # expired: scan reports it as an error
+        else:
+            item = needed[cve]
+            exp = today + dt.timedelta(days=AUTO_DAYS.get(item["severity"], AUTO_DAYS["CRITICAL"]))
+            reason = (
+                f"{AUTO_PREFIX}{today.isoformat()}: {item['severity']} {', '.join(sorted(item['packages']))} - "
+                "fixed version not installable in the build yet"
+            )
+            lines += [reason, f"{cve} exp:{exp.isoformat()}"]
+    out = manual_trivyignore(text).rstrip("\n") + "\n"
+    if lines:
+        out += "\n" + AUTO_HEADER + "\n\n" + "\n\n".join("\n".join(lines[i : i + 2]) for i in range(0, len(lines), 2))
+        out += "\n"
+    return out
+
+
+def active_auto_exceptions(text, today=None):
+    today = today or dt.date.today()
+    return [e for e in trivyignore_entries(text) if e["auto"] and e["exp"] >= today]
+
+
+def cmd_trivyignore_auto(args):
+    needed = {}
+    for name in args.files:
+        path = Path(name)
+        if not path.exists():
+            continue
+        for cve, item in json.loads(path.read_text(encoding="utf-8")).items():
+            merged = needed.setdefault(cve, {"severity": item["severity"], "packages": []})
+            if SEVERITY_RANK.get(item["severity"], 0) > SEVERITY_RANK.get(merged["severity"], 0):
+                merged["severity"] = item["severity"]
+            merged["packages"] += [p for p in item["packages"] if p not in merged["packages"]]
+    old = read_text(TRIVYIGNORE)
+    new = apply_auto_exceptions(old, needed, dt.date.today())
+    changed = new != old
+    if changed:
+        (ROOT / TRIVYIGNORE).write_text(new, encoding="utf-8")
+    set_output("changed", str(changed).lower())
+    active = active_auto_exceptions(new)
+    lines = [f"- {e['id']} until {e['exp'].isoformat()}: {e['reason'][len(AUTO_PREFIX) :]}" for e in active]
+    for e in active:
+        annotate(
+            "warning", f"Temporary exception {e['id']} until {e['exp'].isoformat()}", e["reason"][len(AUTO_PREFIX) :]
+        )
+    summary("### Automatic temporary exceptions\n\n" + ("\n".join(lines) if lines else "None."))
+    print(f".trivyignore {'updated' if changed else 'unchanged'}: {len(active)} automatic temporary exception(s).")
+
+
 def trivyignore_problems(text, today=None):
     """Every entry: a comment line with the reason directly above it and an expiry date (ID exp:YYYY-MM-DD)."""
     today = today or dt.date.today()
@@ -1028,8 +1190,8 @@ def cmd_trivyignore_check(_args):
     print(".trivyignore is fine.")
 
 
-def trivy_findings(report):
-    """Trivy JSON -> list of findings that stop the release (HIGH/CRITICAL with a fixed version)."""
+def trivy_vulns(report):
+    """Trivy JSON -> findings that count (HIGH/CRITICAL with a fixed version), each once."""
     found, seen = [], set()
     for result in report.get("Results") or []:
         for vuln in result.get("Vulnerabilities") or []:
@@ -1040,19 +1202,47 @@ def trivy_findings(report):
                 continue
             seen.add(key)
             found.append(
-                f"{vuln.get('Severity')} {vuln.get('VulnerabilityID')} {vuln.get('PkgName')} "
-                f"{vuln.get('InstalledVersion')} -> {vuln.get('FixedVersion')} "
-                f"({vuln.get('PkgPath') or result.get('Target')})"
+                {
+                    "id": str(vuln.get("VulnerabilityID")),
+                    "severity": vuln.get("Severity"),
+                    "pkg": str(vuln.get("PkgName")),
+                    "installed": str(vuln.get("InstalledVersion")),
+                    "fixed": str(vuln.get("FixedVersion")),
+                    "where": str(vuln.get("PkgPath") or result.get("Target")),
+                }
             )
     return found
 
 
-def cmd_scan(args):
-    problems = trivyignore_problems(read_text(TRIVYIGNORE))
-    if problems:
-        raise PinError(".trivyignore:\n" + "\n".join(problems))
+def vuln_text(v):
+    return f"{v['severity']} {v['id']} {v['pkg']} {v['installed']} -> {v['fixed']} ({v['where']})"
+
+
+def trivy_findings(report):
+    """Trivy JSON -> list of findings that stop the release (HIGH/CRITICAL with a fixed version)."""
+    return [vuln_text(v) for v in trivy_vulns(report)]
+
+
+def inherited(vuln, rev):
+    """Is the package in exactly this version already in the pins at rev (e.g. main before this pull request)?
+    Then the finding was not brought in by the change - it is handled by the security update on main."""
+    if not hasattr(inherited, "cache"):
+        inherited.cache = {}
+    if rev not in inherited.cache:
+        os_lock = parse_os_lock_archs(git_show(rev, OS_LOCK))
+        python = parse_requirements(git_show(rev, REQ_TXT))
+        inherited.cache[rev] = (os_lock, python)
+    os_lock, python = inherited.cache[rev]
+    if any(packages.get(vuln["pkg"]) == vuln["installed"] for packages in os_lock.values()):
+        return True
+    return python.get(normalize(vuln["pkg"]), (None, None))[1] == vuln["installed"]
+
+
+def run_trivy(image, ignorefile):
     with tempfile.TemporaryDirectory() as tmp:
         out = Path(tmp, "trivy.json")
+        ignore = Path(tmp, "trivyignore")
+        ignore.write_text(ignorefile, encoding="utf-8")
         cmd = [
             "trivy",
             "image",
@@ -1063,31 +1253,88 @@ def cmd_scan(args):
             "HIGH,CRITICAL",
             "--ignore-unfixed",
             "--ignorefile",
-            str(ROOT / TRIVYIGNORE),
+            str(ignore),
             "--format",
             "json",
             "--output",
             str(out),
             "--exit-code",
             "0",
-            args.image,
+            image,
         ]
         done = subprocess.run(cmd, capture_output=True, text=True, check=False)
         if done.returncode != 0 or not out.exists():
-            raise PinError(f"Trivy could not scan {args.image}:\n{(done.stderr or done.stdout)[-2000:]}")
-        report = json.loads(out.read_text(encoding="utf-8") or "{}")
-    found = trivy_findings(report)
+            raise PinError(f"Trivy could not scan {image}:\n{(done.stderr or done.stdout)[-2000:]}")
+        return json.loads(out.read_text(encoding="utf-8") or "{}")
+
+
+def cmd_scan(args, today=None):
+    """Exit code 0 = nothing stops; 1 = stop (or Trivy failed). --report-only: 3 = there is something to fix."""
+    today = today or dt.date.today()
+    text = read_text(TRIVYIGNORE)
+    problems = trivyignore_problems(text, today)
+    if problems:
+        raise PinError(".trivyignore:\n" + "\n".join(problems))
+    report = run_trivy(args.image, manual_trivyignore(text))
+    vulns = trivy_vulns(report)
+    groups = classify_vulns(vulns, trivyignore_entries(text), today)
     label = args.label or args.image
-    if found:
-        summary(f"### Trivy: {label}\n\n" + "\n".join(f"- {f}" for f in found))
+    if args.report_only:
+        # daily: is there anything a security update could fix (also behind a temporary exception)?
+        if vulns:
+            print(f"Trivy: {label}: {len(vulns)} vulnerabilities with an available fix - security update due")
+            return 3
+        print(f"Trivy: {label}: nothing to fix")
+        return 0
+    expired = [v for vs in groups["expired"].values() for v in vs]
+    new = [v for vs in groups["new"].values() for v in vs]
+    kept = [v for vs in groups["kept"].values() for v in vs]
+    allowed, stop = [], list(expired)
+    if args.auto_out:
+        allowed = new
+        Path(args.auto_out).write_text(json.dumps(auto_needed(groups), indent=1, sort_keys=True), encoding="utf-8")
+    elif args.inherited_from:
+        allowed = [v for v in new if inherited(v, args.inherited_from)]
+        stop += [v for v in new if v not in allowed]
+    else:
+        stop += new
+    lines = []
+    valid = {e["id"]: e for e in trivyignore_entries(text) if e["auto"] and e["exp"] >= today}
+    for v in kept:
+        until = valid[v["id"]]["exp"].isoformat()
+        annotate("warning", f"Temporary exception until {until}", vuln_text(v))
+        lines.append(f"- temporary exception until {until}: {vuln_text(v)}")
+    for v in allowed:
+        why = (
+            "gets a temporary exception (fixed package not in the build yet)"
+            if args.auto_out
+            else "already on main with the same version - fixed by the security update there, does not stop this check"
+        )
+        annotate("warning", f"Not stopped: {v['id']}", f"{vuln_text(v)} - {why}")
+        lines.append(f"- {why}: {vuln_text(v)}")
+    for v in expired:
+        lines.append(f"- EXCEPTION EXPIRED: {vuln_text(v)}")
+    for v in stop:
+        if v not in expired:
+            lines.append(f"- stops: {vuln_text(v)}")
+    if stop:
+        summary(f"### Trivy: {label}\n\n" + "\n".join(lines))
         hint = f"\n{args.hint}" if getattr(args, "hint", "") else ""
+        note = f"\n{len(expired)} of them had an exception that has expired - check them by hand." if expired else ""
         raise PinError(
-            f"Trivy found {len(found)} vulnerabilities (HIGH/CRITICAL with a fix) in {label}:\n"
-            + "\n".join(found[:60])
+            f"Trivy found {len(stop)} vulnerabilities (HIGH/CRITICAL with a fix) in {label}:\n"
+            + "\n".join(vuln_text(v) for v in stop[:60])
+            + note
             + hint
         )
+    if lines:
+        summary(f"### Trivy: {label}\n\n" + "\n".join(lines))
+        count = len(kept) + len(allowed)
+        print(f"Trivy: {label}: nothing stops ({count} findings with a temporary exception or inherited).")
+        return 0
     summary(f"### Trivy: {label}\n\nNo HIGH/CRITICAL vulnerabilities with an available fix.")
     print(f"Trivy: {label} has no HIGH/CRITICAL vulnerabilities with an available fix.")
+    return 0
 
 
 # ---------------------------------------------------------------------------------------------------------------------
@@ -1200,6 +1447,10 @@ def main(argv=None):
     p.add_argument("image")
     p.add_argument("--label")
     p.add_argument("--hint", default="")
+    mode = p.add_mutually_exclusive_group()
+    mode.add_argument("--auto-out", help="release/security update: new findings get a temporary exception (JSON)")
+    mode.add_argument("--inherited-from", help="check: findings already in the pins at this git revision only warn")
+    mode.add_argument("--report-only", action="store_true", help="exit code 3 if a security update could fix something")
     p.set_defaults(fn=cmd_scan)
     p = sub.add_parser("plan")
     p.add_argument("--mode", required=True, choices=["release", "security-update"])
@@ -1217,16 +1468,19 @@ def main(argv=None):
     p.add_argument("command", nargs=argparse.REMAINDER)
     p.set_defaults(fn=cmd_run)
     sub.add_parser("trivyignore-check").set_defaults(fn=cmd_trivyignore_check)
+    p = sub.add_parser("trivyignore-auto")
+    p.add_argument("files", nargs="*")
+    p.set_defaults(fn=cmd_trivyignore_auto)
     sub.add_parser("eol").set_defaults(fn=cmd_eol)
     args = parser.parse_args(argv)
     try:
-        args.fn(args)
+        code = args.fn(args)
     except PinError as e:
         first, _, rest = str(e).partition("\n")
         annotate("error", first[:120], rest or first)
         print(str(e), file=sys.stderr)
         return 1
-    return 0
+    return 3 if code == 3 else 0  # 3: scan --report-only found something a security update could fix
 
 
 if __name__ == "__main__":

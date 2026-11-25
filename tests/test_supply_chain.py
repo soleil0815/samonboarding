@@ -139,14 +139,21 @@ class PatchDayTests(unittest.TestCase):
 class ScheduleTests(unittest.TestCase):
     def test_schedules(self):
         image = text("image.yml")
-        self.assertIn('    - cron: "17 5 * * 2"', image)  # early every Tuesday …
-        self.assertIn("sh scripts/patchday.sh", image)  # … but only patch day (2nd Tuesday) goes on
+        self.assertIn('    - cron: "17 5 * * *"', image)  # early every day …
+        self.assertIn("sh scripts/patchday.sh", image)  # … patch day (2nd Tuesday) goes on …
+        patchday = image[image.index("  patchday:\n") : image.index("  check:\n")]
+        # … and any other day only if the published image has a vulnerability with an announced fix
+        self.assertIn('pins.py scan "published:$arch" --label "published :latest $arch" --report-only', patchday)
+        self.assertIn("3) due=true ;;", patchday)
+        self.assertNotIn("docker login", patchday)
         self.assertIn("workflow_dispatch:", image)  # also manually
         self.assertIn("options: [security-update, release]", image)
         checks = text("checks.yml")
-        self.assertIn('    - cron: "43 3 * * *"', checks)  # daily: scan of the published image
+        self.assertIn(
+            '    - cron: "43 7 * * *"', checks
+        )  # daily, after the security update: scan of the published image
         self.assertIn('    - cron: "29 6 * * 1"', checks)  # weekly: base support
-        self.assertIn("github.event.schedule == '43 3 * * *'", checks)
+        self.assertIn("github.event.schedule == '43 7 * * *'", checks)
         self.assertIn("github.event.schedule == '29 6 * * 1'", checks)
         self.assertIn("python3 scripts/pins.py eol", checks)
         scan = checks[checks.index("scan-published:") : checks.index("base-support:")]
@@ -190,12 +197,14 @@ class OrderTests(unittest.TestCase):
         self.assertEqual([flow.index(f"\n  {j}:\n") for j in jobs], sorted(flow.index(f"\n  {j}:\n") for j in jobs))
         per_job = {
             "prepare": ["Check code", "Renew pins within the base", "Hand over the pins"],
-            "probe": ["Build without cache", "Debian packages (pin"],
-            "plan": ["Debian packages of both platforms", "Changes and version limits", "Plan", "Changelog entry",
-                     "Hand over the release files"],
+            "probe": ["Install Trivy", "Build without cache", "Debian packages (pin",
+                      "Vulnerabilities that the update"],
+            "plan": ["Debian packages of both platforms", "Temporary exceptions (security update",
+                     "Changes and version limits", "Plan", "Changelog entry", "Hand over the release files"],
             "image": ["Install Trivy", "Build the final image", "Debian packages (compare", "Tests in the image",
                       "Start check of the server", "Vulnerability scan (Trivy", "Push the checked image"],
-            "publish": ["Dry run", "Commit the new pins", "Publish the image", "GitHub release (only main)"],
+            "publish": ["Temporary exceptions (release", "Dry run", "Commit the new pins", "Publish the image",
+                        "GitHub release (only main)"],
         }  # fmt: skip
         for name, order in per_job.items():
             block = job(flow, name)
@@ -359,3 +368,40 @@ class ZapScanTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TemporaryExceptionFlowTests(unittest.TestCase):
+    """Fix announced but not installable yet: temporary exception instead of a stuck pull request or release."""
+
+    def test_scan_mode_per_run(self):
+        flow = text("build.yml")
+        scan = flow[step_index(flow, "Vulnerability scan (Trivy") :][:1200]
+        self.assertIn("check) python3 scripts/pins.py scan", scan)
+        self.assertIn("--inherited-from HEAD^1", scan)  # pull request: only what it brings in stops
+        self.assertIn(
+            'release) python3 scripts/pins.py scan "samonboarding:test-$ARCH" --label "$TAG $ARCH" --auto-out', scan
+        )
+        self.assertIn('*) python3 scripts/pins.py scan "samonboarding:test-$ARCH" --label "$TAG $ARCH" ;;', scan)
+        image = job(flow, "image")
+        self.assertIn("fetch-depth: 2", image)  # HEAD^1 must exist
+        probe = job(flow, "probe")
+        self.assertIn('--auto-out "$RUNNER_TEMP/os/auto-$ARCH.json"', probe)
+        plan = job(flow, "plan")
+        self.assertIn('trivyignore-auto "$RUNNER_TEMP/os/auto-amd64.json" "$RUNNER_TEMP/os/auto-arm64.json"', plan)
+        self.assertIn("include-hidden-files: true # .trivyignore", plan)  # otherwise the artifact leaves it out
+        self.assertIn('.trivyignore "$RUNNER_TEMP/release/"', plan)
+
+    def test_exceptions_are_committed_only_on_main(self):
+        flow = text("build.yml")
+        commit = flow[step_index(flow, "Commit the new pins") :][:1400]
+        self.assertIn("if: env.PUBLISH == 'true' && (needs.plan.outputs.commit == 'true' || "
+                      "needs.plan.outputs.ignore_changed == 'true' || steps.exceptions.outputs.changed == 'true')",
+                      commit)  # fmt: skip
+        self.assertIn("CHANGELOG.md .trivyignore", commit)
+        publish = job(flow, "publish")
+        self.assertLess(publish.index("Temporary exceptions (release"), publish.index("Commit the new pins"))
+        self.assertLess(publish.index("Commit the new pins"), publish.index("GitHub release (only main)"))
+        # pull requests never get to write it: the check job has a read-only token and never publishes
+        image = text("image.yml")
+        check = image[image.index("  check:\n") : image.index("  release:\n")]
+        self.assertNotIn("write", check)
