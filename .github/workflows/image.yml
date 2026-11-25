@@ -79,6 +79,7 @@ jobs:
             exit 0
           fi
           sh scripts/install-trivy.sh
+          export PATH="$RUNNER_TEMP/trivy-bin:$PATH" # GITHUB_PATH only applies to later steps
           # pulled like by any user, without login (whether it is public is checked by checks.yml every day)
           export DOCKER_CONFIG="$RUNNER_TEMP/no-login"
           mkdir -p "$DOCKER_CONFIG"
@@ -120,7 +121,7 @@ jobs:
     needs: patchday
     if: needs.patchday.outputs.due == 'true'
     permissions:
-      contents: write # only for the commit of a security update (main only)
+      contents: write # only for the commit of a security update or of temporary exceptions (main only)
       packages: write # only for publishing the image (main only)
     uses: ./.github/workflows/build.yml
     with:

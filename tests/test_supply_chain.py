@@ -366,10 +366,6 @@ class ZapScanTests(unittest.TestCase):
         self.assertIn("ZAP-ALERTS-END", self.sh)
 
 
-if __name__ == "__main__":
-    unittest.main()
-
-
 class TemporaryExceptionFlowTests(unittest.TestCase):
     """Fix announced but not installable yet: temporary exception instead of a stuck pull request or release."""
 
@@ -398,6 +394,7 @@ class TemporaryExceptionFlowTests(unittest.TestCase):
                       "needs.plan.outputs.ignore_changed == 'true' || steps.exceptions.outputs.changed == 'true')",
                       commit)  # fmt: skip
         self.assertIn("CHANGELOG.md .trivyignore", commit)
+        self.assertIn("            git add .trivyignore\n", commit)  # plan "nothing": untested pins never go to main
         publish = job(flow, "publish")
         self.assertLess(publish.index("Temporary exceptions (release"), publish.index("Commit the new pins"))
         self.assertLess(publish.index("Commit the new pins"), publish.index("GitHub release (only main)"))
@@ -405,3 +402,7 @@ class TemporaryExceptionFlowTests(unittest.TestCase):
         image = text("image.yml")
         check = image[image.index("  check:\n") : image.index("  release:\n")]
         self.assertNotIn("write", check)
+
+
+if __name__ == "__main__":
+    unittest.main()

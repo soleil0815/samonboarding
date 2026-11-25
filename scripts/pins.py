@@ -1020,8 +1020,19 @@ AUTO_DAYS = {"CRITICAL": 7, "HIGH": 14}
 SEVERITY_RANK = {"HIGH": 1, "CRITICAL": 2}
 
 
-def trivyignore_entries(text):
-    """.trivyignore -> [{id, exp (date), auto, reason}] in file order."""
+AUTO_REASON_RE = re.compile(r"^# automatic (\d{4}-\d{2}-\d{2}): (HIGH|CRITICAL) ")
+
+
+def split_trivyignore(text):
+    """(part written by hand, automatic part) - the automatic part is everything below AUTO_HEADER."""
+    lines = text.splitlines()
+    for index, line in enumerate(lines):
+        if line.strip() == AUTO_HEADER:
+            return "\n".join(lines[:index]), "\n".join(lines[index + 1 :])
+    return text, ""
+
+
+def _entries(text, auto):
     entries, previous = [], ""
     for raw in text.splitlines():
         line = raw.strip()
@@ -1033,34 +1044,30 @@ def trivyignore_entries(text):
             continue
         match = IGNORE_RE.match(line)
         if match:
-            entries.append(
-                {
-                    "id": match.group(1),
-                    "exp": dt.date.fromisoformat(match.group(2)),
-                    "auto": previous.startswith(AUTO_PREFIX),
-                    "reason": previous,
-                }
-            )
+            entry = {
+                "id": match.group(1),
+                "exp": dt.date.fromisoformat(match.group(2)),
+                "auto": auto,
+                "reason": previous,
+            }
+            reason = AUTO_REASON_RE.match(previous) if auto else None
+            entry["since"] = dt.date.fromisoformat(reason.group(1)) if reason else None
+            entry["severity"] = reason.group(2) if reason else None
+            entries.append(entry)
         previous = ""
     return entries
 
 
+def trivyignore_entries(text):
+    """.trivyignore -> [{id, exp (date), auto, reason, since, severity}]; automatic = below AUTO_HEADER.
+    An exception applies while today < exp (like Trivy: from the expiry date on the finding counts again)."""
+    manual, auto = split_trivyignore(text)
+    return _entries(manual, False) + _entries(auto, True)
+
+
 def manual_trivyignore(text):
     """.trivyignore without the automatic exceptions (for Trivy: those are evaluated by scan itself)."""
-    out, pending = [], []
-    for raw in text.splitlines():
-        line = raw.strip()
-        if line == AUTO_HEADER:
-            continue
-        if line.startswith(AUTO_PREFIX):
-            pending = [raw]
-            continue
-        if pending:
-            pending = []
-            if IGNORE_RE.match(line):
-                continue  # the entry belonging to the automatic reason
-        out.append(raw)
-    return "\n".join(out).rstrip("\n") + "\n"
+    return split_trivyignore(text)[0].rstrip("\n") + "\n"
 
 
 def classify_vulns(vulns, entries, today):
@@ -1071,10 +1078,10 @@ def classify_vulns(vulns, entries, today):
     out = {"kept": {}, "expired": {}, "new": {}}
     for vuln in vulns:
         own = [e for e in entries if e["id"] == vuln["id"]]
-        if any(e["exp"] >= today and e["auto"] for e in own):
-            kind = "kept"
-        elif any(e["exp"] >= today for e in own):
+        if any(e["exp"] > today and not e["auto"] for e in own):
             continue  # valid exception by hand (Trivy applies those itself)
+        if any(e["exp"] > today and e["auto"] for e in own):
+            kind = "kept"
         elif own:
             kind = "expired"
         else:
@@ -1086,7 +1093,7 @@ def classify_vulns(vulns, entries, today):
 def auto_needed(groups):
     """{CVE: {severity, packages}} for scan --auto-out: everything that still needs a temporary exception."""
     needed = {}
-    for kind in ("kept", "new"):
+    for kind in ("kept", "new", "expired"):  # expired: kept as it is, so that the clock is never reset
         for cve, vulns in groups[kind].items():
             item = needed.setdefault(cve, {"severity": "HIGH", "packages": []})
             for v in vulns:
@@ -1099,37 +1106,40 @@ def auto_needed(groups):
 
 
 def apply_auto_exceptions(text, needed, today):
-    """New .trivyignore: manual part unchanged; automatic part = exactly the CVEs in needed. An existing valid entry
-    keeps its date and reason (the time limit is never extended); a CVE with an expired exception gets none."""
+    """New .trivyignore: the part by hand unchanged; automatic part = exactly the CVEs in needed. An existing entry
+    keeps its date and reason - also an expired one (the clock is never reset or extended; scan stops on it). Only a
+    higher severity shortens it (CRITICAL: 7 days from the first date). A CVE with an exception by hand gets none."""
     entries = trivyignore_entries(text)
-    lines = []
+    blocks = []
     for cve in sorted(needed):
         own = [e for e in entries if e["id"] == cve]
-        if any(e["exp"] >= today and not e["auto"] for e in own):
-            continue  # covered by hand
-        valid = [e for e in own if e["auto"] and e["exp"] >= today]
-        if valid:
-            lines += [valid[0]["reason"], f"{cve} exp:{valid[0]['exp'].isoformat()}"]
-        elif own:
-            continue  # expired: scan reports it as an error
+        if any(not e["auto"] for e in own):
+            continue  # by hand (valid: covered; expired: someone has to decide, never automatically)
+        item = needed[cve]
+        days = AUTO_DAYS.get(item["severity"], AUTO_DAYS["CRITICAL"])
+        old = [e for e in own if e["auto"]]
+        if old:
+            e = old[0]
+            exp, reason = e["exp"], e["reason"]
+            if e["since"] and SEVERITY_RANK.get(item["severity"], 0) > SEVERITY_RANK.get(e["severity"] or "", 0):
+                exp = min(exp, e["since"] + dt.timedelta(days=days))
+                reason = reason.replace(f": {e['severity']} ", f": {item['severity']} ", 1)
         else:
-            item = needed[cve]
-            exp = today + dt.timedelta(days=AUTO_DAYS.get(item["severity"], AUTO_DAYS["CRITICAL"]))
+            exp = today + dt.timedelta(days=days)
             reason = (
                 f"{AUTO_PREFIX}{today.isoformat()}: {item['severity']} {', '.join(sorted(item['packages']))} - "
                 "fixed version not installable in the build yet"
             )
-            lines += [reason, f"{cve} exp:{exp.isoformat()}"]
-    out = manual_trivyignore(text).rstrip("\n") + "\n"
-    if lines:
-        out += "\n" + AUTO_HEADER + "\n\n" + "\n\n".join("\n".join(lines[i : i + 2]) for i in range(0, len(lines), 2))
-        out += "\n"
+        blocks.append(f"{reason}\n{cve} exp:{exp.isoformat()}")
+    out = manual_trivyignore(text)
+    if blocks:
+        out += "\n" + AUTO_HEADER + "\n\n" + "\n\n".join(blocks) + "\n"
     return out
 
 
 def active_auto_exceptions(text, today=None):
     today = today or dt.date.today()
-    return [e for e in trivyignore_entries(text) if e["auto"] and e["exp"] >= today]
+    return [e for e in trivyignore_entries(text) if e["auto"] and e["exp"] > today]
 
 
 def cmd_trivyignore_auto(args):
@@ -1180,6 +1190,14 @@ def trivyignore_problems(text, today=None):
         if not previous.lstrip("#").strip():
             problems.append(f"line {number}: the reason is missing (comment line directly above)")
         previous = ""
+    # the automatic part: only entries written by trivyignore-auto, and never longer than their time limit
+    for e in _entries(split_trivyignore(text)[1], True):
+        if not e["since"]:
+            problems.append(f"{e['id']}: below the automatic line, but not an automatic exception - move it above")
+        elif e["exp"] > e["since"] + dt.timedelta(days=AUTO_DAYS[e["severity"]]):
+            problems.append(
+                f"{e['id']}: automatic exception longer than {AUTO_DAYS[e['severity']]} days - never extend it by hand"
+            )
     return problems
 
 
@@ -1294,12 +1312,15 @@ def cmd_scan(args, today=None):
         allowed = new
         Path(args.auto_out).write_text(json.dumps(auto_needed(groups), indent=1, sort_keys=True), encoding="utf-8")
     elif args.inherited_from:
+        # an exception is per CVE: a package that the change brings in with the same CVE still stops it
+        stop += [v for v in kept if not inherited(v, args.inherited_from)]
+        kept = [v for v in kept if v not in stop]
         allowed = [v for v in new if inherited(v, args.inherited_from)]
         stop += [v for v in new if v not in allowed]
     else:
         stop += new
     lines = []
-    valid = {e["id"]: e for e in trivyignore_entries(text) if e["auto"] and e["exp"] >= today}
+    valid = {e["id"]: e for e in trivyignore_entries(text) if e["auto"] and e["exp"] > today}
     for v in kept:
         until = valid[v["id"]]["exp"].isoformat()
         annotate("warning", f"Temporary exception until {until}", vuln_text(v))

@@ -3,9 +3,10 @@
 # Copyright (C) 2026 Die SAMONBOARDING-Autoren
 # Patch day? – the second Tuesday of the month (like Microsoft's Patch Tuesday).
 #
-# Security updates are published only then: once a month, predictable for admins, the same day in Catalytix,
+# The regular security update comes then: once a month, predictable for admins, the same day in Catalytix,
 # AssetLotse, Pocket Knife, SAMAUDIT and SAMonboarding. A cron line cannot say "second Tuesday" (day of month and
-# weekday are OR-ed), so the security update workflow starts every Tuesday and this script decides.
+# weekday are OR-ed), so the security update workflow starts every day and this script decides (on other days the
+# workflow only goes on if the published image has a vulnerability with a fix - then it comes earlier).
 #
 #   patchday.sh              today (UTC)
 #   patchday.sh 2026-11-10   a given day

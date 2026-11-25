@@ -346,10 +346,12 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add images.lock os-packages.lock requirements.txt package.json package-lock.json CHANGELOG.de.md CHANGELOG.md .trivyignore
           if [ "$COMMIT" = true ]; then
+            git add images.lock os-packages.lock requirements.txt package.json package-lock.json CHANGELOG.de.md CHANGELOG.md .trivyignore
             git commit -q -m "Security update $TAG (same program, updated packages)"
           else
+            # only the exceptions: renewed pins that were not built and tested (plan "nothing") are never committed
+            git add .trivyignore
             git commit -q -m "Temporary Trivy exceptions updated (automatic, $TAG)"
           fi
           auth="$(printf 'x-access-token:%s' "$GH_TOKEN" | base64 -w0)"
