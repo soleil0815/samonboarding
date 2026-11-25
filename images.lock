@@ -1,6 +1,6 @@
 # Base of the build - exact versions with digest. Renewed by scripts/pins.py (weekly on GitHub), but only
 # within the base: Python 3.13, Node 24, Debian 13 "trixie". Raising the base is a deliberate, manual change.
 # DEBIAN_SNAPSHOT: Debian packages from snapshot.debian.org as of this time (same time = same packages).
-PYTHON_IMAGE=python:3.13.18-slim-trixie@sha256:e48f59cdba69a3cbd9ed2cf0f348d90d45a8d350d98134cf1070bc106ee9ed90
-NODE_IMAGE=node:24.22.2-trixie-slim@sha256:0820eaa85e07d0490446dd01d14707e17e6108a36988cf374899cd057eb3812d
-DEBIAN_SNAPSHOT=20261123T190000Z
+PYTHON_IMAGE=python:3.13.18-slim-trixie@sha256:7249d5587b78209a006dc4a3b5340678f84ea729239193aa559962cd8c1fce50
+NODE_IMAGE=node:24.22.3-trixie-slim@sha256:4d00acb4bcc42c454c4eb801526f7ad7f772ea3bd4fd168c5cc2e384abcbb9d4
+DEBIAN_SNAPSHOT=20261125T180000Z

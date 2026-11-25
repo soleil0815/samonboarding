@@ -7,6 +7,27 @@ Update auf dem Server: `sudo sh update.sh` oder `docker compose pull && docker c
 
 Einträge, die mit „Sicherheit:“ oder „Behoben:“ beginnen, werden in der Oberfläche entsprechend markiert.
 
+## 2.11.0-s1 – 2026-11-25
+- Sicherheit: Sicherheitsupdate ohne Programmänderung: gleiches Programm, aktualisierte Pakete.
+- Basis-Images:
+  - Python (python): `3.13.18-slim-trixie@e48f59cdba69` → `3.13.18-slim-trixie@7249d5587b78`
+  - Node (node): `24.22.2-trixie-slim@0820eaa85e07` → `24.22.3-trixie-slim@4d00acb4bcc4`
+- Debian-Pakete:
+  - libzstd1 `1.5.7+dfsg-1` → `1.5.7+dfsg-1+deb13u1`
+  - login.defs `1:4.17.4-2` → `1:4.17.4-2+deb13u1`
+  - passwd `1:4.17.4-2` → `1:4.17.4-2+deb13u1`
+- Python-Pakete:
+  - annotated-doc `0.0.5` → `0.0.7`
+  - certifi `2026.10.23` → `2026.11.20`
+  - charset-normalizer `3.5.2` → `3.5.3`
+  - fastapi `0.162.2` → `0.162.7`
+  - pydantic `2.14.3` → `2.14.4`
+  - pydantic_core `2.50.4` → `2.50.5`
+- npm-Pakete (nur beim Bauen der Oberfläche, nicht im Image):
+  - @jridgewell/resolve-uri `3.1.2` → `3.1.3`
+  - postcss `8.5.32` → `8.5.33`
+  - source-map-js `1.2.2` → `1.2.4`
+
 ## 2.11.0 – 2026-11-23
 - Geändert: Das Löschen eines einzelnen Kontos läuft jetzt wie die Sammellöschung als Auftrag auf dem Server. Seite schließen, neu laden oder ein Zeitlimit des Proxys spielen keine Rolle mehr: Die Löschung läuft weiter, und die Ergebnis-Mail kommt in jedem Fall.
   - Laufende Löschungen werden wiedergefunden: Öffnet ein Administrator **Konten löschen** erneut (auch nach Neuladen oder neuer Anmeldung), zeigt die Seite die laufende oder gerade beendete Löschung mit Fortschritt und Ergebnis – bei Einzel- und Sammellöschung. **Ergebnis ausblenden** nimmt sie von der Seite und aus dem Arbeitsspeicher (in den Berichten bleibt sie).

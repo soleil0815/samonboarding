@@ -7,6 +7,27 @@ Update on the server: `sudo sh update.sh` or `docker compose pull && docker comp
 
 Entries starting with "Security:" or "Fixed:" are marked accordingly in the interface.
 
+## 2.11.0-s1 – 2026-11-25
+- Security: security update without program changes: same program, updated packages.
+- Base images:
+  - Python (python): `3.13.18-slim-trixie@e48f59cdba69` → `3.13.18-slim-trixie@7249d5587b78`
+  - Node (node): `24.22.2-trixie-slim@0820eaa85e07` → `24.22.3-trixie-slim@4d00acb4bcc4`
+- Debian packages:
+  - libzstd1 `1.5.7+dfsg-1` → `1.5.7+dfsg-1+deb13u1`
+  - login.defs `1:4.17.4-2` → `1:4.17.4-2+deb13u1`
+  - passwd `1:4.17.4-2` → `1:4.17.4-2+deb13u1`
+- Python packages:
+  - annotated-doc `0.0.5` → `0.0.7`
+  - certifi `2026.10.23` → `2026.11.20`
+  - charset-normalizer `3.5.2` → `3.5.3`
+  - fastapi `0.162.2` → `0.162.7`
+  - pydantic `2.14.3` → `2.14.4`
+  - pydantic_core `2.50.4` → `2.50.5`
+- npm packages (only for building the interface, not in the image):
+  - @jridgewell/resolve-uri `3.1.2` → `3.1.3`
+  - postcss `8.5.32` → `8.5.33`
+  - source-map-js `1.2.2` → `1.2.4`
+
 ## 2.11.0 – 2026-11-23
 - Changed: deleting a single account now also runs as a job on the server, like the batch deletion. Closing the page, reloading it or a proxy timeout no longer matters: the deletion continues, and the result mail is sent in any case.
   - Running deletions are found again: when an administrator opens **Delete accounts** again (also after reloading or signing in again), the page shows the running or just-finished deletion with its progress and result – for single and batch deletions. **Hide result** removes it from the page and from memory (it stays in the reports).
