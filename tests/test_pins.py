@@ -10,6 +10,7 @@ import tempfile
 import unittest
 from contextlib import redirect_stderr, redirect_stdout
 from pathlib import Path
+from unittest import mock
 
 import _paths
 
@@ -372,6 +373,194 @@ class TrivyTests(unittest.TestCase):
         code, _, err = run_main("scan", "samonboarding:test")
         self.assertEqual(code, 1)  # Trivy itself failed: publish nothing in that case either
         self.assertIn("could not scan", err)
+
+
+HEAD = "# Kopf\n#\n# Empty = nothing is ignored.\n"
+MANUAL = "# libfoo: nur im Druckdienst - geprueft 2026-11-01\nCVE-M exp:2027-03-01\n"
+ZSTD = {
+    "VulnerabilityID": "CVE-Z",
+    "PkgName": "libzstd1",
+    "InstalledVersion": "1.5.7+dfsg-1",
+    "FixedVersion": "1.5.7+dfsg-1+deb13u1",
+    "Severity": "HIGH",
+}
+SSL = {
+    "VulnerabilityID": "CVE-S",
+    "PkgName": "libssl3t64",
+    "InstalledVersion": "3.5.1-1",
+    "FixedVersion": "3.5.1-1+deb13u2",
+    "Severity": "CRITICAL",
+}
+PYPKG = {"VulnerabilityID": "CVE-P", "PkgName": "cryptography", "InstalledVersion": "46.0.1",
+         "FixedVersion": "46.0.2", "Severity": "HIGH"}  # fmt: skip
+
+
+def report(*vulns):
+    return {"Results": [{"Target": "img (debian 13.8)", "Vulnerabilities": list(vulns)}]}
+
+
+class TemporaryExceptionTests(unittest.TestCase):
+    """Automatic temporary exceptions: fix announced, but not installable in the build yet (2026-11)."""
+
+    today = dt.date(2026, 11, 25)
+
+    def needed(self, *vulns):
+        found = pins.trivy_vulns(report(*vulns))
+        return pins.auto_needed({"kept": {}, "expired": {}, "new": {v["id"]: [v] for v in found}})
+
+    def test_new_exception_high_14_critical_7_days(self):
+        text = pins.apply_auto_exceptions(HEAD + "\n" + MANUAL, self.needed(ZSTD, SSL), self.today)
+        entries = {e["id"]: e for e in pins.trivyignore_entries(text)}
+        self.assertEqual(entries["CVE-Z"]["exp"], dt.date(2026, 12, 9))
+        self.assertEqual(entries["CVE-S"]["exp"], dt.date(2026, 12, 2))
+        self.assertTrue(entries["CVE-Z"]["auto"] and entries["CVE-S"]["auto"])
+        self.assertFalse(entries["CVE-M"]["auto"])  # the manual part stays as it is
+        self.assertIn("libzstd1 1.5.7+dfsg-1 (fix 1.5.7+dfsg-1+deb13u1)", entries["CVE-Z"]["reason"])
+        self.assertTrue(text.startswith(HEAD + "\n" + MANUAL))
+        self.assertEqual(pins.trivyignore_problems(text, self.today), [])  # reason and expiry date: like by hand
+        self.assertEqual(pins.manual_trivyignore(text).strip(), (HEAD + "\n" + MANUAL).strip())
+
+    def test_never_extended_removed_when_fixed_never_renewed_after_expiry(self):
+        first = pins.apply_auto_exceptions(HEAD, self.needed(ZSTD), self.today)
+        later = pins.apply_auto_exceptions(first, self.needed(ZSTD), self.today + dt.timedelta(days=10))
+        self.assertEqual(later, first)  # same date, same reason - the time limit is never extended
+        fixed = pins.apply_auto_exceptions(first, {}, self.today + dt.timedelta(days=3))
+        self.assertEqual(fixed.strip(), HEAD.strip())  # fix in the build: entry gone
+        after = pins.apply_auto_exceptions(first, self.needed(ZSTD), self.today + dt.timedelta(days=15))
+        self.assertEqual(after, first)  # expired but still found: stays as it is (never a fresh date), scan stops
+        on_expiry_day = self.today + dt.timedelta(days=14)
+        groups = pins.classify_vulns(pins.trivy_vulns(report(ZSTD)), pins.trivyignore_entries(first), on_expiry_day)
+        self.assertEqual(set(groups["expired"]), {"CVE-Z"})  # like Trivy: from the expiry date on it counts again
+        self.assertEqual(pins.apply_auto_exceptions(first, pins.auto_needed(groups), on_expiry_day), first)
+        manual_expired = HEAD + "\n# geprueft\nCVE-Z exp:2026-11-01\n"
+        self.assertNotIn("automatic", pins.apply_auto_exceptions(manual_expired, self.needed(ZSTD), self.today))
+        manual_valid = HEAD + "\n# geprueft\nCVE-Z exp:2027-01-01\n"
+        self.assertNotIn("automatic", pins.apply_auto_exceptions(manual_valid, self.needed(ZSTD), self.today))
+
+    def test_severity_raised_shortens_and_hand_edits_are_refused(self):
+        first = pins.apply_auto_exceptions(HEAD, self.needed(ZSTD), self.today)
+        critical = dict(ZSTD, Severity="CRITICAL")
+        raised = pins.apply_auto_exceptions(first, self.needed(critical), self.today + dt.timedelta(days=3))
+        entry = pins.trivyignore_entries(raised)[0]
+        self.assertEqual((entry["exp"], entry["severity"]), (dt.date(2026, 12, 2), "CRITICAL"))  # 7 days from the start
+        self.assertEqual(pins.trivyignore_problems(raised, self.today), [])
+        extended = first.replace("CVE-Z exp:2026-12-09", "CVE-Z exp:2027-06-01")
+        self.assertIn("longer than 14 days", pins.trivyignore_problems(extended, self.today)[0])
+        by_hand_below = first + "\n# geprueft\nCVE-Q exp:2027-01-01\n"
+        self.assertIn("move it above", pins.trivyignore_problems(by_hand_below, self.today)[0])
+        # a reason by hand that happens to start like an automatic one, above the line, stays a manual exception
+        manual = HEAD + "\n# automatic backup tool: never runs - checked\nCVE-B exp:2027-01-01\n"
+        self.assertFalse(pins.trivyignore_entries(manual)[0]["auto"])
+        self.assertIn("CVE-B exp:2027-01-01", pins.apply_auto_exceptions(manual, {}, self.today))
+
+    def test_classify(self):
+        text = HEAD + "\n# geprueft\nCVE-S exp:2026-11-01\n\n# geprueft\nCVE-P exp:2027-01-01\n"
+        text = pins.apply_auto_exceptions(text, self.needed(ZSTD), self.today)
+        groups = pins.classify_vulns(
+            pins.trivy_vulns(report(ZSTD, SSL, PYPKG)), pins.trivyignore_entries(text), self.today
+        )
+        self.assertEqual(
+            (set(groups["kept"]), set(groups["expired"]), set(groups["new"])), ({"CVE-Z"}, {"CVE-S"}, set())
+        )
+        later = self.today + dt.timedelta(days=15)
+        groups = pins.classify_vulns(pins.trivy_vulns(report(ZSTD)), pins.trivyignore_entries(text), later)
+        self.assertEqual(set(groups["expired"]), {"CVE-Z"})
+
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.path = os.environ.get("PATH", "")
+
+    def tearDown(self):
+        os.environ["PATH"] = self.path
+        self.tmp.cleanup()
+
+    fake_trivy = TrivyTests.fake_trivy
+
+    def scan(self, ignore, vulns, *argv):
+        os.environ["PATH"] = self.fake_trivy(report(*vulns)) + os.pathsep + self.path
+        with (
+            mock.patch.object(pins, "read_text", lambda name, root=None: ignore),
+            mock.patch.object(pins.dt, "date", wraps=dt.date) as fake_date,
+        ):
+            fake_date.today.return_value = self.today
+            return run_main("scan", "img", *argv)
+
+    @unittest.skipIf(os.name != "posix", "nur unter Linux")
+    def test_release_and_security_update_do_not_stop_but_record(self):
+        out_file = Path(self.tmp.name) / "auto.json"
+        code, out, _ = self.scan(HEAD, [ZSTD], "--auto-out", str(out_file))
+        self.assertEqual(code, 0)
+        self.assertIn("temporary exception", out)
+        self.assertEqual(json.loads(out_file.read_text())["CVE-Z"]["severity"], "HIGH")
+        # an expired exception always stops - also the security update
+        expired = pins.apply_auto_exceptions(HEAD, self.needed(ZSTD), self.today - dt.timedelta(days=20))
+        code, _, err = self.scan(expired, [ZSTD], "--auto-out", str(out_file))
+        self.assertEqual(code, 1)
+        self.assertIn("expired", err)
+
+    @unittest.skipIf(os.name != "posix", "nur unter Linux")
+    def test_strict_scan_respects_valid_exception(self):
+        valid = pins.apply_auto_exceptions(HEAD, self.needed(ZSTD), self.today - dt.timedelta(days=2))
+        code, out, _ = self.scan(valid, [ZSTD])
+        self.assertEqual(code, 0)
+        self.assertIn("Temporary exception until 2026-12-07", out)
+        code, _, err = self.scan(valid, [ZSTD, SSL])
+        self.assertEqual(code, 1)  # a finding without an exception still stops
+        self.assertIn("CVE-S", err)
+
+    @unittest.skipIf(os.name != "posix", "nur unter Linux")
+    def test_pull_request_only_stops_for_what_it_brings_in(self):
+        old = {
+            "os-packages.lock": "amd64 libzstd1=1.5.7+dfsg-1\narm64 libzstd1=1.5.7+dfsg-1\n",
+            "requirements.txt": "cryptography==46.0.0\n",
+        }
+        with mock.patch.object(pins, "git_show", lambda rev, name: old.get(name, "")):
+            pins.inherited.__dict__.pop("cache", None)
+            code, out, _ = self.scan(HEAD, [ZSTD], "--inherited-from", "HEAD^1")
+            self.assertEqual(code, 0)  # same version already on main: the security update there handles it
+            self.assertIn("already on main", out)
+            code, _, err = self.scan(HEAD, [ZSTD, PYPKG], "--inherited-from", "HEAD^1")
+            self.assertEqual(code, 1)  # cryptography 46.0.1 is new in this pull request
+            self.assertIn("CVE-P", err)
+            self.assertNotIn("CVE-Z", err.split("vulnerabilities")[1].split("\n", 1)[1])
+            # an exception is per CVE: another package with the same CVE that the PR brings in still stops it
+            valid = pins.apply_auto_exceptions(HEAD, self.needed(ZSTD), self.today)
+            other = dict(ZSTD, PkgName="zstd", InstalledVersion="1.5.7+dfsg-1")
+            code, _, err = self.scan(valid, [ZSTD, other], "--inherited-from", "HEAD^1")
+            self.assertEqual(code, 1)
+            self.assertIn("CVE-Z zstd", err)
+        pins.inherited.__dict__.pop("cache", None)
+
+    @unittest.skipIf(os.name != "posix", "nur unter Linux")
+    def test_report_only_for_the_daily_start(self):
+        valid = pins.apply_auto_exceptions(HEAD, self.needed(ZSTD), self.today)
+        self.assertEqual(self.scan(valid, [ZSTD], "--report-only")[0], 3)  # behind an exception: try again
+        self.assertEqual(self.scan(HEAD, [], "--report-only")[0], 0)
+        self.assertEqual(self.scan(HEAD + "\n# geprueft\nCVE-Z exp:2027-01-01\n", [], "--report-only")[0], 0)
+
+    def test_trivyignore_auto_command_and_release_notes(self):
+        root = Path(self.tmp.name)
+        (root / ".trivyignore").write_text(HEAD, encoding="utf-8")
+        for lang, name in pins.CHANGELOGS.items():
+            (root / name).write_text(f"# Changelog\n\n## 2.11.0 – 2026-11-23\n- Eintrag {lang}\n", encoding="utf-8")
+        parts = []
+        for n, vuln in enumerate((ZSTD, SSL)):
+            path = root / f"auto-{n}.json"
+            path.write_text(json.dumps(self.needed(vuln)), encoding="utf-8")
+            parts.append(str(path))
+        with mock.patch.object(pins, "ROOT", root):
+            code, out, _ = run_main("trivyignore-auto", *parts, str(root / "missing.json"))
+            self.assertEqual(code, 0)
+            self.assertIn("2 automatic temporary exception(s)", out)
+            text = (root / ".trivyignore").read_text(encoding="utf-8")
+            self.assertIn("CVE-Z exp:", text)
+            self.assertIn("CVE-S exp:", text)
+            notes = pins.release_notes("2.11.0", "ghcr.io/x/samonboarding", root)
+            self.assertIn("Temporary exceptions", notes)
+            self.assertIn("CVE-S", notes)
+            code, out, _ = run_main("trivyignore-auto")  # nothing found any more: removed
+            self.assertNotIn("CVE-", (root / ".trivyignore").read_text(encoding="utf-8"))
+            self.assertNotIn("Temporary exceptions", pins.release_notes("2.11.0", "ghcr.io/x/samonboarding", root))
 
 
 class RunTests(unittest.TestCase):

@@ -1,6 +1,8 @@
 # Checks that change nothing and publish nothing:
 #  - every day: scan the published image (:latest) with Trivy - reports vulnerabilities that only became known after
-#    the release. Remedy: start the security update by hand (Actions -> Image -> Run workflow).
+#    the release. Runs after the daily security update (image.yml, 05:17 UTC), which starts by itself when the
+#    published image has a vulnerability with a fix and either fixes it or sets a temporary exception - so this run
+#    is only red if that did not help (e.g. the update itself failed or an exception has expired).
 #  - every Monday: how long do Debian, Python and Node still get security updates (endoflife.date)?
 #    12 months before the end: a note on the run page; 6 months before: a red run (GitHub sends an e-mail).
 #    Raising the base is never done automatically.
@@ -8,7 +10,7 @@ name: Checks
 
 on:
   schedule:
-    - cron: "43 3 * * *" # every day 03:43 UTC: scan of the published image
+    - cron: "43 7 * * *" # every day 07:43 UTC (after the security update at 05:17): scan of the published image
     - cron: "29 6 * * 1" # Mondays 06:29 UTC: support of the base
   workflow_dispatch:
 
@@ -16,7 +18,7 @@ permissions: {}
 
 jobs:
   scan-published:
-    if: github.event_name == 'workflow_dispatch' || github.event.schedule == '43 3 * * *'
+    if: github.event_name == 'workflow_dispatch' || github.event.schedule == '43 7 * * *'
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     permissions:
@@ -47,7 +49,7 @@ jobs:
 
       - name: Vulnerability scan (Trivy)
         run: |
-          hint="Remedy: start the security update by hand (Actions -> Image -> Run workflow). If no fix is available yet, wait for the next run."
+          hint="Remedy: look at today's security update (Actions -> Image). It starts every day by itself when the published image has a vulnerability with a fix. An expired temporary exception needs a decision by hand."
           python3 scripts/pins.py scan published:amd64 --label "published :latest amd64" --hint "$hint"
           python3 scripts/pins.py scan published:arm64 --label "published :latest arm64" --hint "$hint"
 

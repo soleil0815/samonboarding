@@ -7,10 +7,14 @@
 #   versions are never overwritten). Release page with docker-compose.yml, env.example and the image files
 #   (docker load, for servers without internet).
 # Security update (on patch day – the second Tuesday of the month, like Microsoft's Patch Tuesday, the same day in all
-#   programs – 05:17 UTC, or by hand at any time; the schedule starts every Tuesday, scripts/patchday.sh only lets the
-#   second one through): renew the pins within the base (scripts/pins.py update), build
+#   programs – 05:17 UTC, or by hand at any time; the schedule starts every day, scripts/patchday.sh lets the second
+#   Tuesday through, and on any other day it only goes on if Trivy finds a HIGH/CRITICAL vulnerability with an
+#   announced fix in the published image): renew the pins within the base (scripts/pins.py update), build
 #   without cache, test in the image, scan with Trivy. Only if everything passed: commit the new pins with a changelog
 #   entry and publish as :<version>-s<counter>. If no package changed: nothing happens.
+#   If a fix is announced but not installable yet (e.g. not on the Debian mirror), the finding gets a temporary
+#   exception in .trivyignore (HIGH 14 days, CRITICAL 7, never extended); the daily run tries again until the fix is
+#   in the build and then removes it. After the expiry date the run is red again.
 # :latest only goes to the highest version. On other branches every run is a dry run: nothing is committed or published.
 # If a step fails nothing is published, GitHub sends an e-mail and the cause is shown on the run page.
 #
@@ -25,7 +29,7 @@ on:
   push:
     branches: [main]
   schedule:
-    - cron: "17 5 * * 2" # Tuesdays 05:17 UTC: security update within the base, only on patch day (job patchday)
+    - cron: "17 5 * * *" # every day 05:17 UTC: security update on patch day, or when the published image needs a fix
   workflow_dispatch:
     inputs:
       mode:
@@ -44,10 +48,12 @@ concurrency:
 
 jobs:
   patchday:
-    # scheduled: only the Tuesday run on patch day goes on (a cron line cannot say "second Tuesday"); by hand: any day
+    # scheduled: the run on patch day goes on (a cron line cannot say "second Tuesday"), on other days only if the
+    # published image has a HIGH/CRITICAL vulnerability with an announced fix (also one behind a temporary exception:
+    # try every day to get the fix); by hand: any day
     if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-24.04
-    timeout-minutes: 5
+    timeout-minutes: 20
     permissions:
       contents: read
     outputs:
@@ -56,18 +62,48 @@ jobs:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           persist-credentials: false
-          sparse-checkout: scripts/patchday.sh
+          sparse-checkout: |
+            scripts/patchday.sh
+            scripts/pins.py
+            scripts/install-trivy.sh
+            .trivyignore
           sparse-checkout-cone-mode: false
-      - name: Patch day?
+      - name: Patch day, or a vulnerability with a fix in the published image?
         id: check
         env:
           EVENT: ${{ github.event_name }}
+          IMAGE: ghcr.io/${{ github.repository }}
         run: |
           if [ "$EVENT" != schedule ] || sh scripts/patchday.sh; then
             echo "due=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          sh scripts/install-trivy.sh
+          export PATH="$RUNNER_TEMP/trivy-bin:$PATH" # GITHUB_PATH only applies to later steps
+          # pulled like by any user, without login (whether it is public is checked by checks.yml every day)
+          export DOCKER_CONFIG="$RUNNER_TEMP/no-login"
+          mkdir -p "$DOCKER_CONFIG"
+          due=false
+          for arch in amd64 arm64; do
+            if ! docker pull -q --platform "linux/$arch" "$IMAGE:latest" > /dev/null; then
+              echo "::warning title=Security update::$IMAGE:latest ($arch) could not be pulled - not started today"
+              echo "due=false" >> "$GITHUB_OUTPUT"
+              exit 0
+            fi
+            docker tag "$IMAGE:latest" "published:$arch"
+            code=0
+            python3 scripts/pins.py scan "published:$arch" --label "published :latest $arch" --report-only || code=$?
+            case "$code" in
+              0) ;;
+              3) due=true ;;
+              *) echo "::warning title=Security update::Trivy could not scan $arch - not started today"; echo "due=false" >> "$GITHUB_OUTPUT"; exit 0 ;;
+            esac
+          done
+          echo "due=$due" >> "$GITHUB_OUTPUT"
+          if [ "$due" = true ]; then
+            echo "::notice title=Security update::The published image has a vulnerability with an announced fix - security update starts now."
           else
-            echo "due=false" >> "$GITHUB_OUTPUT"
-            echo "::notice title=Security update::Not patch day - the security update runs on the second Tuesday of the month."
+            echo "::notice title=Security update::Not patch day and nothing to fix in the published image."
           fi
 
   check:
@@ -85,7 +121,7 @@ jobs:
     needs: patchday
     if: needs.patchday.outputs.due == 'true'
     permissions:
-      contents: write # only for the commit of a security update (main only)
+      contents: write # only for the commit of a security update or of temporary exceptions (main only)
       packages: write # only for publishing the image (main only)
     uses: ./.github/workflows/build.yml
     with:

@@ -9,4 +9,10 @@
 #   # libfoo: only used by the print service, which never runs in the container - checked 2026-10-25
 #   CVE-2026-12345 exp:2027-01-31
 #
-# Empty = nothing is ignored.
+# Automatic temporary exceptions: if a fix is announced but the fixed package is not installable in the build yet, the
+# security update (and the release) enter the finding below the line "Automatic temporary exceptions" themselves -
+# HIGH for 14 days, CRITICAL for 7, never extended. The daily security update tries to get the fix every day and
+# removes the entry as soon as it is in the build; after the expiry date the run is red again. Do not edit those
+# entries by hand (a reason line starting with "# automatic " marks them).
+#
+# Without entries = nothing is ignored.

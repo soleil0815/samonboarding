@@ -7,12 +7,15 @@
 # Each platform is built, tested and scanned on its own hardware (amd64: ubuntu-24.04, arm64: ubuntu-24.04-arm), both
 # at the same time - no emulation (arm64 under QEMU made a run take 12-16 minutes). Order:
 #   prepare  code checks; security update: renew the pins (once, handed to every later job)
-#   probe    security update only: each platform builds without cache and pins its Debian packages
-#   plan     security update: os-packages.lock from both parts, changes, changelog entry; then version number,
-#            publish or not, latest
+#   probe    security update only: each platform builds without cache, pins its Debian packages and is scanned:
+#            what still has a HIGH/CRITICAL finding with an announced fix cannot be fixed in the build yet
+#   plan     security update: os-packages.lock from both parts, temporary exceptions in .trivyignore (from the
+#            probe scans), changes, changelog entry; then version number, publish or not, latest
 #   image    each platform: final build without cache (with version label), Debian packages compared with
-#            os-packages.lock, tests in the image, start check, Trivy; publishing: push exactly this image untagged
-#   publish  dry run, or: commit the new pins, tag BOTH checked images together, release page
+#            os-packages.lock, tests in the image, start check, Trivy; publishing: push exactly this image untagged.
+#            Trivy stops on HIGH/CRITICAL with a fix, except: check - a finding already on main in the same version
+#            only warns (the security update there handles it); release - a new finding gets a temporary exception
+#   publish  dry run, or: commit the new pins and .trivyignore, tag BOTH checked images together, release page
 name: Build
 
 on:
@@ -99,6 +102,9 @@ jobs:
           path: .
       - uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3
 
+      - name: Install Trivy (fixed version, SHA-256 checked, no GitHub Action)
+        run: sh scripts/install-trivy.sh
+
       - name: Build without cache
         run: |
           args="$(python3 scripts/pins.py build-args)"
@@ -110,10 +116,17 @@ jobs:
           python3 scripts/pins.py os-lock "samonboarding:probe-$ARCH" --arch "$ARCH"
           mkdir -p "$RUNNER_TEMP/os"
           grep "^$ARCH " os-packages.lock > "$RUNNER_TEMP/os/os-$ARCH.txt"
+
+      # With the newest packages: whatever still has a fix announced cannot be fixed in the build yet - it gets a
+      # temporary exception (plan). An exception that has expired stops here.
+      - name: Vulnerabilities that the update cannot fix yet (Trivy)
+        run: python3 scripts/pins.py scan "samonboarding:probe-$ARCH" --label "probe $ARCH" --auto-out "$RUNNER_TEMP/os/auto-$ARCH.json"
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: os-lock-${{ matrix.arch }}
-          path: ${{ runner.temp }}/os/os-${{ matrix.arch }}.txt
+          path: |
+            ${{ runner.temp }}/os/os-${{ matrix.arch }}.txt
+            ${{ runner.temp }}/os/auto-${{ matrix.arch }}.json
           retention-days: 3
 
   plan:
@@ -130,6 +143,7 @@ jobs:
       commit: ${{ steps.plan.outputs.commit }}
       minor: ${{ steps.plan.outputs.minor }}
       minor_latest: ${{ steps.plan.outputs.minor_latest }}
+      ignore_changed: ${{ steps.exceptions.outputs.changed }}
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
@@ -148,6 +162,11 @@ jobs:
       - name: Debian packages of both platforms (security update)
         if: env.MODE == 'security-update'
         run: python3 scripts/pins.py os-lock-merge "$RUNNER_TEMP/os/os-amd64.txt" "$RUNNER_TEMP/os/os-arm64.txt"
+
+      - name: Temporary exceptions (security update, from the scans of both platforms)
+        id: exceptions
+        if: env.MODE == 'security-update'
+        run: python3 scripts/pins.py trivyignore-auto "$RUNNER_TEMP/os/auto-amd64.json" "$RUNNER_TEMP/os/auto-arm64.json"
 
       - name: Changes and version limits
         id: changes
@@ -172,11 +191,12 @@ jobs:
         run: |
           mkdir -p "$RUNNER_TEMP/release"
           cp images.lock os-packages.lock requirements.txt package.json package-lock.json CHANGELOG.de.md CHANGELOG.md \
-            "$RUNNER_TEMP/release/"
+            .trivyignore "$RUNNER_TEMP/release/"
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: release-files
           path: ${{ runner.temp }}/release/
+          include-hidden-files: true # .trivyignore
           retention-days: 3
 
   image:
@@ -199,6 +219,7 @@ jobs:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           persist-credentials: false
+          fetch-depth: 2 # HEAD^1 = main before this change (pull request: the base; push: the previous state)
       - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           name: release-files
@@ -231,8 +252,24 @@ jobs:
           python3 scripts/pins.py smoke "samonboarding:test-$ARCH"
           python3 scripts/pins.py smoke "samonboarding:test-$ARCH" --as-root
 
+      # Only HIGH/CRITICAL with an available fix stop. check: a finding that is already on main in the same version
+      # only warns - the change did not bring it in, the daily security update on main handles it. release: a new
+      # finding gets a temporary exception (committed with the release). security update: the exceptions were
+      # already set from the probe scans. An expired exception always stops.
       - name: Vulnerability scan (Trivy, only HIGH/CRITICAL with an available fix stop)
-        run: python3 scripts/pins.py scan "samonboarding:test-$ARCH" --label "$TAG $ARCH"
+        run: |
+          mkdir -p "$RUNNER_TEMP/auto"
+          case "$MODE" in
+            check) python3 scripts/pins.py scan "samonboarding:test-$ARCH" --label "$TAG $ARCH" --inherited-from HEAD^1 ;;
+            release) python3 scripts/pins.py scan "samonboarding:test-$ARCH" --label "$TAG $ARCH" --auto-out "$RUNNER_TEMP/auto/auto-$ARCH.json" ;;
+            *) python3 scripts/pins.py scan "samonboarding:test-$ARCH" --label "$TAG $ARCH" ;;
+          esac
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: env.MODE == 'release'
+        with:
+          name: auto-${{ matrix.arch }}
+          path: ${{ runner.temp }}/auto/auto-${{ matrix.arch }}.json
+          retention-days: 3
 
       # Same builder: every layer comes from the build above (exactly the checked image). Pushed WITHOUT a tag - the
       # tags are set in the publish job only when both platforms passed.
@@ -281,6 +318,18 @@ jobs:
           name: release-files
           path: .
 
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        if: env.MODE == 'release' && needs.image.result == 'success' && needs.plan.outputs.action == 'publish'
+        with:
+          pattern: auto-*
+          path: ${{ runner.temp }}/auto
+          merge-multiple: true
+
+      - name: Temporary exceptions (release, from the scans of both platforms)
+        id: exceptions
+        if: env.MODE == 'release' && needs.image.result == 'success' && needs.plan.outputs.action == 'publish'
+        run: python3 scripts/pins.py trivyignore-auto "$RUNNER_TEMP/auto/auto-amd64.json" "$RUNNER_TEMP/auto/auto-arm64.json"
+
       - name: Dry run - nothing is committed or published
         if: env.PUBLISH != 'true' && needs.plan.outputs.action != 'nothing'
         run: |
@@ -288,15 +337,23 @@ jobs:
           python3 scripts/pins.py release-notes "$TAG" --image "$IMAGE" >> "$GITHUB_STEP_SUMMARY"
           if [ "$MODE" = security-update ]; then python3 scripts/pins.py bundle; fi
 
-      - name: Commit the new pins and the changelog entry
-        if: env.PUBLISH == 'true' && needs.plan.outputs.commit == 'true'
+      # also when only the temporary exceptions changed (new one, or removed because the fix is in the build now)
+      - name: Commit the new pins, the changelog entry and the temporary exceptions
+        if: env.PUBLISH == 'true' && (needs.plan.outputs.commit == 'true' || needs.plan.outputs.ignore_changed == 'true' || steps.exceptions.outputs.changed == 'true')
         env:
           GH_TOKEN: ${{ github.token }}
+          COMMIT: ${{ needs.plan.outputs.commit }}
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add images.lock os-packages.lock requirements.txt package.json package-lock.json CHANGELOG.de.md CHANGELOG.md
-          git commit -q -m "Security update $TAG (same program, updated packages)"
+          if [ "$COMMIT" = true ]; then
+            git add images.lock os-packages.lock requirements.txt package.json package-lock.json CHANGELOG.de.md CHANGELOG.md .trivyignore
+            git commit -q -m "Security update $TAG (same program, updated packages)"
+          else
+            # only the exceptions: renewed pins that were not built and tested (plan "nothing") are never committed
+            git add .trivyignore
+            git commit -q -m "Temporary Trivy exceptions updated (automatic, $TAG)"
+          fi
           auth="$(printf 'x-access-token:%s' "$GH_TOKEN" | base64 -w0)"
           git -c "http.extraheader=AUTHORIZATION: basic $auth" push origin HEAD:main
 
