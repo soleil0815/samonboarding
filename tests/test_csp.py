@@ -4,6 +4,7 @@ the interface logic is served as /app.js, handlers are data-on-* attributes with
 import re
 import unittest
 from pathlib import Path
+from unittest import mock
 
 import _paths
 
@@ -72,8 +73,24 @@ class CspTests(unittest.TestCase):
     def test_script_is_served_with_version(self):
         ui = (ROOT / "samonboarding" / "routers" / "ui.py").read_text(encoding="utf-8")
         self.assertIn('@router.get("/app.js")', ui)
-        self.assertIn('load_app_js().replace("__APP_VERSION__", VERSION)', ui)
+        self.assertIn('load_app_js().replace("__APP_VERSION__", updatecheck.installed())', ui)
         self.assertIn("text/javascript", ui)
+
+    def test_page_shows_the_installed_release_with_security_update(self):
+        """After a security update the interface shows 2.11.0-s1, not only the program version 2.11.0."""
+        try:
+            from samonboarding.routers import ui
+        except ImportError as e:  # without the installed packages
+            self.skipTest(str(e))
+        with mock.patch.object(ui.updatecheck, "installed", return_value="9.8.7-s3"):
+            page = ui.serve_gui()
+            body = ui.serve_app_js().body
+            script = body.decode("utf-8") if isinstance(body, bytes) else str(body)  # stub: str
+        self.assertIn('<span class="version-chip">v9.8.7-s3</span>', page)
+        self.assertIn("SAMONBOARDING v9.8.7-s3</title>", page)
+        self.assertIn("/app.js?v=9.8.7-s3", page)  # new image: new address, no stale script from the cache
+        self.assertIn("SAMONBOARDING v9.8.7-s3", script)
+        self.assertNotIn("__APP_VERSION__", page + script)
 
 
 if __name__ == "__main__":

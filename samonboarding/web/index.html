@@ -107,7 +107,11 @@
         .version-chip {
             font: 500 10px/1.6 var(--mono); padding: 1px 6px; border-radius: 6px; margin-left: 4px;
             background: var(--selected); color: var(--text-3); vertical-align: 2px; letter-spacing: 0;
+            display: inline-block; white-space: nowrap;
         }
+        /* narrow sidebar: a long version (2.11.0-s1) moves below the name instead of being cut off */
+        .sidebar-brand .brand-word { white-space: normal; line-height: 1.35; }
+        .sidebar-brand .brand-word .version-chip { margin-left: 0; }
         .brand-mark { width: 34px; height: 34px; border-radius: 9px; display: grid; place-items: center; color: #fff; font-size: 16px; flex: none; background: var(--brand-tile); }
         .brand-mark-sm { width: 28px; height: 28px; border-radius: 8px; font-size: 13px; }
         .brand-glyph { width: 1.3em; height: 1.3em; display: block; }

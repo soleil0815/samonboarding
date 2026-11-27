@@ -7,6 +7,9 @@ Update on the server: `sudo sh update.sh` or `docker compose pull && docker comp
 
 Entries starting with "Security:" or "Fixed:" are marked accordingly in the interface.
 
+## 2.11.1 – 2026-11-27
+- Fixed: after a security update the interface still showed only the program version (e.g. *v2.11.0*). It now shows the installed release including the security update – *v2.11.0-s1* – next to the name, on the sign-in page, in the browser tab, in the start message of the log and in the test mail. In the narrow menu bar the version moves below the name instead of being cut off.
+
 ## 2.11.0-s1 – 2026-11-25
 - Security: security update without program changes: same program, updated packages.
 - Base images:
