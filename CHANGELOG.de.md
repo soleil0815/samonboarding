@@ -7,6 +7,9 @@ Update auf dem Server: `sudo sh update.sh` oder `docker compose pull && docker c
 
 Einträge, die mit „Sicherheit:“ oder „Behoben:“ beginnen, werden in der Oberfläche entsprechend markiert.
 
+## 2.11.1 – 2026-11-27
+- Behoben: Nach einem Sicherheitsupdate zeigte die Oberfläche nur die Programmversion (z. B. *v2.11.0*). Jetzt steht dort der installierte Stand samt Sicherheitsupdate – *v2.11.0-s1* – neben dem Namen, auf der Anmeldeseite, im Browser-Tab, in der Startmeldung des Protokolls und in der Test-Mail. In der schmalen Menüleiste rutscht die Version unter den Namen, statt abgeschnitten zu werden.
+
 ## 2.11.0-s1 – 2026-11-25
 - Sicherheit: Sicherheitsupdate ohne Programmänderung: gleiches Programm, aktualisierte Pakete.
 - Basis-Images:

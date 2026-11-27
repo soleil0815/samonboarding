@@ -14,7 +14,7 @@ from ldap3.core.exceptions import LDAPException
 from starlette.middleware.base import BaseHTTPMiddleware
 
 from . import i18n, offboard_store, privacy, reports, timing, updatecheck
-from .config import CONFIG_FILE, DATA_DIR, HTTPS_PORT, VERSION, default_config
+from .config import CONFIG_FILE, DATA_DIR, HTTPS_PORT, default_config
 from .routers import (
     auth,
     certificate,
@@ -66,7 +66,7 @@ async def _lifespan(app):
     )
     log.info(
         "SAMONBOARDING %s gestartet - HTTPS auf Port %s%s",
-        VERSION,
+        updatecheck.installed(),
         HTTPS_PORT,
         f", Zertifikat: {cert}" if cert else "",
     )

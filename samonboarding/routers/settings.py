@@ -6,6 +6,7 @@ import logging
 
 from fastapi import APIRouter, Depends, HTTPException
 
+from .. import updatecheck
 from ..audit import actor_name, audit
 from ..config import (
     EXCHANGE_CONFIG_FILE,
@@ -14,7 +15,6 @@ from ..config import (
     SMTP_CONFIG_FILE,
     SMTP_TLS_MODES,
     USERMGMT_CONFIG_FILE,
-    VERSION,
     default_offboarding_config,
     default_pwdreset_config,
     default_smtp_config,
@@ -229,7 +229,7 @@ def test_smtp(user: dict = Depends(get_current_user)):
         actor_name(user),
         "SAMONBOARDING Suite",
         "#0284c7",
-        f"Dies ist eine erfolgreiche Test-Mail der SAMONBOARDING Suite v{VERSION}.",
+        f"Dies ist eine erfolgreiche Test-Mail der SAMONBOARDING Suite v{updatecheck.installed()}.",
         [("Server:", f"{cfg.get('host')}:{cfg.get('port')} ({cfg.get('tlsMode')})", "mono")],
     )
     try:

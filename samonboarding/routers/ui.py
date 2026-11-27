@@ -13,7 +13,7 @@ from fastapi import APIRouter, FastAPI
 from fastapi.responses import HTMLResponse, Response
 from fastapi.staticfiles import StaticFiles
 
-from .. import i18n
+from .. import i18n, updatecheck
 from ..config import CONFIG_FILE, STATIC_DIR, VERSION, WEB_DIR, default_config
 from ..storage import load_json
 
@@ -85,7 +85,7 @@ def serve_app_js():
     """The interface logic as its own file, so the CSP can forbid inline scripts. The page links it with
     ?v=<version>: it may be kept for a day, an update changes the address."""
     return Response(
-        load_app_js().replace("__APP_VERSION__", VERSION),
+        load_app_js().replace("__APP_VERSION__", updatecheck.installed()),
         media_type="text/javascript; charset=utf-8",
         headers={"Cache-Control": "public, max-age=86400"},
     )
@@ -108,7 +108,7 @@ def serve_gui():
     return (
         load_index_html()
         .replace("__ASSET_HEAD__", asset_head())
-        .replace("__APP_VERSION__", VERSION)
+        .replace("__APP_VERSION__", updatecheck.installed())  # with the security update: 2.11.0-s1
         .replace("__APP_DOMAIN__", domain)
         .replace("__I18N__", i18n_json())
     )
